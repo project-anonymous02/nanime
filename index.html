@@ -1,0 +1,3877 @@
+<!DOCTYPE html><html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B0D12">
+<meta name="color-scheme" content="dark">
+<title>Nanime - Anime Streaming</title><style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0B0D12;--bg-2:#11141B;--bg-3:#161B24;
+  --text:#E8ECF3;--text-2:#B4BCC9;--text-3:#7A8396;
+  --primary:#6C8CFF;--primary-2:#8AA5FF;
+  --primary-soft:rgba(108,140,255,.15);
+  --accent:#FF6B9D;
+  --border:rgba(255,255,255,.08);
+  --border-2:rgba(255,255,255,.14);
+  --success:#34D399;--warning:#FBBF24;--error:#F87171;
+  --radius-lg:22px;--radius-md:16px;--radius-sm:12px;
+  --shadow:0 10px 40px rgba(0,0,0,.4);
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+html,body{
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  line-height:1.55;min-height:100vh;overflow-x:hidden
+}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+img{max-width:100%;display:block}
+input{font:inherit}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:10px}
+
+.sk{
+  background:linear-gradient(
+    90deg,
+    var(--bg-2) 25%,
+    var(--bg-3) 50%,
+    var(--bg-2) 75%
+  );
+  background-size:200% 100%;
+  animation:sh 1.4s infinite;
+  border-radius:var(--radius-md)
+}
+@keyframes sh{
+  0%{background-position:200% 0}
+  100%{background-position:-200% 0}
+}
+
+#toast{
+  position:fixed;left:50%;bottom:100px;
+  transform:translateX(-50%) translateY(100px);
+  background:var(--bg-3);
+  border:1px solid var(--border-2);
+  padding:12px 18px;border-radius:var(--radius-sm);
+  z-index:9999;opacity:0;
+  transition:all .3s var(--ease);
+  box-shadow:var(--shadow);
+  max-width:90vw;font-size:14px
+}
+#toast.show{
+  opacity:1;
+  transform:translateX(-50%) translateY(0)
+}
+#toast.err{border-color:var(--error)}
+#toast.ok{border-color:var(--success)}
+
+#app{padding-bottom:80px;min-height:100vh}
+.container{max-width:1400px;margin:0 auto;padding:16px}
+
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:rgba(11,13,18,.85);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  padding:12px 16px;
+  display:flex;align-items:center;gap:12px
+}
+.topbar .logo,
+.sidebar .logo{
+  display:flex;align-items:center;gap:10px;
+  font-weight:900;
+  background:linear-gradient(135deg,var(--primary),var(--accent));
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent
+}
+.topbar .logo{font-size:18px}
+.sidebar .logo{
+  font-size:21px;
+  margin-bottom:20px
+}
+.topbar .back{
+  width:40px;height:40px;
+  border-radius:10px;
+  display:grid;place-items:center;
+  background:var(--bg-2);
+  border:1px solid var(--border)
+}
+.spacer{flex:1}
+.icon-btn{
+  width:40px;height:40px;
+  border-radius:10px;
+  display:grid;place-items:center;
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  transition:.2s
+}
+.icon-btn:active{transform:scale(.94)}
+
+.sidebar{
+  display:none;
+  position:fixed;left:0;top:0;bottom:0;
+  width:260px;
+  background:var(--bg-2);
+  border-right:1px solid var(--border);
+  padding:20px;
+  z-index:90;
+  flex-direction:column;gap:8px
+}
+.nav-item{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 14px;
+  border-radius:var(--radius-sm);
+  color:var(--text-2);
+  font-weight:500;
+  transition:.2s;
+  border:1px solid transparent;
+  cursor:pointer
+}
+.nav-item:hover{background:var(--bg-3);color:var(--text)}
+.nav-item.active{
+  background:var(--primary-soft);
+  color:var(--primary-2);
+  border-color:rgba(108,140,255,.3)
+}
+.sidebar .status{
+  margin-top:auto;
+  padding:12px;
+  border-radius:var(--radius-sm);
+  background:var(--bg-3);
+  border:1px solid var(--border);
+  font-size:12px;color:var(--text-3)
+}
+.status .dot{
+  display:inline-block;
+  width:8px;height:8px;
+  border-radius:50%;
+  background:var(--text-3);
+  margin-right:6px
+}
+.status .dot.on{
+  background:var(--success);
+  box-shadow:0 0 10px rgba(52,211,153,.5)
+}
+.status .dot.off{background:var(--error)}
+
+.tabbar{
+  position:fixed;
+  bottom:0;left:0;right:0;
+  background:rgba(11,13,18,.9);
+  backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:flex;
+  justify-content:space-around;
+  padding:8px 0 calc(8px + env(safe-area-inset-bottom));
+  z-index:99
+}
+.tab-item{
+  flex:1;
+  display:flex;flex-direction:column;
+  align-items:center;gap:4px;
+  font-size:11px;color:var(--text-3);
+  padding:6px 0;transition:.2s
+}
+.tab-item.active{color:var(--primary-2)}
+.tab-item svg{width:22px;height:22px}
+
+.hero{
+  position:relative;
+  border-radius:var(--radius-lg);
+  overflow:hidden;
+  margin-bottom:24px;
+  aspect-ratio:16/9;
+  box-shadow:var(--shadow);
+  border:1px solid var(--border)
+}
+.hero video{
+  width:100%;height:100%;
+  object-fit:cover;
+  pointer-events:none;
+  opacity:.55
+}
+.hero .overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(
+    180deg,
+    transparent 30%,
+    rgba(11,13,18,.96)
+  );
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  padding:20px
+}
+.hero h1{
+  font-size:clamp(28px,6vw,52px);
+  font-weight:900;
+  letter-spacing:-.02em;
+  background:linear-gradient(
+    135deg,#fff,var(--primary-2),var(--accent)
+  );
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  margin-bottom:6px
+}
+.hero p{
+  color:var(--text-2);
+  font-size:clamp(12px,2.5vw,15px);
+  max-width:650px
+}
+
+.searchbar{
+  display:flex;align-items:center;gap:10px;
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  border-radius:var(--radius-md);
+  padding:12px 14px;
+  margin-bottom:20px;
+  transition:.2s
+}
+.searchbar:focus-within{
+  border-color:var(--primary);
+  box-shadow:0 0 0 4px var(--primary-soft)
+}
+.searchbar input{
+  flex:1;background:none;border:0;
+  outline:0;color:var(--text);
+  font-size:15px
+}
+.searchbar input::placeholder{color:var(--text-3)}
+
+.section-title{
+  font-size:18px;font-weight:700;
+  margin:24px 0 14px;
+  display:flex;align-items:center;gap:10px
+}
+.section-title::before{
+  content:"";
+  width:4px;height:20px;
+  background:var(--primary);
+  border-radius:4px
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+  gap:14px
+}
+.card{
+  background:var(--bg-2);
+  border-radius:var(--radius-md);
+  overflow:hidden;
+  border:1px solid var(--border);
+  transition:.25s var(--ease);
+  cursor:pointer;
+  position:relative
+}
+.card:hover{
+  transform:translateY(-4px) scale(1.02);
+  border-color:var(--border-2);
+  box-shadow:var(--shadow)
+}
+.card .poster{
+  aspect-ratio:2/3;
+  overflow:hidden;
+  background:var(--bg-3)
+}
+.card .poster img{
+  width:100%;height:100%;
+  object-fit:cover;
+  transition:.4s;opacity:0
+}
+.card .poster img.loaded{opacity:1}
+.card:hover .poster img{transform:scale(1.06)}
+.card .info{padding:10px}
+.card .title{
+  font-size:13px;font-weight:600;
+  line-height:1.3;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  min-height:34px
+}
+.card .meta{
+  display:flex;
+  justify-content:space-between;
+  gap:6px;
+  font-size:11px;
+  color:var(--text-3);
+  margin-top:6px
+}
+.card .score{
+  color:var(--warning);
+  font-weight:700
+}
+.card .provider{
+  position:absolute;top:8px;left:8px;
+  background:rgba(0,0,0,.7);
+  backdrop-filter:blur(10px);
+  padding:3px 8px;
+  border-radius:6px;
+  font-size:10px;
+  font-weight:600;
+  color:var(--primary-2);
+  border:1px solid var(--border)
+}
+.card .fav{
+  position:absolute;top:8px;right:8px;
+  width:32px;height:32px;
+  border-radius:50%;
+  background:rgba(0,0,0,.7);
+  display:grid;place-items:center;
+  border:1px solid var(--border);
+  transition:.2s;
+  font-size:14px
+}
+.card .fav.on{
+  background:var(--accent);
+  border-color:var(--accent)
+}
+
+.genre-wrap{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding-bottom:4px;
+  margin-bottom:8px
+}
+.genre-chip{
+  flex:none;
+  padding:8px 14px;
+  border-radius:99px;
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  font-size:13px;
+  color:var(--text-2);
+  white-space:nowrap;
+  transition:.2s
+}
+.genre-chip.active{
+  background:var(--primary);
+  border-color:var(--primary);
+  color:#fff
+}
+
+.detail-head{
+  display:grid;
+  grid-template-columns:120px 1fr;
+  gap:16px;
+  margin-bottom:20px
+}
+.detail-head .poster{
+  aspect-ratio:2/3;
+  border-radius:var(--radius-md);
+  overflow:hidden;
+  background:var(--bg-3);
+  border:1px solid var(--border)
+}
+.detail-head .poster img{
+  width:100%;height:100%;object-fit:cover
+}
+.detail-head h1{
+  font-size:clamp(18px,4vw,26px);
+  font-weight:800;
+  margin-bottom:6px;
+  line-height:1.2
+}
+.detail-head .alt{
+  font-size:12px;
+  color:var(--text-3);
+  margin-bottom:10px
+}
+
+.meta-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
+  font-size:12px;
+  margin-bottom:12px
+}
+.meta-grid div{
+  background:var(--bg-2);
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid var(--border)
+}
+.meta-grid b{
+  display:block;
+  color:var(--text-3);
+  font-size:10px;
+  text-transform:uppercase;
+  margin-bottom:2px
+}
+
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:44px;
+  padding:0 18px;
+  border-radius:var(--radius-sm);
+  font-weight:600;
+  font-size:14px;
+  transition:.2s;
+  border:1px solid transparent
+}
+.btn:active{transform:scale(.96)}
+.btn-primary{
+  background:linear-gradient(135deg,var(--primary),#4A6CF7);
+  color:#fff;
+  box-shadow:0 8px 20px rgba(108,140,255,.3)
+}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-ghost{
+  background:var(--bg-2);
+  border-color:var(--border);
+  color:var(--text)
+}
+.btn-accent{
+  background:var(--accent);
+  color:#fff
+}
+.btn-wrap{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap
+}
+.btn:disabled{
+  opacity:.4;
+  cursor:not-allowed
+}
+
+.panel{
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  border-radius:var(--radius-md);
+  padding:16px;
+  margin-bottom:16px
+}
+.panel h3{
+  font-size:15px;
+  font-weight:700;
+  margin-bottom:12px
+}
+.synopsis{
+  color:var(--text-2);
+  font-size:14px;
+  line-height:1.7;
+  white-space:pre-line
+}
+
+.ep-list{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(100px,1fr));
+  gap:8px;
+  max-height:320px;
+  overflow-y:auto;
+  padding:4px
+}
+.ep-btn{
+  aspect-ratio:16/10;
+  background:var(--bg-3);
+  border:1px solid var(--border);
+  border-radius:10px;
+  font-size:13px;
+  font-weight:600;
+  transition:.2s;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px
+}
+.ep-btn:hover{
+  border-color:var(--primary);
+  color:var(--primary-2)
+}
+.ep-btn.active{
+  background:var(--primary);
+  border-color:var(--primary);
+  color:#fff
+}
+.ep-btn .date{
+  font-size:9px;
+  color:var(--text-3);
+  font-weight:400
+}
+.ep-btn.active .date{
+  color:rgba(255,255,255,.8)
+}
+
+.provider-select{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding-bottom:4px
+}
+.prov-btn{
+  flex:none;
+  padding:10px 14px;
+  border-radius:var(--radius-sm);
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  font-size:13px;
+  font-weight:600;
+  transition:.2s;
+  color:var(--text-2)
+}
+.prov-btn.active{
+  background:var(--primary-soft);
+  border-color:var(--primary);
+  color:var(--primary-2)
+}
+.prov-btn.off{
+  opacity:.4;
+  cursor:not-allowed
+}
+
+.player-wrap{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+  background:#000;
+  border-radius:var(--radius-md);
+  overflow:hidden;
+  margin-bottom:16px;
+  border:1px solid var(--border)
+}
+.player-wrap iframe{
+  width:100%;height:100%;border:0
+}
+
+.server-select{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-bottom:4px
+}
+.quality-row{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap
+}
+.quality-label{
+  font-size:12px;
+  font-weight:700;
+  color:var(--text-3);
+  min-width:70px
+}
+.server-btn{
+  padding:8px 12px;
+  border-radius:8px;
+  background:var(--bg-3);
+  border:1px solid var(--border);
+  font-size:12px;
+  font-weight:500;
+  transition:.2s
+}
+.server-btn:hover{
+  border-color:var(--primary)
+}
+.server-btn.active{
+  background:var(--primary);
+  border-color:var(--primary);
+  color:#fff
+}
+.server-btn.loading{
+  opacity:.5;
+  pointer-events:none
+}
+
+.state{
+  text-align:center;
+  padding:60px 20px;
+  color:var(--text-3)
+}
+.state .ic{
+  font-size:48px;
+  margin-bottom:12px;
+  opacity:.5
+}
+.state h3{
+  color:var(--text);
+  margin-bottom:6px
+}
+.state button{margin-top:16px}
+
+.api-note{
+  font-size:11px;
+  color:var(--text-3);
+  margin-top:10px;
+  word-break:break-all
+}
+
+@media(min-width:900px){
+  .sidebar{display:flex}
+  #app{
+    padding-left:260px;
+    padding-bottom:30px
+  }
+  .tabbar{display:none}
+  .topbar{display:none}
+  .container{padding:24px 30px}
+  .grid{
+    grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+    gap:18px
+  }
+  .detail-head{
+    grid-template-columns:220px 1fr;
+    gap:24px
+  }
+}
+</style></head><body><aside class="sidebar" id="sidebar"></aside><header class="topbar" id="topbar">
+  <button class="back" id="backBtn" style="display:none" aria-label="Kembali">←</button>
+  <div class="logo">NANIME</div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="topSearchBtn" aria-label="Cari">⌕</button>
+</header><div id="app">
+  <div class="container" id="view"></div>
+</div><nav class="tabbar" id="tabbar"></nav>
+<div id="toast"></div><script>
+/*
+  ==========================================================
+  NANIME API CONFIG
+  ==========================================================
+
+  Quick Tunnel Cloudflare lu saat ini:
+  https://enables-steel-relates-temporarily.trycloudflare.com
+
+  CATATAN:
+  Quick Tunnel Cloudflare bisa berubah URL setiap kali tunnel
+  dibuat ulang. Jadi cukup ubah API_BASE_URL di satu tempat.
+*/
+const API_BASE_URL =
+  "https://enables-steel-relates-temporarily.trycloudflare.com";
+
+
+/* ==========================================================
+   PROVIDER
+   ========================================================== */
+
+const PROVIDERS = {
+  otakudesu: {
+    name: "Otakudesu",
+    active: true,
+    searchable: true
+  },
+
+  oploverz: {
+    name: "Oploverz",
+    active: true,
+    searchable: true
+  },
+
+  kuramanime: {
+    name: "Kuramanime",
+    active: true,
+    searchable: false
+  },
+
+  samehadaku: {
+    name: "Samehadaku",
+    active: false,
+    searchable: false
+  }
+};
+
+
+/* ==========================================================
+   CONSTANTS
+   ========================================================== */
+
+const LS_FAV = "nanime_fav";
+const LS_HIST = "nanime_hist";
+
+const GENRES = [
+  "Action",
+  "Romance",
+  "Comedy",
+  "Fantasy",
+  "Slice of Life",
+  "Isekai",
+  "Horror",
+  "Sci-Fi",
+  "Mystery",
+  "Drama",
+  "Sports",
+  "Music"
+];
+
+
+/* ==========================================================
+   VERIFIED SAMPLE
+   Dipakai supaya Home tidak menggunakan ID palsu.
+   ========================================================== */
+
+const FEATURED = [
+  {
+    id: "blk-clver-s2-sub-indo",
+    provider: "otakudesu",
+    title: "Black Clover Season 2",
+    poster: "",
+    score: "8.53",
+    type: "TV",
+    status: "Ongoing",
+    year: "2026",
+    episodes: 1
+  },
+  {
+    id: "black-clover-season-2",
+    provider: "oploverz",
+    title: "Black Clover Season 2",
+    poster: "https://i0.wp.com/oploverz.am/wp-content/uploads/2026/09/1789637807-5383-158830.jpg",
+    score: "8.82",
+    type: "TV",
+    status: "Ongoing",
+    year: "2026",
+    episodes: 1
+  },
+  {
+    id: "5139",
+    slug: "li-xiongmao",
+    provider: "kuramanime",
+    title: "Li Xiongmao",
+    poster: "https://r2.nyomo.my.id/images/20260805-1785901747-485c5815-cf1d-4df3-b00d-14332cc1f19a.jpg",
+    score: "-",
+    type: "ONA",
+    status: "Sedang Tayang",
+    year: "2026",
+    episodes: 18
+  }
+];
+
+
+/* ==========================================================
+   DOM
+   ========================================================== */
+
+const $ = selector => document.querySelector(selector);
+
+const $$ = selector =>
+  [...document.querySelectorAll(selector)];
+
+
+/* ==========================================================
+   UTILS
+   ========================================================== */
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function safeJSON(value) {
+  return JSON.stringify(value)
+    .replaceAll("&", "\\u0026")
+    .replaceAll("<", "\\u003c")
+    .replaceAll(">", "\\u003e");
+}
+
+function toast(message, type = "info") {
+  const el = $("#toast");
+
+  el.textContent = message;
+  el.className = `show ${type}`;
+
+  clearTimeout(el._timer);
+
+  el._timer = setTimeout(() => {
+    el.className = "";
+  }, 3200);
+}
+
+function cleanText(value) {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+
+/* ==========================================================
+   FETCHER
+   ========================================================== */
+
+async function fetcher(endpoint, options = {}) {
+  const url =
+    `${API_BASE_URL}${endpoint}`;
+
+  const controller =
+    new AbortController();
+
+  const timer =
+    setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const response =
+      await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          Accept: "application/json",
+          ...(options.headers || {})
+        }
+      });
+
+    clearTimeout(timer);
+
+    const text =
+      await response.text();
+
+    if (!response.ok) {
+      if (response.status === 403) {
+        throw new Error(
+          "API ditolak (403)"
+        );
+      }
+
+      if (response.status === 404) {
+        throw new Error(
+          "Endpoint tidak ditemukan (404)"
+        );
+      }
+
+      throw new Error(
+        `HTTP ${response.status}`
+      );
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(
+        "API mengirim response bukan JSON. Tunnel mungkin error atau stale."
+      );
+    }
+
+  } catch (error) {
+    clearTimeout(timer);
+
+    if (error.name === "AbortError") {
+      throw new Error(
+        "Request terlalu lama. Cloudflare Quick Tunnel mungkin sedang tidak stabil."
+      );
+    }
+
+    throw new Error(
+      error.message ||
+      "API tidak tersedia"
+    );
+  }
+}
+
+
+/* ==========================================================
+   IMAGE
+   ========================================================== */
+
+function imgLoad(img) {
+  const src = img.dataset.src;
+
+  if (!src) return;
+
+  img.src = src;
+
+  img.onload = () => {
+    img.classList.add("loaded");
+  };
+
+  img.onerror = () => {
+    img.removeAttribute("src");
+    img.style.opacity = "0";
+  };
+}
+
+function lazyImg() {
+
+  if (!("IntersectionObserver" in window)) {
+    $$("img[data-src]").forEach(imgLoad);
+    return;
+  }
+
+  const observer =
+    new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+
+          if (!entry.isIntersecting) return;
+
+          imgLoad(entry.target);
+          observer.unobserve(entry.target);
+
+        });
+      },
+      {
+        rootMargin: "250px"
+      }
+    );
+
+  $$("img[data-src]")
+    .forEach(img => observer.observe(img));
+}
+
+
+/* ==========================================================
+   LOCAL STORAGE
+   ========================================================== */
+
+function readStorage(key) {
+  try {
+    return JSON.parse(
+      localStorage.getItem(key) || "[]"
+    );
+  } catch {
+    return [];
+  }
+}
+
+function isFav(id, provider) {
+  return readStorage(LS_FAV)
+    .some(
+      item =>
+        item.id === id &&
+        item.provider === provider
+    );
+}
+
+function favToggle(anime) {
+
+  let favorites =
+    readStorage(LS_FAV);
+
+  const index =
+    favorites.findIndex(
+      item =>
+        item.id === anime.id &&
+        item.provider === anime.provider
+    );
+
+  if (index !== -1) {
+
+    favorites.splice(index, 1);
+    toast("Dihapus dari favorit");
+
+  } else {
+
+    favorites.unshift(anime);
+
+    toast(
+      "Ditambahkan ke favorit",
+      "ok"
+    );
+  }
+
+  localStorage.setItem(
+    LS_FAV,
+    JSON.stringify(favorites)
+  );
+
+  renderNav();
+}
+
+function addHistory(anime, episode) {
+
+  let history =
+    readStorage(LS_HIST);
+
+  history =
+    history.filter(
+      item =>
+        !(
+          item.id === anime.id &&
+          item.provider === anime.provider
+        )
+    );
+
+  history.unshift({
+    ...anime,
+    episode,
+    at: Date.now()
+  });
+
+  localStorage.setItem(
+    LS_HIST,
+    JSON.stringify(history.slice(0, 50))
+  );
+
+  renderNav();
+}
+
+
+/* ==========================================================
+   NORMALIZERS
+   ========================================================== */
+
+/*
+  Otakudesu SEARCH:
+  {
+    title,
+    animeId,
+    poster,
+    score,
+    status,
+    otakudesuUrl,
+    genreList[]
+  }
+*/
+function normalizeOtakudesuSearch(item) {
+
+  return {
+    id: item.animeId,
+    slug: "",
+    provider: "otakudesu",
+
+    title:
+      item.title ||
+      "Unknown",
+
+    alt: "",
+
+    poster:
+      item.poster ||
+      "",
+
+    score:
+      item.score ||
+      "-",
+
+    type:
+      "-",
+
+    status:
+      item.status ||
+      "-",
+
+    year:
+      "-",
+
+    episodes:
+      0
+  };
+}
+
+
+/*
+  Oploverz SEARCH:
+  {
+    title,
+    poster,
+    type,
+    status,
+    slug,
+    href
+  }
+*/
+function normalizeOploverzSearch(item) {
+
+  return {
+    id: item.slug,
+    slug: item.slug,
+
+    provider: "oploverz",
+
+    title:
+      item.title ||
+      "Unknown",
+
+    alt: "",
+
+    poster:
+      item.poster ||
+      "",
+
+    score:
+      "-",
+
+    type:
+      item.type ||
+      "-",
+
+    status:
+      item.status ||
+      "-",
+
+    year:
+      "-",
+
+    episodes:
+      0
+  };
+}
+
+
+/*
+  Detail Otakudesu
+*/
+function normalizeOtakudesuDetail(details, id) {
+
+  const synopsis =
+    Array.isArray(
+      details.synopsis?.paragraphList
+    )
+      ? details.synopsis.paragraphList.join("\n\n")
+      : "Sinopsis tidak tersedia.";
+
+  const genres =
+    Array.isArray(details.genreList)
+      ? details.genreList.map(
+          g => g.title
+        )
+      : [];
+
+  const episodes =
+    Array.isArray(details.episodeList)
+      ? details.episodeList.map(
+          (episode, index) => ({
+            num:
+              episode.title ||
+              index + 1,
+
+            id:
+              episode.episodeId,
+
+            slug: "",
+
+            date: ""
+          })
+        )
+      : [];
+
+  return {
+    id,
+    slug: "",
+
+    provider: "otakudesu",
+
+    title:
+      details.title ||
+      "Unknown",
+
+    alt:
+      details.japanese ||
+      "",
+
+    poster:
+      details.poster ||
+      "",
+
+    score:
+      details.score ||
+      "-",
+
+    type:
+      details.type ||
+      "-",
+
+    status:
+      details.status ||
+      "-",
+
+    year:
+      details.aired ||
+      "-",
+
+    episodes:
+      details.episodes ||
+      episodes.length ||
+      0,
+
+    duration:
+      details.duration ||
+      "-",
+
+    studio:
+      details.studios ||
+      "-",
+
+    genres,
+
+    synopsis,
+
+    episodeList:
+      episodes
+  };
+}
+
+
+/*
+  Detail Oploverz
+*/
+function normalizeOploverzDetail(details, id) {
+
+  const synopsis =
+    Array.isArray(
+      details.synopsis?.paragraphList
+    )
+      ? details.synopsis.paragraphList.join("\n\n")
+      : "Sinopsis tidak tersedia.";
+
+  const genres =
+    Array.isArray(details.genres)
+      ? details.genres
+      : [];
+
+  const episodes =
+    Array.isArray(details.episodeList)
+      ? details.episodeList.map(
+          item => ({
+            num:
+              item.episode,
+
+            id:
+              item.href,
+
+            slug:
+              item.href
+                ?.split("/")
+                .filter(Boolean)
+                .pop() || "",
+
+            date:
+              item.date || ""
+          })
+        )
+      : [];
+
+  return {
+    id,
+    slug: id,
+
+    provider: "oploverz",
+
+    title:
+      details.title ||
+      "Unknown",
+
+    alt: "",
+
+    poster:
+      details.poster ||
+      "",
+
+    score:
+      details.rating ||
+      "-",
+
+    type:
+      details.type ||
+      "-",
+
+    status:
+      details.status ||
+      "-",
+
+    year:
+      details.releasedOn ||
+      "-",
+
+    episodes:
+      episodes.length,
+
+    duration:
+      details.duration ||
+      "-",
+
+    studio:
+      details.studio ||
+      "-",
+
+    season:
+      details.season ||
+      "-",
+
+    genres,
+
+    synopsis,
+
+    episodeList:
+      episodes
+  };
+}
+
+
+/*
+  Detail Kuramanime
+*/
+function normalizeKuramanimeDetail(details, id, slug) {
+
+  const synopsis =
+    Array.isArray(
+      details.synopsis?.paragraphList
+    )
+      ? details.synopsis.paragraphList.join("\n\n")
+      : "Sinopsis tidak tersedia.";
+
+  const genres =
+    Array.isArray(details.genreList)
+      ? details.genreList.map(
+          g => cleanText(g.title)
+        )
+      : [];
+
+  return {
+    id:
+      details.animeId ||
+      id,
+
+    slug:
+      details.animeSlug ||
+      slug,
+
+    provider: "kuramanime",
+
+    title:
+      details.title ||
+      "Unknown",
+
+    alt:
+      details.alternativeTitle ||
+      "",
+
+    poster:
+      details.poster ||
+      "",
+
+    score:
+      details.score ||
+      "-",
+
+    type:
+      details.type?.title ||
+      "-",
+
+    status:
+      details.status?.title ||
+      "-",
+
+    year:
+      details.aired ||
+      "-",
+
+    episodes:
+      details.episodes ||
+      0,
+
+    duration:
+      details.duration ||
+      "-",
+
+    studio:
+      Array.isArray(details.studioList) &&
+      details.studioList.length
+        ? details.studioList
+            .map(x => x.title)
+            .join(", ")
+        : "-",
+
+    genres,
+
+    synopsis,
+
+    episodeList: []
+  };
+}
+
+
+/* ==========================================================
+   API ADAPTER
+   ========================================================== */
+
+const API = {
+
+  /*
+    Search:
+    Kuramanime sengaja tidak dipanggil karena router Wajik
+    memang tidak mempunyai /kuramanime/search.
+  */
+  async searchAll(query) {
+
+    const providers =
+      Object.entries(PROVIDERS)
+        .filter(
+          ([, provider]) =>
+            provider.active &&
+            provider.searchable
+        )
+        .map(([name]) => name);
+
+    const results =
+      await Promise.all(
+        providers.map(
+          async provider => {
+
+            try {
+
+              let endpoint = "";
+
+              if (provider === "otakudesu") {
+
+                endpoint =
+                  `/otakudesu/search?q=${encodeURIComponent(query)}`;
+
+              } else if (provider === "oploverz") {
+
+                endpoint =
+                  `/oploverz/search?q=${encodeURIComponent(query)}`;
+
+              }
+
+              const response =
+                await fetcher(endpoint);
+
+              const list =
+                response?.data?.animeList || [];
+
+              if (
+                provider === "otakudesu"
+              ) {
+                return list.map(
+                  normalizeOtakudesuSearch
+                );
+              }
+
+              if (
+                provider === "oploverz"
+              ) {
+                return list.map(
+                  normalizeOploverzSearch
+                );
+              }
+
+              return [];
+
+            } catch {
+
+              return [];
+
+            }
+          }
+        )
+      );
+
+    return results.flat();
+  },
+
+
+  /*
+    Anime detail
+  */
+  async detail(provider, id, slug = "") {
+
+    let endpoint = "";
+
+    if (
+      provider === "otakudesu"
+    ) {
+
+      endpoint =
+        `/otakudesu/anime/${encodeURIComponent(id)}`;
+
+    } else if (
+      provider === "oploverz"
+    ) {
+
+      endpoint =
+        `/oploverz/anime/${encodeURIComponent(id)}`;
+
+    } else if (
+      provider === "kuramanime"
+    ) {
+
+      endpoint =
+        `/kuramanime/anime/${encodeURIComponent(id)}/${encodeURIComponent(slug || id)}`;
+
+    } else {
+
+      throw new Error(
+        "Provider tidak didukung"
+      );
+    }
+
+    const response =
+      await fetcher(endpoint);
+
+    const details =
+      response?.data?.details;
+
+    if (!details) {
+      throw new Error(
+        "Data anime tidak ditemukan"
+      );
+    }
+
+    if (
+      provider === "otakudesu"
+    ) {
+
+      return normalizeOtakudesuDetail(
+        details,
+        id
+      );
+
+    }
+
+    if (
+      provider === "oploverz"
+    ) {
+
+      return normalizeOploverzDetail(
+        details,
+        id
+      );
+
+    }
+
+    return normalizeKuramanimeDetail(
+      details,
+      id,
+      slug
+    );
+  },
+
+
+  /*
+    Episode detail
+  */
+  async episode(provider, params) {
+
+    let endpoint = "";
+
+    if (
+      provider === "otakudesu"
+    ) {
+
+      /*
+        Wajik:
+        /otakudesu/episode/:episodeId
+      */
+      endpoint =
+        `/otakudesu/episode/${encodeURIComponent(params.episodeId)}`;
+
+    } else if (
+      provider === "oploverz"
+    ) {
+
+      /*
+        Wajik:
+        /oploverz/episode/:episodeId
+
+        Yang dipakai di data Oploverz:
+        episode slug dari URL episode.
+      */
+      endpoint =
+        `/oploverz/episode/${encodeURIComponent(
+          params.episodeSlug || params.episodeId
+        )}`;
+
+    } else if (
+      provider === "kuramanime"
+    ) {
+
+      /*
+        Wajik:
+        /kuramanime/episode/:animeId/:animeSlug/:episodeId
+      */
+      endpoint =
+        `/kuramanime/episode/${encodeURIComponent(params.animeId)}/${encodeURIComponent(params.animeSlug)}/${encodeURIComponent(params.episodeId)}`;
+
+    } else {
+
+      throw new Error(
+        "Provider tidak didukung"
+      );
+    }
+
+    const response =
+      await fetcher(endpoint);
+
+    const details =
+      response?.data?.details;
+
+    if (!details) {
+      throw new Error(
+        "Data episode tidak ditemukan"
+      );
+    }
+
+    /*
+      OTakudesu:
+      defaultStreamingUrl
+      server.qualityList[]
+    */
+    if (
+      provider === "otakudesu"
+    ) {
+
+      const qualities =
+        Array.isArray(
+          details.server?.qualityList
+        )
+          ? details.server.qualityList.map(
+              quality => ({
+                title:
+                  cleanText(
+                    quality.title
+                  ),
+
+                servers:
+                  Array.isArray(
+                    quality.serverList
+                  )
+                    ? quality.serverList.map(
+                        server => ({
+                          name:
+                            server.title,
+
+                          id:
+                            server.serverId
+                        })
+                      )
+                    : []
+              })
+            )
+          : [];
+
+      return {
+        provider,
+
+        title:
+          details.title ||
+          `Episode ${params.episode}`,
+
+        playerUrl:
+          details.defaultStreamingUrl ||
+          "",
+
+        qualities,
+
+        hasPrevEpisode:
+          !!details.hasPrevEpisode,
+
+        hasNextEpisode:
+          !!details.hasNextEpisode
+      };
+    }
+
+
+    /*
+      Oploverz:
+      streamingUrl
+    */
+    if (
+      provider === "oploverz"
+    ) {
+
+      return {
+        provider,
+
+        title:
+          details.title ||
+          `Episode ${params.episode}`,
+
+        playerUrl:
+          details.streamingUrl ||
+          "",
+
+        qualities: [],
+
+        hasPrevEpisode:
+          !!details.hasPrevEpisode,
+
+        hasNextEpisode:
+          !!details.hasNextEpisode
+      };
+    }
+
+
+    /*
+      Kuramanime:
+      server.qualityList bisa kosong.
+    */
+    if (
+      provider === "kuramanime"
+    ) {
+
+      return {
+        provider,
+
+        title:
+          details.episodeTitle ||
+          details.title ||
+          `Episode ${params.episode}`,
+
+        playerUrl:
+          "",
+
+        qualities:
+          Array.isArray(
+            details.server?.qualityList
+          )
+            ? details.server.qualityList
+            : [],
+
+        hasPrevEpisode:
+          !!details.hasPrevEpisode,
+
+        hasNextEpisode:
+          !!details.hasNextEpisode
+      };
+    }
+
+    throw new Error(
+      "Episode parser tidak tersedia"
+    );
+  },
+
+
+  /*
+    Resolver Otakudesu server.
+
+    Wajik:
+    GET /otakudesu/server/:serverId
+
+    Hasil:
+    {
+      data: {
+        url: "..."
+      }
+    }
+  */
+  async resolveServer(serverId) {
+
+    const response =
+      await fetcher(
+        `/otakudesu/server/${encodeURIComponent(serverId)}`
+      );
+
+    return response?.data?.url || "";
+  }
+};
+
+
+/* ==========================================================
+   NAVIGATION
+   ========================================================== */
+
+const NAV = [
+
+  {
+    key: "home",
+    label: "Home",
+    icon: `
+      <svg viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2">
+        <path d="M3 9.5 12 3l9 6.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/>
+      </svg>
+    `
+  },
+
+  {
+    key: "search",
+    label: "Cari",
+    icon: `
+      <svg viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="7"/>
+        <path d="m20 20-3.5-3.5"/>
+      </svg>
+    `
+  },
+
+  {
+    key: "fav",
+    label: "Favorit",
+    icon: `
+      <svg viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2">
+        <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 1 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>
+      </svg>
+    `
+  },
+
+  {
+    key: "hist",
+    label: "Riwayat",
+    icon: `
+      <svg viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 7v5l3 2"/>
+      </svg>
+    `
+  }
+];
+
+
+function renderNav() {
+
+  const currentPage =
+    router.current?.page ||
+    "home";
+
+  $("#sidebar").innerHTML = `
+
+    <div class="logo">
+      NANIME
+    </div>
+
+    ${NAV.map(item => `
+
+      <div
+        class="nav-item ${
+          currentPage === item.key
+            ? "active"
+            : ""
+        }"
+        data-nav="${item.key}"
+      >
+        ${item.icon}
+        <span>${item.label}</span>
+      </div>
+
+    `).join("")}
+
+    <div class="status">
+      <span class="dot on"></span>
+      API Terhubung
+      <br>
+      <small>
+        ${API_BASE_URL}
+      </small>
+    </div>
+  `;
+
+
+  $("#tabbar").innerHTML =
+    NAV.map(item => `
+
+      <button
+        class="tab-item ${
+          currentPage === item.key
+            ? "active"
+            : ""
+        }"
+        data-nav="${item.key}"
+      >
+        ${item.icon}
+        <span>${item.label}</span>
+      </button>
+
+    `).join("");
+
+
+  $$("[data-nav]").forEach(element => {
+
+    element.addEventListener(
+      "click",
+      () => {
+        router.navigate(
+          element.dataset.nav
+        );
+      }
+    );
+
+  });
+
+
+  $("#backBtn").style.display =
+    [
+      "home",
+      "search",
+      "fav",
+      "hist"
+    ].includes(currentPage)
+      ? "none"
+      : "grid";
+}
+
+
+/* ==========================================================
+   CARD
+   ========================================================== */
+
+function cardHTML(anime) {
+
+  const providerName =
+    PROVIDERS[anime.provider]?.name ||
+    anime.provider;
+
+  return `
+
+    <article
+      class="card"
+      data-card='${escapeHTML(
+        JSON.stringify(anime)
+      )}'
+    >
+
+      <div class="poster">
+
+        <img
+          data-src="${escapeHTML(anime.poster)}"
+          alt="${escapeHTML(anime.title)}"
+        >
+
+      </div>
+
+      <div class="provider">
+        ${escapeHTML(providerName)}
+      </div>
+
+      <button
+        class="fav ${
+          isFav(
+            anime.id,
+            anime.provider
+          )
+            ? "on"
+            : ""
+        }"
+        data-fav
+        aria-label="Favorit"
+      >
+        ${
+          isFav(
+            anime.id,
+            anime.provider
+          )
+            ? "♥"
+            : "♡"
+        }
+      </button>
+
+      <div class="info">
+
+        <div class="title">
+          ${escapeHTML(anime.title)}
+        </div>
+
+        <div class="meta">
+
+          <span>
+            ${escapeHTML(
+              anime.year !== "-"
+                ? anime.year
+                : anime.type || ""
+            )}
+          </span>
+
+          <span class="score">
+            ★ ${escapeHTML(
+              anime.score || "-"
+            )}
+          </span>
+
+        </div>
+
+      </div>
+
+    </article>
+  `;
+}
+
+
+function bindCards() {
+
+  $$(".card[data-card]")
+    .forEach(card => {
+
+      const anime =
+        JSON.parse(
+          card.dataset.card
+        );
+
+      card.addEventListener(
+        "click",
+        event => {
+
+          if (
+            event.target.closest("[data-fav]")
+          ) {
+            return;
+          }
+
+          router.navigate(
+            "detail",
+            {
+              provider:
+                anime.provider,
+
+              id:
+                anime.id,
+
+              slug:
+                anime.slug || ""
+            }
+          );
+        }
+      );
+
+      const favorite =
+        card.querySelector("[data-fav]");
+
+      favorite?.addEventListener(
+        "click",
+        event => {
+
+          event.stopPropagation();
+
+          favToggle(anime);
+
+          favorite.classList.toggle(
+            "on",
+            isFav(
+              anime.id,
+              anime.provider
+            )
+          );
+
+          favorite.textContent =
+            isFav(
+              anime.id,
+              anime.provider
+            )
+              ? "♥"
+              : "♡";
+        }
+      );
+    });
+}
+
+
+/* ==========================================================
+   PAGES
+   ========================================================== */
+
+const pages = {
+
+
+  /* ---------------- HOME ---------------- */
+
+  home() {
+
+    $("#view").innerHTML = `
+
+      <div class="hero">
+
+        <video
+          autoplay
+          muted
+          loop
+          playsinline
+          poster=""
+        >
+          <source
+            src="dashboard.mp4"
+            type="video/mp4"
+          >
+        </video>
+
+        <div class="overlay">
+
+          <h1>
+            NANIME
+          </h1>
+
+          <p>
+            Cari anime dari beberapa provider
+            melalui satu interface.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div
+        class="searchbar"
+        id="homeSearch"
+      >
+        <span>⌕</span>
+
+        <input
+          placeholder="Cari judul anime..."
+          readonly
+        >
+      </div>
+
+
+      <div class="genre-wrap">
+
+        ${GENRES.map(
+          genre => `
+            <button class="genre-chip">
+              ${genre}
+            </button>
+          `
+        ).join("")}
+
+      </div>
+
+
+      <div class="section-title">
+        🎬 Anime yang tersedia
+      </div>
+
+
+      <div
+        id="featuredGrid"
+        class="grid"
+      >
+        ${FEATURED
+          .map(cardHTML)
+          .join("")}
+      </div>
+
+
+      <div class="api-note">
+        API:
+        ${escapeHTML(
+          API_BASE_URL
+        )}
+      </div>
+
+    `;
+
+    lazyImg();
+    bindCards();
+
+    $("#homeSearch")
+      .addEventListener(
+        "click",
+        () => router.navigate("search")
+      );
+  },
+
+
+  /* ---------------- SEARCH ---------------- */
+
+  search() {
+
+    $("#view").innerHTML = `
+
+      <div class="searchbar">
+
+        <span>⌕</span>
+
+        <input
+          id="searchInput"
+          type="search"
+          autocomplete="off"
+          placeholder="Cari judul anime..."
+        >
+
+      </div>
+
+
+      <div class="genre-wrap">
+
+        ${GENRES.map(
+          genre => `
+            <button class="genre-chip">
+              ${genre}
+            </button>
+          `
+        ).join("")}
+
+      </div>
+
+
+      <div
+        id="searchResult"
+        class="state"
+      >
+
+        <div class="ic">
+          🔎
+        </div>
+
+        <h3>
+          Mulai mencari anime
+        </h3>
+
+        <p>
+          Minimal 3 karakter.
+        </p>
+
+      </div>
+
+    `;
+
+
+    const input =
+      $("#searchInput");
+
+    let timer = null;
+
+
+    input.addEventListener(
+      "input",
+      event => {
+
+        clearTimeout(timer);
+
+        const query =
+          event.target.value.trim();
+
+        if (query.length < 3) {
+
+          $("#searchResult").className =
+            "state";
+
+          $("#searchResult").innerHTML = `
+
+            <div class="ic">
+              🔎
+            </div>
+
+            <h3>
+              Mulai mencari anime
+            </h3>
+
+            <p>
+              Minimal 3 karakter.
+            </p>
+          `;
+
+          return;
+        }
+
+
+        timer =
+          setTimeout(
+            async () => {
+
+              const result =
+                $("#searchResult");
+
+              result.className =
+                "grid";
+
+              result.innerHTML =
+                Array(8)
+                  .fill(0)
+                  .map(
+                    () => `
+                      <div class="card">
+                        <div
+                          class="poster sk"
+                          style="height:100%"
+                        ></div>
+
+                        <div class="info">
+                          <div
+                            class="sk"
+                            style="
+                              height:14px;
+                              margin-bottom:6px
+                            "
+                          ></div>
+
+                          <div
+                            class="sk"
+                            style="
+                              height:10px;
+                              width:60%
+                            "
+                          ></div>
+                        </div>
+                      </div>
+                    `
+                  )
+                  .join("");
+
+
+              try {
+
+                const anime =
+                  await API.searchAll(
+                    query
+                  );
+
+
+                if (!anime.length) {
+
+                  result.className =
+                    "state";
+
+                  result.innerHTML = `
+
+                    <div class="ic">
+                      😔
+                    </div>
+
+                    <h3>
+                      Tidak ditemukan
+                    </h3>
+
+                    <p>
+                      Coba kata kunci lain.
+                    </p>
+
+                  `;
+
+                  return;
+                }
+
+
+                result.className =
+                  "grid";
+
+                result.innerHTML =
+                  anime
+                    .slice(0, 50)
+                    .map(cardHTML)
+                    .join("");
+
+
+                lazyImg();
+                bindCards();
+
+              } catch (error) {
+
+                result.className =
+                  "state";
+
+                result.innerHTML = `
+
+                  <div class="ic">
+                    ⚠️
+                  </div>
+
+                  <h3>
+                    Search gagal
+                  </h3>
+
+                  <p>
+                    ${escapeHTML(
+                      error.message
+                    )}
+                  </p>
+
+                `;
+              }
+
+            },
+            500
+          );
+      }
+    );
+
+
+    setTimeout(
+      () => input.focus(),
+      100
+    );
+  },
+
+
+  /* ---------------- FAVORITE ---------------- */
+
+  fav() {
+
+    const favorites =
+      readStorage(LS_FAV);
+
+    $("#view").innerHTML = `
+
+      <div class="section-title">
+        ❤️ Favorit (${favorites.length})
+      </div>
+
+      ${
+        favorites.length
+
+          ? `
+            <div class="grid">
+              ${favorites
+                .map(cardHTML)
+                .join("")}
+            </div>
+          `
+
+          : `
+            <div class="state">
+
+              <div class="ic">
+                ♡
+              </div>
+
+              <h3>
+                Belum ada favorit
+              </h3>
+
+              <p>
+                Tekan ikon hati pada anime.
+              </p>
+
+            </div>
+          `
+      }
+
+    `;
+
+    lazyImg();
+    bindCards();
+  },
+
+
+  /* ---------------- HISTORY ---------------- */
+
+  hist() {
+
+    const history =
+      readStorage(LS_HIST);
+
+    $("#view").innerHTML = `
+
+      <div class="section-title">
+        🕘 Riwayat (${history.length})
+      </div>
+
+      ${
+        history.length
+
+          ? `
+            <div class="grid">
+              ${history
+                .map(cardHTML)
+                .join("")}
+            </div>
+          `
+
+          : `
+            <div class="state">
+
+              <div class="ic">
+                🎬
+              </div>
+
+              <h3>
+                Belum ada riwayat
+              </h3>
+
+              <p>
+                Anime yang dibuka akan muncul
+                di sini.
+              </p>
+
+            </div>
+          `
+      }
+
+    `;
+
+    lazyImg();
+    bindCards();
+  },
+
+
+  /* ---------------- DETAIL ---------------- */
+
+  async detail(params) {
+
+    $("#view").innerHTML = `
+
+      <div
+        class="sk"
+        style="
+          height:400px;
+          margin-bottom:16px
+        "
+      ></div>
+
+      <div
+        class="sk"
+        style="
+          height:180px;
+          margin-bottom:16px
+        "
+      ></div>
+
+    `;
+
+
+    try {
+
+      const detail =
+        await API.detail(
+          params.provider,
+          params.id,
+          params.slug
+        );
+
+
+      const firstEpisode =
+        detail.episodeList?.[0] ||
+        null;
+
+
+      const animeForStorage = {
+
+        id: detail.id,
+
+        slug: detail.slug,
+
+        provider:
+          detail.provider,
+
+        title:
+          detail.title,
+
+        poster:
+          detail.poster,
+
+        score:
+          detail.score,
+
+        year:
+          detail.year,
+
+        type:
+          detail.type
+      };
+
+
+      $("#view").innerHTML = `
+
+        <div class="detail-head">
+
+          <div class="poster">
+
+            <img
+              src="${escapeHTML(
+                detail.poster
+              )}"
+              alt="${escapeHTML(
+                detail.title
+              )}"
+              onerror="
+                this.style.opacity='0'
+              "
+            >
+
+          </div>
+
+
+          <div>
+
+            <h1>
+              ${escapeHTML(
+                detail.title
+              )}
+            </h1>
+
+            ${
+              detail.alt
+
+                ? `
+                  <div class="alt">
+                    ${escapeHTML(
+                      detail.alt
+                    )}
+                  </div>
+                `
+
+                : ""
+            }
+
+
+            <div class="meta-grid">
+
+              <div>
+                <b>Score</b>
+                ★ ${escapeHTML(
+                  detail.score
+                )}
+              </div>
+
+              <div>
+                <b>Tahun / Aired</b>
+                ${escapeHTML(
+                  detail.year
+                )}
+              </div>
+
+              <div>
+                <b>Tipe</b>
+                ${escapeHTML(
+                  detail.type
+                )}
+              </div>
+
+              <div>
+                <b>Episode</b>
+                ${escapeHTML(
+                  detail.episodes
+                )}
+              </div>
+
+              <div>
+                <b>Status</b>
+                ${escapeHTML(
+                  detail.status
+                )}
+              </div>
+
+              <div>
+                <b>Studio</b>
+                ${escapeHTML(
+                  detail.studio
+                )}
+              </div>
+
+            </div>
+
+
+            <div class="btn-wrap">
+
+              ${
+                firstEpisode
+
+                  ? `
+                    <button
+                      class="btn btn-primary"
+                      id="watchFirst"
+                    >
+                      ▶ Episode ${escapeHTML(
+                        firstEpisode.num
+                      )}
+                    </button>
+                  `
+
+                  : `
+                    <button
+                      class="btn btn-primary"
+                      disabled
+                    >
+                      Episode belum tersedia
+                    </button>
+                  `
+              }
+
+
+              <button
+                class="btn ${
+                  isFav(
+                    detail.id,
+                    detail.provider
+                  )
+                    ? "btn-accent"
+                    : "btn-ghost"
+                }"
+                id="favDetailBtn"
+              >
+                ${
+                  isFav(
+                    detail.id,
+                    detail.provider
+                  )
+                    ? "♥ Favorit"
+                    : "♡ Tambah Favorit"
+                }
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="panel">
+
+          <h3>
+            📖 Sinopsis
+          </h3>
+
+          <div class="synopsis">
+            ${escapeHTML(
+              detail.synopsis
+            )}
+          </div>
+
+        </div>
+
+
+        ${
+          detail.genres.length
+
+            ? `
+              <div class="panel">
+
+                <h3>
+                  🏷️ Genre
+                </h3>
+
+                <div class="genre-wrap">
+
+                  ${detail.genres
+                    .map(
+                      genre => `
+                        <span
+                          class="genre-chip active"
+                          style="cursor:default"
+                        >
+                          ${escapeHTML(
+                            genre
+                          )}
+                        </span>
+                      `
+                    )
+                    .join("")}
+
+                </div>
+
+              </div>
+            `
+
+            : ""
+        }
+
+
+        <div class="panel">
+
+          <h3>
+            📺 Daftar Episode
+            (${detail.episodeList.length})
+          </h3>
+
+
+          ${
+            detail.episodeList.length
+
+              ? `
+                <div class="ep-list">
+
+                  ${detail.episodeList
+                    .map(
+                      episode => `
+
+                        <button
+                          class="ep-btn"
+                          data-episode='${escapeHTML(
+                            JSON.stringify(episode)
+                          )}'
+                        >
+
+                          ${escapeHTML(
+                            episode.num
+                          )}
+
+                          ${
+                            episode.date
+
+                              ? `
+                                <span class="date">
+                                  ${escapeHTML(
+                                    episode.date
+                                  )}
+                                </span>
+                              `
+
+                              : ""
+                          }
+
+                        </button>
+
+                      `
+                    )
+                    .join("")}
+
+                </div>
+              `
+
+              : `
+                <div
+                  class="state"
+                  style="padding:30px"
+                >
+                  Episode belum tersedia.
+                </div>
+              `
+          }
+
+        </div>
+
+
+        <div class="panel">
+
+          <h3>
+            🔄 Provider
+          </h3>
+
+          <div class="provider-select">
+
+            ${Object.entries(
+              PROVIDERS
+            )
+              .map(
+                ([key, value]) => `
+
+                  <button
+                    class="prov-btn ${
+                      key === detail.provider
+                        ? "active"
+                        : ""
+                    } ${
+                      !value.active
+                        ? "off"
+                        : ""
+                    }"
+                    ${
+                      !value.active
+                        ? "disabled"
+                        : ""
+                    }
+                    data-provider="${key}"
+                  >
+                    ${escapeHTML(
+                      value.name
+                    )}
+
+                    ${
+                      !value.active
+                        ? "(OFF)"
+                        : ""
+                    }
+
+                  </button>
+
+                `
+              )
+              .join("")}
+
+          </div>
+
+        </div>
+
+      `;
+
+
+      $("#favDetailBtn")
+        ?.addEventListener(
+          "click",
+          () => {
+
+            favToggle(
+              animeForStorage
+            );
+
+            const active =
+              isFav(
+                detail.id,
+                detail.provider
+              );
+
+            $("#favDetailBtn").className =
+              `btn ${
+                active
+                  ? "btn-accent"
+                  : "btn-ghost"
+              }`;
+
+            $("#favDetailBtn").textContent =
+              active
+                ? "♥ Favorit"
+                : "♡ Tambah Favorit";
+          }
+        );
+
+
+      $("#watchFirst")
+        ?.addEventListener(
+          "click",
+          () => {
+
+            router.navigate(
+              "player",
+              {
+                ...animeForStorage,
+
+                animeId:
+                  detail.id,
+
+                animeSlug:
+                  detail.slug,
+
+                episode:
+                  firstEpisode.num,
+
+                episodeId:
+                  firstEpisode.id,
+
+                episodeSlug:
+                  firstEpisode.slug,
+
+                episodeList:
+                  detail.episodeList
+              }
+            );
+          }
+        );
+
+
+      $$("[data-episode]")
+        .forEach(button => {
+
+          button.addEventListener(
+            "click",
+            () => {
+
+              const episode =
+                JSON.parse(
+                  button.dataset.episode
+                );
+
+              router.navigate(
+                "player",
+                {
+                  ...animeForStorage,
+
+                  animeId:
+                    detail.id,
+
+                  animeSlug:
+                    detail.slug,
+
+                  episode:
+                    episode.num,
+
+                  episodeId:
+                    episode.id,
+
+                  episodeSlug:
+                    episode.slug,
+
+                  episodeList:
+                    detail.episodeList
+                }
+              );
+            }
+          );
+
+        });
+
+
+      $$("[data-provider]")
+        .forEach(button => {
+
+          button.addEventListener(
+            "click",
+            () => {
+
+              const provider =
+                button.dataset.provider;
+
+              if (
+                !PROVIDERS[provider].active
+              ) {
+                return;
+              }
+
+              if (
+                provider === detail.provider
+              ) {
+                toast(
+                  "Provider ini sedang digunakan."
+                );
+                return;
+              }
+
+              toast(
+                `${PROVIDERS[provider].name} belum memiliki pencarian silang otomatis pada halaman ini.`
+              );
+            }
+          );
+
+        });
+
+
+    } catch (error) {
+
+      $("#view").innerHTML = `
+
+        <div class="state">
+
+          <div class="ic">
+            ⚠️
+          </div>
+
+          <h3>
+            Gagal memuat anime
+          </h3>
+
+          <p>
+            ${escapeHTML(
+              error.message
+            )}
+          </p>
+
+          <button
+            class="btn btn-primary"
+            id="retryDetail"
+          >
+            🔄 Coba Lagi
+          </button>
+
+        </div>
+
+      `;
+
+
+      $("#retryDetail")
+        .onclick = () =>
+          pages.detail(params);
+    }
+  },
+
+
+  /* ---------------- PLAYER ---------------- */
+
+  async player(params) {
+
+    $("#view").innerHTML = `
+
+      <div
+        class="sk"
+        style="
+          aspect-ratio:16/9;
+          margin-bottom:16px
+        "
+      ></div>
+
+      <div
+        class="sk"
+        style="
+          height:110px;
+          margin-bottom:16px
+        "
+      ></div>
+
+    `;
+
+
+    try {
+
+      addHistory(
+        {
+          id:
+            params.id,
+
+          slug:
+            params.slug,
+
+          provider:
+            params.provider,
+
+          title:
+            params.title,
+
+          poster:
+            params.poster,
+
+          score:
+            params.score,
+
+          year:
+            params.year,
+
+          type:
+            params.type
+        },
+        params.episode
+      );
+
+
+      const stream =
+        await API.episode(
+          params.provider,
+          params
+        );
+
+
+      let currentPlayerUrl =
+        stream.playerUrl ||
+        "";
+
+
+      /*
+        Cari prev / next dari episodeList
+        karena Wajik memberi daftar episode.
+      */
+      const episodes =
+        Array.isArray(
+          params.episodeList
+        )
+          ? params.episodeList
+          : [];
+
+
+      const currentIndex =
+        episodes.findIndex(
+          item =>
+            String(item.num) ===
+            String(params.episode)
+        );
+
+
+      const prevEpisode =
+        currentIndex > 0
+          ? episodes[currentIndex - 1]
+          : null;
+
+
+      const nextEpisode =
+        currentIndex !== -1 &&
+        currentIndex <
+          episodes.length - 1
+          ? episodes[currentIndex + 1]
+          : null;
+
+
+      $("#view").innerHTML = `
+
+        <h2
+          style="
+            font-size:18px;
+            margin-bottom:12px;
+            font-weight:800
+          "
+        >
+          ${escapeHTML(
+            params.title
+          )}
+          · Episode
+          ${escapeHTML(
+            params.episode
+          )}
+        </h2>
+
+
+        <div class="player-wrap">
+
+          ${
+            currentPlayerUrl
+
+              ? `
+                <iframe
+                  id="playerFrame"
+                  src="${escapeHTML(
+                    currentPlayerUrl
+                  )}"
+                  allowfullscreen
+                  referrerpolicy="no-referrer"
+                  loading="eager"
+                ></iframe>
+              `
+
+              : `
+                <div
+                  class="state"
+                  style="
+                    height:100%;
+                    padding:30px;
+                    display:grid;
+                    place-items:center
+                  "
+                >
+
+                  <div>
+
+                    <div class="ic">
+                      🎬
+                    </div>
+
+                    <h3>
+                      Player tidak tersedia
+                    </h3>
+
+                    <p>
+                      Provider ini tidak
+                      memberikan URL player
+                      pada episode ini.
+                    </p>
+
+                  </div>
+
+                </div>
+              `
+          }
+
+        </div>
+
+
+        <div
+          class="btn-wrap"
+          style="margin-bottom:16px"
+        >
+
+          ${
+            prevEpisode
+
+              ? `
+                <button
+                  class="btn btn-ghost"
+                  id="prevBtn"
+                >
+                  ← Prev
+                </button>
+              `
+
+              : `
+                <button
+                  class="btn btn-ghost"
+                  disabled
+                >
+                  ← Prev
+                </button>
+              `
+          }
+
+
+          <button
+            class="btn btn-ghost"
+            id="episodesBtn"
+          >
+            📋 Episode
+          </button>
+
+
+          ${
+            nextEpisode
+
+              ? `
+                <button
+                  class="btn btn-primary"
+                  id="nextBtn"
+                >
+                  Next →
+                </button>
+              `
+
+              : `
+                <button
+                  class="btn btn-ghost"
+                  disabled
+                >
+                  Next →
+                </button>
+              `
+          }
+
+        </div>
+
+
+        ${
+          stream.qualities.length
+
+            ? `
+              <div class="panel">
+
+                <h3>
+                  🎞️ Kualitas & Server
+                </h3>
+
+                <div class="server-select">
+
+                  ${stream.qualities
+                    .map(
+                      quality => `
+
+                        <div class="quality-row">
+
+                          <span class="quality-label">
+                            ${escapeHTML(
+                              quality.title
+                            )}
+                          </span>
+
+                          ${
+                            quality.servers
+                              .map(
+                                (server, index) => `
+
+                                  <button
+                                    class="server-btn ${
+                                      index === 0 &&
+                                      quality ===
+                                      stream.qualities[0]
+                                        ? "active"
+                                        : ""
+                                    }"
+                                    data-server-id="${escapeHTML(
+                                      server.id
+                                    )}"
+                                  >
+                                    ${escapeHTML(
+                                      server.name
+                                    )}
+                                  </button>
+
+                                `
+                              )
+                              .join("")
+                          }
+
+                        </div>
+
+                      `
+                    )
+                    .join("")}
+
+                </div>
+
+              </div>
+            `
+
+            : `
+              <div class="panel">
+
+                <h3>
+                  🎞️ Server
+                </h3>
+
+                <p
+                  style="
+                    color:var(--text-3);
+                    font-size:13px
+                  "
+                >
+                  ${
+                    params.provider ===
+                    "kuramanime"
+
+                      ? "Episode ini tidak memiliki server streaming yang dikembalikan API."
+                      : "Provider menggunakan URL player langsung."
+                  }
+                </p>
+
+              </div>
+            `
+        }
+
+
+        ${
+          episodes.length
+
+            ? `
+              <div class="panel">
+
+                <h3>
+                  📺 Episode Lainnya
+                </h3>
+
+                <div class="ep-list">
+
+                  ${episodes
+                    .map(
+                      episode => `
+
+                        <button
+                          class="ep-btn ${
+                            String(
+                              episode.num
+                            ) ===
+                            String(
+                              params.episode
+                            )
+                              ? "active"
+                              : ""
+                          }"
+                          data-player-episode='${escapeHTML(
+                            JSON.stringify(
+                              episode
+                            )
+                          )}'
+                        >
+
+                          ${escapeHTML(
+                            episode.num
+                          )}
+
+                          ${
+                            episode.date
+
+                              ? `
+                                <span class="date">
+                                  ${escapeHTML(
+                                    episode.date
+                                  )}
+                                </span>
+                              `
+
+                              : ""
+                          }
+
+                        </button>
+
+                      `
+                    )
+                    .join("")}
+
+                </div>
+
+              </div>
+            `
+
+            : ""
+        }
+
+
+      `;
+
+
+      /*
+        PREV
+      */
+      $("#prevBtn")
+        ?.addEventListener(
+          "click",
+          () => {
+
+            router.navigate(
+              "player",
+              {
+                ...params,
+
+                episode:
+                  prevEpisode.num,
+
+                episodeId:
+                  prevEpisode.id,
+
+                episodeSlug:
+                  prevEpisode.slug
+              }
+            );
+
+          }
+        );
+
+
+      /*
+        NEXT
+      */
+      $("#nextBtn")
+        ?.addEventListener(
+          "click",
+          () => {
+
+            router.navigate(
+              "player",
+              {
+                ...params,
+
+                episode:
+                  nextEpisode.num,
+
+                episodeId:
+                  nextEpisode.id,
+
+                episodeSlug:
+                  nextEpisode.slug
+              }
+            );
+
+          }
+        );
+
+
+      /*
+        EPISODE LIST
+      */
+      $$("[data-player-episode]")
+        .forEach(button => {
+
+          button.addEventListener(
+            "click",
+            () => {
+
+              const episode =
+                JSON.parse(
+                  button.dataset.playerEpisode
+                );
+
+              router.navigate(
+                "player",
+                {
+                  ...params,
+
+                  episode:
+                    episode.num,
+
+                  episodeId:
+                    episode.id,
+
+                  episodeSlug:
+                    episode.slug
+                }
+              );
+
+            }
+          );
+
+        });
+
+
+      /*
+        SERVER SWITCH
+
+        Hanya Otakudesu yang memiliki
+        endpoint /server/:serverId.
+      */
+      $$("[data-server-id]")
+        .forEach(button => {
+
+          button.addEventListener(
+            "click",
+            async () => {
+
+              const serverId =
+                button.dataset.serverId;
+
+              if (!serverId) {
+                toast(
+                  "Server ID kosong.",
+                  "err"
+                );
+                return;
+              }
+
+
+              $$(".server-btn")
+                .forEach(
+                  item =>
+                    item.classList.remove(
+                      "active"
+                    )
+                );
+
+              button.classList.add(
+                "loading"
+              );
+
+
+              try {
+
+                if (
+                  params.provider !==
+                  "otakudesu"
+                ) {
+
+                  toast(
+                    "Resolver server hanya tersedia untuk Otakudesu.",
+                    "err"
+                  );
+
+                  return;
+                }
+
+
+                const url =
+                  await API.resolveServer(
+                    serverId
+                  );
+
+
+                if (!url) {
+
+                  throw new Error(
+                    "Resolver tidak mengembalikan URL player."
+                  );
+
+                }
+
+
+                currentPlayerUrl =
+                  url;
+
+
+                const iframe =
+                  $("#playerFrame");
+
+                if (!iframe) {
+                  throw new Error(
+                    "Player iframe tidak ditemukan."
+                  );
+                }
+
+
+                iframe.src =
+                  currentPlayerUrl;
+
+
+                button.classList.remove(
+                  "loading"
+                );
+
+                button.classList.add(
+                  "active"
+                );
+
+
+              } catch (error) {
+
+                button.classList.remove(
+                  "loading"
+                );
+
+                toast(
+                  error.message,
+                  "err"
+                );
+
+              }
+
+            }
+          );
+
+        });
+
+
+    } catch (error) {
+
+      $("#view").innerHTML = `
+
+        <div class="state">
+
+          <div class="ic">
+            ⚠️
+          </div>
+
+          <h3>
+            Stream gagal dimuat
+          </h3>
+
+          <p>
+            ${escapeHTML(
+              error.message
+            )}
+          </p>
+
+
+          <div
+            class="btn-wrap"
+            style="
+              justify-content:center;
+              margin-top:16px
+            "
+          >
+
+            <button
+              class="btn btn-primary"
+              id="retryPlayer"
+            >
+              🔄 Coba Lagi
+            </button>
+
+            <button
+              class="btn btn-ghost"
+              id="backDetail"
+            >
+              ← Kembali
+            </button>
+
+          </div>
+
+        </div>
+
+      `;
+
+
+      $("#retryPlayer")
+        .onclick = () =>
+          pages.player(params);
+
+
+      $("#backDetail")
+        .onclick = () =>
+          router.navigate(
+            "detail",
+            {
+              provider:
+                params.provider,
+
+              id:
+                params.animeId ||
+                params.id,
+
+              slug:
+                params.animeSlug ||
+                params.slug ||
+                ""
+            }
+          );
+
+    }
+
+  }
+
+};
+
+
+/* ==========================================================
+   ROUTER
+   ========================================================== */
+
+const router = {
+
+  stack: [],
+
+  current: null,
+
+
+  async navigate(
+    page,
+    params = {}
+  ) {
+
+    if (this.current) {
+      this.stack.push(
+        this.current
+      );
+    }
+
+    await this.render(
+      page,
+      params
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  },
+
+
+  async back() {
+
+    const previous =
+      this.stack.pop();
+
+    if (!previous) {
+
+      await this.render(
+        "home"
+      );
+
+    } else {
+
+      await this.render(
+        previous.page,
+        previous.params
+      );
+
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  },
+
+
+  async render(
+    page,
+    params = {}
+  ) {
+
+    this.current = {
+      page,
+      params
+    };
+
+    renderNav();
+
+    const renderFunction =
+      pages[page];
+
+    if (!renderFunction) {
+
+      return pages.home();
+
+    }
+
+    try {
+
+      await renderFunction(
+        params
+      );
+
+    } catch (error) {
+
+      $("#view").innerHTML = `
+
+        <div class="state">
+
+          <div class="ic">
+            ❌
+          </div>
+
+          <h3>
+            Terjadi kesalahan
+          </h3>
+
+          <p>
+            ${escapeHTML(
+              error.message
+            )}
+          </p>
+
+          <button
+            class="btn btn-primary"
+            id="goHome"
+          >
+            ← Ke Home
+          </button>
+
+        </div>
+
+      `;
+
+      $("#goHome").onclick =
+        () =>
+          this.navigate("home");
+    }
+  }
+};
+
+
+/* ==========================================================
+   GLOBAL EVENTS
+   ========================================================== */
+
+$("#backBtn")
+  .addEventListener(
+    "click",
+    () => router.back()
+  );
+
+$("#topSearchBtn")
+  .addEventListener(
+    "click",
+    () => router.navigate("search")
+  );
+
+
+/* ==========================================================
+   START
+   ========================================================== */
+
+renderNav();
+
+router.render(
+  "home"
+);
+</script></body>
+  </html>

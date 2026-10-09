@@ -41,10 +41,9 @@ img{display:block;max-width:100%}
 :focus-visible{outline:2px solid var(--acc2);outline-offset:3px;border-radius:8px}
 
 #bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:radial-gradient(120% 80% at 12% -10%,rgba(46,107,230,.16),transparent 58%),radial-gradient(90% 70% at 92% 4%,rgba(120,90,255,.10),transparent 60%),radial-gradient(120% 90% at 50% 110%,rgba(20,60,140,.12),transparent 62%),linear-gradient(180deg,#05060A,#07080C 45%,#05060A)}
-#bg .orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:drift 26s ease infinite alternate}
-#bg .orb.a{width:520px;height:520px;left:-160px;top:-120px;background:radial-gradient(circle,rgba(62,123,250,.30),transparent 70%)}
-#bg .orb.b{width:460px;height:460px;right:-140px;top:18%;background:radial-gradient(circle,rgba(140,90,255,.18),transparent 70%);animation-delay:-8s}
-@keyframes drift{0%{transform:translate3d(0,0,0) scale(1)}100%{transform:translate3d(40px,60px,0) scale(1.12)}}
+#bg .orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.42}
+#bg .orb.a{width:480px;height:480px;left:-150px;top:-110px;background:radial-gradient(circle,rgba(62,123,250,.26),transparent 70%)}
+#bg .orb.b{width:420px;height:420px;right:-130px;top:18%;background:radial-gradient(circle,rgba(140,90,255,.15),transparent 70%)}
 
 .topgrad{height:3px;position:fixed;left:0;top:0;z-index:400;width:0;background:var(--grad2);box-shadow:0 0 14px rgba(76,141,255,.9);transition:width .3s var(--ease),opacity .3s;opacity:0}
 .topgrad.on{opacity:1}
@@ -52,7 +51,7 @@ img{display:block;max-width:100%}
 #app{position:relative;z-index:1;min-height:100dvh}
 .shell{max-width:var(--maxw);margin:0 auto;padding:0 18px}
 
-#topbar{position:sticky;top:0;z-index:60;height:var(--top-h);display:none;align-items:center;gap:12px;padding:0 14px;background:rgba(8,9,12,.72);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);border-bottom:1px solid var(--line)}
+#topbar{position:sticky;top:0;z-index:60;height:var(--top-h);display:none;align-items:center;gap:12px;padding:0 14px;background:rgba(8,9,12,.8);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-bottom:1px solid var(--line)}
 .tb-logo{display:flex;align-items:center;gap:9px;font-family:'Sora Variable',sans-serif;font-weight:700;letter-spacing:-.03em}
 .tb-logo img{width:28px;height:28px;border-radius:8px;object-fit:cover;border:1px solid var(--line2)}
 .tb-logo span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -66,13 +65,13 @@ img{display:block;max-width:100%}
 .dot.off{background:var(--err)}
 .dot.idle{background:var(--warn)}
 
-#sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--side-w);z-index:70;display:none;flex-direction:column;padding:22px 16px 16px;background:linear-gradient(180deg,rgba(13,15,18,.86),rgba(8,9,12,.9));backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%);border-right:1px solid var(--line)}
+#sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--side-w);z-index:70;display:none;flex-direction:column;padding:22px 16px 16px;background:linear-gradient(180deg,rgba(13,15,18,.86),rgba(8,9,12,.9));backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);border-right:1px solid var(--line)}
 .sb-brand{display:flex;align-items:center;gap:12px;padding:4px 8px 20px}
 .sb-brand .lbox{width:44px;height:44px;border-radius:13px;overflow:hidden;flex:none;border:1px solid var(--line2);box-shadow:var(--sh1),inset 0 1px 0 rgba(255,255,255,.14);transition:.4s var(--spring)}
 .sb-brand .lbox img{width:100%;height:100%;object-fit:cover}
 .sb-brand:hover .lbox{transform:scale(1.06) rotate(-2deg)}
-.sb-brand .wm{font-family:'Sora Variable',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.05em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.sb-brand .sub{font-size:10.5px;color:var(--dim);letter-spacing:.16em;text-transform:uppercase;margin-top:-2px}
+.sb-brand .wm{display:block;font-family:'Sora Variable',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.05em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sb-brand .sub{display:block;font-size:10.5px;color:var(--dim);letter-spacing:.16em;text-transform:uppercase;margin-top:-2px}
 .sb-nav{display:flex;flex-direction:column;gap:5px}
 .sb-link{position:relative;display:flex;align-items:center;gap:13px;padding:11px 13px;border-radius:14px;color:var(--mut);font-weight:550;font-size:14.5px;transition:.28s var(--ease);overflow:hidden}
 .sb-link svg{width:20px;height:20px;flex:none;transition:.28s var(--spring)}
@@ -86,7 +85,7 @@ img{display:block;max-width:100%}
 .sb-status .row{display:flex;align-items:center;gap:8px;color:var(--mut)}
 .sb-status b{color:var(--txt);font-weight:600}
 
-#tabbar{position:fixed;left:0;right:0;bottom:0;z-index:80;height:calc(var(--nav-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);display:flex;align-items:stretch;background:rgba(8,9,12,.72);backdrop-filter:blur(26px) saturate(180%);-webkit-backdrop-filter:blur(26px) saturate(180%);border-top:1px solid var(--line)}
+#tabbar{position:fixed;left:0;right:0;bottom:0;z-index:80;height:calc(var(--nav-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);display:flex;align-items:stretch;background:rgba(8,9,12,.8);backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border-top:1px solid var(--line)}
 #tabbar::before{content:"";position:absolute;top:-24px;left:0;right:0;height:24px;pointer-events:none;background:linear-gradient(180deg,transparent,rgba(5,6,10,.55))}
 .tab{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--dim);transition:color .3s var(--ease)}
 .tab svg{width:22px;height:22px;transition:.42s var(--spring)}
@@ -99,39 +98,42 @@ img{display:block;max-width:100%}
 .tab .badge{position:absolute;top:5px;right:calc(50% - 20px);min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--love);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;box-shadow:0 3px 10px -3px rgba(255,77,109,.8)}
 
 #view{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 26px);min-height:60dvh}
-main.anim-in{animation:viewIn .42s var(--ease) both}
-@keyframes viewIn{from{opacity:0;transform:translateY(12px) scale(.995);filter:blur(6px)}to{opacity:1;transform:none;filter:blur(0)}}
+main.anim-in{animation:viewIn .32s var(--ease) both}
+@keyframes viewIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-.rv{opacity:0;transform:translateY(18px);transition:opacity .62s var(--ease),transform .62s var(--ease);transition-delay:var(--d,0ms)}
-.rv.in{opacity:1;transform:none}
-.rv-s{opacity:0;transform:scale(.94);transition:opacity .5s var(--ease),transform .6s var(--spring);transition-delay:var(--d,0ms)}
-.rv-s.in{opacity:1;transform:none}
+.rv{opacity:0;transition:opacity .45s var(--ease);transition-delay:var(--d,0ms)}
+.rv.in{opacity:1}
+.rv-s{opacity:0;transition:opacity .4s var(--ease);transition-delay:var(--d,0ms)}
+.rv-s.in{opacity:1}
 
-.hero{position:relative;margin:18px 0 8px;border-radius:var(--r6);overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.012));border:1px solid var(--line);box-shadow:var(--sh3);padding:30px 20px 26px;animation:heroIn .8s var(--ease) both}
-@keyframes heroIn{from{opacity:0;transform:translateY(22px) scale(.985);filter:blur(10px)}to{opacity:1;transform:none;filter:blur(0)}}
-.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(70% 100% at 50% -20%,rgba(76,141,255,.20),transparent 62%),radial-gradient(50% 60% at 10% 110%,rgba(140,90,255,.12),transparent 70%);pointer-events:none}
-.hero-in{position:relative;display:flex;flex-direction:column;align-items:center;gap:0}
-.logo-wrap{position:relative;width:96px;height:96px;border-radius:26px;padding:4px;background:linear-gradient(150deg,rgba(255,255,255,.24),rgba(255,255,255,.05) 40%,rgba(125,180,255,.18));box-shadow:0 18px 44px -18px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.24);animation:logoIn .9s var(--spring) .12s both;transition:.5s var(--spring)}
-@keyframes logoIn{from{opacity:0;transform:scale(.6) rotate(-8deg)}to{opacity:1;transform:none}}
-.logo-wrap::after{content:"";position:absolute;inset:-14px;border-radius:38px;z-index:-1;background:radial-gradient(circle,rgba(62,123,250,.35),transparent 68%);filter:blur(16px);opacity:.75;animation:breathe 5.5s ease-in-out infinite}
-@keyframes breathe{0%,100%{opacity:.5;transform:scale(.95)}50%{opacity:.85;transform:scale(1.06)}}
-.logo-inner{width:100%;height:100%;border-radius:22px;overflow:hidden;background:#0A0C11;position:relative;box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
+.hero{position:relative;margin:18px 0 8px;border-radius:var(--r5);overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.012));border:1px solid var(--line);box-shadow:var(--sh3);padding:22px 18px 20px;animation:heroIn .5s var(--ease) both}
+@keyframes heroIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(70% 100% at 50% -20%,rgba(76,141,255,.16),transparent 62%);pointer-events:none}
+.hero-in{position:relative;display:flex;flex-direction:column;align-items:stretch}
+.hero-row{display:flex;align-items:center;gap:14px}
+.logo-wrap{position:relative;width:62px;height:62px;border-radius:18px;padding:3px;flex:none;background:linear-gradient(150deg,rgba(255,255,255,.22),rgba(255,255,255,.05) 40%,rgba(125,180,255,.16));box-shadow:0 14px 34px -16px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.22);transition:.4s var(--spring)}
+.logo-wrap::after{content:"";position:absolute;inset:-10px;border-radius:26px;z-index:-1;background:radial-gradient(circle,rgba(62,123,250,.30),transparent 68%);filter:blur(12px);opacity:.7}
+.logo-inner{width:100%;height:100%;border-radius:15px;overflow:hidden;background:#0A0C11;position:relative;box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
 .logo-inner img{width:100%;height:100%;object-fit:cover;transition:.6s var(--spring)}
-.logo-wrap:hover{transform:translateY(-4px) scale(1.045) rotate(1.5deg)}
-.logo-wrap:hover .logo-inner img{transform:scale(1.09)}
-.hero-title{margin-top:16px;font-family:'Sora Variable',sans-serif;font-weight:800;line-height:1;font-size:clamp(38px,9.2vw,66px);letter-spacing:-.055em;text-align:center;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleIn .9s var(--ease) .2s both;text-shadow:0 12px 44px rgba(62,123,250,.20)}
-@keyframes titleIn{from{opacity:0;transform:translateY(14px);filter:blur(12px)}to{opacity:1;transform:none;filter:blur(0)}}
-.hero-tag{margin:10px auto 0;max-width:460px;text-align:center;color:var(--mut);font-size:13.5px;animation:titleIn .9s var(--ease) .32s both}
+.logo-wrap:hover{transform:translateY(-2px) scale(1.03)}
+.logo-wrap:hover .logo-inner img{transform:scale(1.06)}
+.hero-tx{min-width:0}
+.hero-title{font-family:'Sora Variable',sans-serif;font-weight:800;line-height:1;font-size:clamp(26px,6.6vw,40px);letter-spacing:-.05em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-tag{margin:5px 0 0;color:var(--mut);font-size:12.6px;line-height:1.45}
 .hero-tag b{color:#cfe0ff;font-weight:600}
-.hero-cta{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;justify-content:center;animation:titleIn .9s var(--ease) .4s both}
-
-.dash{position:relative;width:100%;max-width:980px;margin:24px auto 0;aspect-ratio:16/9;border-radius:var(--r4);overflow:hidden;background:#07080C;border:1px solid rgba(255,255,255,.11);box-shadow:0 30px 80px -30px rgba(0,0,0,.95),0 0 0 1px rgba(76,141,255,.10),0 0 70px -28px rgba(62,123,250,.42);animation:dashIn 1s var(--ease) .46s both}
-@keyframes dashIn{from{opacity:0;transform:translateY(28px) scale(.965);filter:blur(16px)}to{opacity:1;transform:none;filter:blur(0)}}
+.hero-search{display:flex;align-items:center;gap:11px;height:50px;margin-top:16px;padding:0 8px 0 16px;border-radius:99px;background:rgba(255,255,255,.045);border:1px solid var(--line2);color:var(--dim);transition:.3s var(--ease)}
+.hero-search:hover{background:rgba(255,255,255,.075);border-color:rgba(125,180,255,.4);transform:translateY(-1px);color:var(--mut)}
+.hero-search:active{transform:scale(.99)}
+.hero-search .sic{display:grid;place-items:center;flex:none}
+.hero-search .sic svg{width:18px;height:18px}
+.hero-search .ph{flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hero-search .go{width:30px;height:30px;border-radius:99px;display:grid;place-items:center;background:var(--acc-soft);color:var(--acc2);flex:none}
+.hero-search .go svg{width:15px;height:15px}
+.hero-cta{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.dash{position:relative;width:100%;max-width:980px;margin:18px auto 0;aspect-ratio:16/9;border-radius:var(--r4);overflow:hidden;background:#07080C;border:1px solid rgba(255,255,255,.11);box-shadow:0 30px 80px -30px rgba(0,0,0,.95),0 0 0 1px rgba(76,141,255,.10);animation:dashIn .6s var(--ease) .1s both}
+@keyframes dashIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 .dash::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -60px 90px -60px rgba(0,0,0,.85)}
 .dash video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;user-select:none;-webkit-user-select:none}
-.dash .shine{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:inherit}
-.dash .shine::before{content:"";position:absolute;top:-60%;left:-70%;width:52%;height:220%;transform:rotate(16deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.055),transparent);animation:shine 7.5s ease infinite 1.6s}
-@keyframes shine{0%{left:-70%}55%,100%{left:130%}}
 
 .btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 18px;border-radius:14px;font-size:13.5px;font-weight:620;letter-spacing:-.01em;border:1px solid var(--line2);color:var(--txt);background:var(--glass);overflow:hidden;transition:.3s var(--ease);white-space:nowrap}
 .btn svg{width:17px;height:17px}
@@ -186,14 +188,14 @@ main.anim-in{animation:viewIn .42s var(--ease) both}
 .card:hover .poster img{transform:scale(1.06)}
 .card .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,6,10,.02) 40%,rgba(5,6,10,.55) 72%,rgba(5,6,10,.88));opacity:.9;transition:.4s var(--ease)}
 .card:hover .veil{opacity:1}
-.card .body{position:absolute;left:0;right:0;bottom:0;padding:10px 11px 11px;transform:translateY(4px);transition:.4s var(--ease)}
-.card:hover .body{transform:none}
+.card .body{position:absolute;left:0;right:0;bottom:0;padding:10px 11px 11px}
 .card .nm{font-size:12.8px;font-weight:640;line-height:1.32;letter-spacing:-.012em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 2px 10px rgba(0,0,0,.8)}
-.card .meta{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:10.4px;color:#a7b3c6;opacity:0;transform:translateY(4px);transition:.4s var(--ease) .04s}
-.card:hover .meta{opacity:1;transform:none}
+.card .meta{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:10.4px;color:#a7b3c6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:30px}
+.card .meta:empty{display:none}
 .card .meta i{width:3px;height:3px;border-radius:50%;background:#5d6a7d;font-style:normal}
 .badge{position:absolute;left:8px;top:8px;z-index:2;padding:4px 7px;border-radius:7px;font-size:9.5px;font-weight:700;letter-spacing:.03em;background:rgba(8,10,16,.68);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);color:#e6edf9}
 .badge.score{left:auto;right:8px;color:#ffe9a8;border-color:rgba(245,165,36,.36);background:rgba(40,28,6,.65)}
+.badge.score svg{width:10px;height:10px;color:#FFD479;vertical-align:-1.5px;flex:none}
 .badge.live{color:#b9ffe9;border-color:rgba(49,208,170,.4);background:rgba(6,32,26,.62)}
 .badge.live::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ok);margin-right:5px;box-shadow:0 0 8px var(--ok);animation:pulse 1.6s infinite;vertical-align:1px}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
@@ -202,8 +204,8 @@ main.anim-in{animation:viewIn .42s var(--ease) both}
 .play-ov .cir{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(62,123,250,.86);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.3);box-shadow:0 12px 34px -10px rgba(62,123,250,.9);transform:scale(.72);transition:.42s var(--spring)}
 .card:hover .play-ov .cir{transform:scale(1)}
 .play-ov svg{width:18px;height:18px;margin-left:2px}
-.fav-btn{position:absolute;right:8px;bottom:8px;z-index:4;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(8,10,16,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);color:#c3ccd9;opacity:0;transform:translateY(5px) scale(.85);transition:.34s var(--spring)}
-.card:hover .fav-btn,.card .fav-btn.on{opacity:1;transform:none}
+.fav-btn{position:absolute;right:8px;bottom:8px;z-index:4;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(8,10,16,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.14);color:#c3ccd9;opacity:1;transform:none;transition:.34s var(--spring)}
+.card:hover .fav-btn{color:#fff;border-color:rgba(255,255,255,.3)}
 .fav-btn svg{width:15px;height:15px;transition:.3s var(--spring)}
 .fav-btn:hover{color:#fff;border-color:rgba(255,77,109,.5);background:rgba(255,77,109,.2)}
 .fav-btn.on{color:var(--love);opacity:1;transform:none;border-color:rgba(255,77,109,.4);background:rgba(255,77,109,.14)}
@@ -290,14 +292,13 @@ main.anim-in{animation:viewIn .42s var(--ease) both}
 .sk-card.g{width:100%}
 
 .state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:52px 22px;border-radius:var(--r5);background:var(--glass);border:1px solid var(--line)}
-.state .ic{width:66px;height:66px;border-radius:22px;display:grid;place-items:center;color:var(--acc2);background:linear-gradient(150deg,rgba(76,141,255,.18),rgba(76,141,255,.04));border:1px solid rgba(125,180,255,.22);box-shadow:0 18px 44px -20px rgba(62,123,250,.7);animation:floaty 4.6s ease-in-out infinite}
-@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.state .ic{width:66px;height:66px;border-radius:22px;display:grid;place-items:center;color:var(--acc2);background:linear-gradient(150deg,rgba(76,141,255,.18),rgba(76,141,255,.04));border:1px solid rgba(125,180,255,.22);box-shadow:0 18px 44px -20px rgba(62,123,250,.7)}
 .state .ic svg{width:28px;height:28px}
 .state h3{font-size:17px;font-weight:700}
 .state p{margin:0;color:var(--mut);font-size:13.2px;max-width:44ch;line-height:1.65}
 
 #toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 22px);z-index:200;display:flex;flex-direction:column-reverse;gap:9px;pointer-events:none;width:min(420px,calc(100vw - 28px))}
-.toast{display:flex;align-items:center;gap:11px;padding:12px 15px;border-radius:15px;pointer-events:auto;background:rgba(16,19,25,.92);backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid var(--line2);box-shadow:var(--sh3);animation:tIn .46s var(--spring);font-size:13.2px;font-weight:540}
+.toast{display:flex;align-items:center;gap:11px;padding:12px 15px;border-radius:15px;pointer-events:auto;background:rgba(16,19,25,.92);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border:1px solid var(--line2);box-shadow:var(--sh3);animation:tIn .46s var(--spring);font-size:13.2px;font-weight:540}
 .toast.out{animation:tOut .34s var(--ease) forwards}
 @keyframes tIn{from{opacity:0;transform:translateY(22px) scale(.92);filter:blur(6px)}to{opacity:1;transform:none;filter:blur(0)}}
 @keyframes tOut{to{opacity:0;transform:translateY(14px) scale(.95);filter:blur(4px)}}
@@ -367,6 +368,24 @@ footer.ft img{width:22px;height:22px;border-radius:7px}
 @media(min-width:1200px){.card{width:178px}.sk-card{width:178px}}
 @media(max-width:400px){.card{width:132px}.sk-card{width:132px}.grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* ── utilities & komponen baru ── */
+.chip svg{width:14px;height:14px;flex:none}
+.srv button svg{width:14px;height:14px;flex:none}
+.pw .empty svg{width:34px;height:34px;display:block;margin:0 auto 10px;color:var(--dim)}
+.card .poster .perr{position:absolute;inset:0;display:grid;place-items:center;color:#3a4350;pointer-events:none}
+.card .poster .perr svg{width:30px;height:30px}
+.sbar-wrap{position:sticky;top:0;z-index:45;padding:10px 0 4px;box-shadow:0 0 0 100vmax rgba(5,6,10,.9);clip-path:inset(0 -100vmax);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.filters.sfil{flex-wrap:wrap;padding:12px 2px 2px;overflow:visible}
+.qhist{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:4px 2px 0}
+.qhist .lb{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);font-weight:700;margin-right:2px}
+.qhist .chip{height:30px;font-size:12.2px;padding:0 12px}
+#resInfo .src{color:var(--dim);font-size:11.6px}
+#resInfo .src .bad{color:var(--err);font-weight:600}
+.ep-empty{font-size:13px;color:var(--dim);padding:14px 4px}
+.panel h3 svg{width:17px;height:17px;flex:none;color:var(--acc2)}
+@media(max-width:400px){.grid.wide{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}}
+@media(max-width:899px){.sbar-wrap{top:var(--top-h)}}
 </style>
 </head>
 <body>
@@ -418,7 +437,7 @@ Pengaturan
 'use strict';
 
 /* ═══════ CONFIG ═══════ */
-const API_BASE = "https://propecia-thick-solutions-dietary.trycloudflare.com";
+const API_BASE = "https://making-garcia-swap-commons.trycloudflare.com";
 
 const PROVIDERS = {
   otakudesu: { name:"Otakudesu", active:true, search:true, priority:1, desc:"Provider utama. Home, search, detail, episode, server, genre, schedule." },
@@ -458,6 +477,13 @@ const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const debounce = (fn,ms) => {let t;return function(...a){clearTimeout(t);t=setTimeout(()=>fn.apply(this,a),ms)}};
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+const cleanVal = v => {
+  const s = String(v == null ? '' : v).trim();
+  if (!s || s === '-' || s === '?' || s === 'null' || s === 'undefined' || /^unknown$/i.test(s)) return '';
+  return s.replace(/^\s*(Rating|Status|Score)\s*:\s*/i, '').replace(/,+$/, '').trim();
+};
+const epsNum = v => { const m = String(v == null ? '' : v).match(/\d+/); return m ? m[0] : ''; };
+const seriesSlug = v => String(v == null ? '' : v).split('\t')[0].replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase();
 
 /* ═══════ SEARCH NORMALIZATION ═══════ */
 function normalizeSearchText(s) {
@@ -508,6 +534,7 @@ const LS = {
 const Store = {
   favs: LS.get('favs',[]),
   hist: LS.get('hist',[]),
+  shist: LS.get('shist',[]),
   cfg: LS.get('cfg',{provider:'otakudesu',autoNext:true}),
   
   isFav(id){return this.favs.some(f=>f.id===id)},
@@ -524,6 +551,15 @@ const Store = {
     if(this.hist.length>24)this.hist.length=24;
     LS.set('hist',this.hist);
   },
+  addQ(q){
+    q = String(q || '').trim();
+    if (q.length < 2) return;
+    this.shist = this.shist.filter(x => String(x).toLowerCase() !== q.toLowerCase());
+    this.shist.unshift(q);
+    if (this.shist.length > 10) this.shist.length = 10;
+    LS.set('shist', this.shist);
+  },
+  clearQ(){ this.shist = []; LS.set('shist', []) },
   setCfg(k,v){this.cfg[k]=v;LS.set('cfg',this.cfg)},
   getProvider(){return this.cfg.provider||'otakudesu'}
 };
@@ -562,7 +598,7 @@ async function apiGet(endpoint, timeout=20000, cacheKey=null, ttl=0) {
       });
       const raw = await response.text();
       clearTimeout(timer);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) { const err = new Error(`HTTP ${response.status}`); err.status = response.status; throw err; }
       const data = JSON.parse(raw);
       if (cacheKey) CACHE.set(cacheKey, {data, ts:Date.now()});
       return data;
@@ -575,7 +611,7 @@ async function apiGet(endpoint, timeout=20000, cacheKey=null, ttl=0) {
   
   if (cacheKey) {
     INFLIGHT.set(cacheKey, promise);
-    promise.finally(() => INFLIGHT.delete(cacheKey));
+    promise.then(() => INFLIGHT.delete(cacheKey), () => INFLIGHT.delete(cacheKey));
   }
   return promise;
 }
@@ -595,16 +631,19 @@ function getPoster(item) {
 
 function normalizeOtakudesuCard(item) {
   if (!item) return null;
+  const eps = cleanVal(item.episodes);
+  const isOngoing = !!(item.latestReleaseDate || item.releaseDay);
+  const date = cleanVal(item.latestReleaseDate || item.lastReleaseDate);
   return {
     id: String(item.animeId || ''),
     provider: 'otakudesu',
-    title: String(item.title || 'Unknown'),
+    title: cleanVal(item.title) || 'Unknown',
     poster: String(getPoster(item)),
-    score: String(item.score || '-'),
-    type: String(item.type || ''),
-    status: String(item.status || ''),
-    episodes: String(item.episodes || ''),
-    meta: String(item.latestReleaseDate || item.lastReleaseDate || item.releaseDay || ''),
+    score: cleanVal(item.score),
+    type: cleanVal(item.type),
+    status: cleanVal(item.status),
+    epLabel: eps ? (isOngoing ? 'Ep ' + eps : eps + ' Eps') : '',
+    sub: date || cleanVal(item.releaseDay),
     sourceUrl: item.otakudesuUrl || ''
   };
 }
@@ -612,33 +651,38 @@ function normalizeOtakudesuCard(item) {
 function normalizeOploverzCard(item) {
   if (!item) return null;
   const href = item.href || '';
-  const slug = href.split('/').filter(Boolean).pop() || item.slug || '';
+  let slug = cleanVal(item.slug);
+  if (!slug && href.indexOf('/anime/') > -1) slug = href.split('/anime/').pop().split(/[?#/]/).filter(Boolean)[0] || '';
+  if (!slug) slug = seriesSlug(item.seriesName || item.title || '');
+  const series = item.seriesName ? String(item.seriesName).split('\t')[0].replace(/\s+/g, ' ').trim() : '';
   return {
-    id: String(slug || item.seriesName || ''),
+    id: slug || cleanVal(item.title) || 'Unknown',
     provider: 'oploverz',
-    title: String(item.title || item.seriesName || 'Unknown'),
+    title: series || cleanVal(item.title) || 'Unknown',
     poster: String(getPoster(item)),
-    score: String(item.score || '-'),
-    type: String(item.type || ''),
-    status: String(item.status || ''),
-    episodes: String(item.episode || ''),
-    meta: String(item.releaseTime || ''),
+    score: cleanVal(item.score),
+    type: cleanVal(item.type),
+    status: cleanVal(item.status),
+    epLabel: cleanVal(item.episode),
+    sub: cleanVal(item.releaseTime) || cleanVal(item.status),
     sourceUrl: href
   };
 }
 
 function normalizeKuramanimeCard(item) {
   if (!item) return null;
+  const eps = cleanVal(item.episodes);
+  const total = cleanVal(item.totalEpisodes);
   return {
     id: String(item.animeId || ''),
     provider: 'kuramanime',
-    title: String(item.title || 'Unknown'),
+    title: cleanVal(item.title) || 'Unknown',
     poster: String(getPoster(item)),
-    score: String(item.highlight || '-'),
-    type: String(item.type || ''),
+    score: cleanVal(item.highlight),
+    type: cleanVal(item.type),
     status: '',
-    episodes: String(item.episodes || item.totalEpisodes || ''),
-    meta: String(item.quality || ''),
+    epLabel: eps ? (total ? eps + '/' + total : 'Ep ' + eps) : '',
+    sub: cleanVal(item.quality),
     sourceUrl: item.kuramanimeUrl || '',
     slug: item.animeSlug || ''
   };
@@ -657,7 +701,7 @@ function normalizeCard(item, provider) {
 const API = {
   async home() {
     const provider = Store.getProvider();
-    let ongoing = [], completed = [];
+    let ongoing = [], completed = [], movie = [];
     
     try {
       if (provider === 'otakudesu') {
@@ -672,6 +716,7 @@ const API = {
         const r = await apiGet('/kuramanime/home', 20000, 'home:kuramanime', TTL.home);
         ongoing = (r?.data?.ongoing?.episodeList || []).map(i => normalizeCard(i, 'kuramanime')).filter(Boolean);
         completed = (r?.data?.completed?.animeList || []).map(i => normalizeCard(i, 'kuramanime')).filter(Boolean);
+        movie = (r?.data?.movie?.animeList || []).map(i => normalizeCard(i, 'kuramanime')).filter(Boolean);
       }
     } catch (e) {
       console.warn('Primary provider failed:', e);
@@ -684,35 +729,40 @@ const API = {
       }
     }
     
-    return { ongoing, completed };
+    return { ongoing, completed, movie };
   },
   
   async search(query) {
-    if (!query || query.trim().length < 2) return [];
-    const provider = Store.getProvider();
-    let results = [];
+    if (!query || query.trim().length < 2) return { items: [], sources: [] };
+    const preferred = Store.getProvider();
+    const ids = Object.keys(PROVIDERS).filter(id => PROVIDERS[id].active && PROVIDERS[id].search);
+    ids.sort((a, b) => (a === preferred ? -1 : b === preferred ? 1 : 0));
     
-    try {
-      if (provider === 'otakudesu' || !PROVIDERS[provider]?.search) {
-        const r = await apiGet(`/otakudesu/search?q=${encodeURIComponent(query)}`, 20000, `search:otakudesu:${query}`, TTL.search);
-        results = (r?.data?.animeList || []).map(i => normalizeCard(i, 'otakudesu')).filter(Boolean);
-      } else if (provider === 'oploverz') {
-        const r = await apiGet(`/oploverz/search?q=${encodeURIComponent(query)}`, 20000, `search:oploverz:${query}`, TTL.search);
-        results = (r?.data?.animeList || []).map(i => normalizeCard(i, 'oploverz')).filter(Boolean);
-      }
-    } catch (e) {
-      console.warn('Search failed:', e);
+    const sources = await Promise.all(ids.map(async id => {
       try {
-        if (provider !== 'otakudesu') {
-          const r = await apiGet(`/otakudesu/search?q=${encodeURIComponent(query)}`, 20000, `search:otakudesu:fallback:${query}`, TTL.search);
-          results = (r?.data?.animeList || []).map(i => normalizeCard(i, 'otakudesu')).filter(Boolean);
-        }
-      } catch (e2) {
-        console.error('Search fallback failed:', e2);
+        const r = await apiGet(`/${id}/search?q=${encodeURIComponent(query)}`, 20000, `search:${id}:${query}`, TTL.search);
+        const list = (r?.data?.animeList || []).map(i => normalizeCard(i, id)).filter(Boolean);
+        return { id, ok: true, count: list.length, items: list };
+      } catch (e) {
+        if (e.status === 404) return { id, ok: true, count: 0, items: [] };
+        console.warn('Search failed:', id, e);
+        return { id, ok: false, count: 0, items: [], error: e.message || 'Gagal' };
       }
+    }));
+    
+    if (sources.every(s => !s.ok)) {
+      throw new Error(sources.map(s => s.error).filter(Boolean)[0] || 'Pencarian gagal.');
     }
     
-    return results;
+    const items = [];
+    const seen = new Set();
+    sources.forEach(s => s.items.forEach(a => {
+      const key = a.provider + ':' + a.id;
+      if (seen.has(key)) return;
+      seen.add(key);
+      items.push(a);
+    }));
+    return { items, sources: sources.map(s => ({ id: s.id, ok: s.ok, count: s.count, error: s.error })) };
   },
   
   async detail(provider, id, slug='') {
@@ -729,17 +779,17 @@ const API = {
     if (provider === 'otakudesu') {
       return {
         id, slug:'', provider,
-        title: data.title || 'Unknown',
-        alt: data.japanese || '',
+        title: cleanVal(data.title) || 'Unknown',
+        alt: cleanVal(data.japanese),
         poster: data.poster || '',
-        score: data.score || '-',
-        type: data.type || '-',
-        status: data.status || '-',
-        year: data.aired || '-',
-        episodes: data.episodes || '-',
-        duration: data.duration || '-',
-        studio: data.studios || '-',
-        genres: (data.genreList || []).map(i => i.title),
+        score: cleanVal(data.score),
+        type: cleanVal(data.type),
+        status: cleanVal(data.status),
+        year: cleanVal(data.aired),
+        episodes: cleanVal(data.episodes),
+        duration: cleanVal(data.duration),
+        studio: cleanVal(data.studios),
+        genres: (data.genreList || []).map(i => ({ t: cleanVal(i.title), id: i.genreId || '' })).filter(g => g.t),
         synopsis: (data.synopsis?.paragraphList || []).join('\n\n') || 'Sinopsis tidak tersedia.',
         episodeList: (data.episodeList || []).map(i => ({num:i.title, id:i.episodeId, slug:'', date:''})),
         recommendations: (data.recommendedAnimeList || []).map(i => normalizeCard(i, provider)).filter(Boolean)
@@ -748,18 +798,18 @@ const API = {
     
     if (provider === 'oploverz') {
       return {
-        id, slug: data.title ? id : id, provider,
-        title: data.title || 'Unknown',
+        id, slug:id, provider,
+        title: cleanVal(data.title) || 'Unknown',
         alt: '',
         poster: data.poster || '',
-        score: data.rating || '-',
-        type: data.type || '-',
-        status: data.status || '-',
-        year: data.releasedOn || '-',
+        score: cleanVal(data.rating),
+        type: cleanVal(data.type),
+        status: cleanVal(data.status),
+        year: cleanVal(data.releasedOn),
         episodes: (data.episodeList || []).length,
-        duration: data.duration || '-',
-        studio: data.studio || '-',
-        genres: Array.isArray(data.genres) ? data.genres : [],
+        duration: cleanVal(data.duration),
+        studio: cleanVal(data.studio),
+        genres: (Array.isArray(data.genres) ? data.genres : []).map(g => ({ t: cleanVal(g), id: '' })).filter(g => g.t),
         synopsis: (data.synopsis?.paragraphList || []).join('\n\n') || 'Sinopsis tidak tersedia.',
         episodeList: (data.episodeList || []).map(i => {
           const href = i.href || '';
@@ -770,22 +820,28 @@ const API = {
       };
     }
     
+    const first = parseInt(data.episode && data.episode.first, 10);
+    const last = parseInt(data.episode && data.episode.last, 10);
+    const epList = [];
+    if (first > 0 && last >= first) {
+      for (let n = first; n <= last; n++) epList.push({ num:String(n), id:String(n), slug:'', date:'' });
+    }
     return {
       id: data.animeId || id, slug: data.animeSlug || slug, provider,
-      title: data.title || 'Unknown',
-      alt: data.alternativeTitle || '',
+      title: cleanVal(data.title) || 'Unknown',
+      alt: cleanVal(data.alternativeTitle),
       poster: data.poster || '',
-      score: data.score || '-',
-      type: data.type?.title || '-',
-      status: data.status?.title || '-',
-      year: data.aired || '-',
-      episodes: data.episodes || '-',
-      duration: data.duration || '-',
-      studio: Array.isArray(data.studioList) ? data.studioList.map(x=>x.title).join(', ') : '-',
-      genres: (data.genreList || []).map(x => String(x.title||'').replace(/\s+/g,' ').trim()),
+      score: cleanVal(data.score),
+      type: cleanVal(data.type && data.type.title),
+      status: cleanVal(data.status && data.status.title),
+      year: cleanVal(data.aired),
+      episodes: cleanVal(data.episodes) || (epList.length ? String(last) : ''),
+      duration: cleanVal(data.duration),
+      studio: cleanVal((Array.isArray(data.studioList) ? data.studioList.map(x=>x.title).join(', ') : '')),
+      genres: (data.genreList || []).map(x => ({ t: cleanVal(x.title), id: '' })).filter(g => g.t),
       synopsis: (data.synopsis?.paragraphList || []).join('\n\n') || 'Sinopsis tidak tersedia.',
-      episodeList: [],
-      recommendations: []
+      episodeList: epList,
+      recommendations: (data.similarAnimeList || []).map(i => normalizeCard(i, 'kuramanime')).filter(Boolean)
     };
   },
   
@@ -848,7 +904,13 @@ const API = {
         return { list:(r?.data?.animeList||[]).map(i=>normalizeCard(i,'otakudesu')).filter(Boolean), pagination:r?.pagination||null };
       } else if (provider === 'oploverz') {
         const r = await apiGet(`/oploverz/anime?page=${page}`, 20000, `ongoing:oploverz:${page}`, TTL.home);
-        return { list:(r?.data?.animeList||[]).map(i=>normalizeCard(i,'oploverz')).filter(Boolean), pagination:r?.pagination||null };
+        const sections = r?.data?.sectionList || [];
+        const list = [];
+        sections.forEach(s => (s.animeList||[]).forEach(i => { const c = normalizeCard(i,'oploverz'); if(c) list.push(c) }));
+        return { list, pagination:r?.pagination||null, catalog:true };
+      } else if (provider === 'kuramanime') {
+        const r = await apiGet(`/kuramanime/anime?status=ongoing&page=${page}`, 20000, `ongoing:kuramanime:${page}`, TTL.home);
+        return { list:(r?.data?.episodeList||[]).map(i=>normalizeCard(i,'kuramanime')).filter(Boolean), pagination:r?.pagination||null };
       }
     } catch {}
     return { list:[], pagination:null };
@@ -863,6 +925,9 @@ const API = {
       } else if (provider === 'oploverz') {
         const r = await apiGet(`/oploverz/anime?page=${page}&status=completed`, 20000, `completed:oploverz:${page}`, TTL.home);
         return { list:(r?.data?.animeList||[]).map(i=>normalizeCard(i,'oploverz')).filter(Boolean), pagination:r?.pagination||null };
+      } else if (provider === 'kuramanime') {
+        const r = await apiGet(`/kuramanime/anime?status=completed&page=${page}`, 20000, `completed:kuramanime:${page}`, TTL.home);
+        return { list:(r?.data?.animeList||[]).map(i=>normalizeCard(i,'kuramanime')).filter(Boolean), pagination:r?.pagination||null };
       }
     } catch {}
     return { list:[], pagination:null };
@@ -878,23 +943,21 @@ const API = {
 function cardHTML(a, opt) {
   opt = opt || {};
   const f = Store.isFav(a.id);
-  const meta = [];
-  if (a.year) meta.push(a.year);
-  if (a.type) meta.push(a.type);
-  if (a.episodes && a.episodes !== '-') meta.push(a.episodes + ' Eps');
+  const meta = [a.epLabel, a.sub, a.type].filter(Boolean);
   const prov = PROVIDERS[a.provider]?.name || a.provider || '';
   
-  return '<a class="card'+(opt.g?' g':'')+'" href="#/anime/'+esc(a.id)+'?provider='+esc(a.provider)+(a.slug?'&slug='+esc(a.slug):'')+'" data-card="'+esc(a.id)+'" data-provider="'+esc(a.provider)+'" aria-label="'+esc(a.title)+'">' +
+  return '<a class="card'+(opt.g?' g':'')+'" href="#/anime/'+esc(a.id)+'?provider='+esc(a.provider)+(a.slug?'&slug='+encodeURIComponent(a.slug):'')+'" data-card="'+esc(a.id)+'" data-provider="'+esc(a.provider)+'" aria-label="'+esc(a.title)+'">' +
     '<div class="poster">' +
-    '<img data-src="'+esc(a.poster)+'" alt="'+esc(a.title)+'" loading="lazy" onload="this.classList.add(\'ld\')" onerror="this.style.opacity=\'0\'">' +
+    '<span class="perr" aria-hidden="true">'+svg('film','',1.7)+'</span>' +
+    '<img data-src="'+esc(a.poster)+'" alt="'+esc(a.title)+'" loading="lazy" onload="this.classList.add(\'ld\')" onerror="this.style.display=\'none\'">' +
     '<div class="veil"></div>' +
     '<span class="badge">'+esc(prov)+'</span>' +
-    (a.score && a.score !== '-' ? '<span class="badge score">'+svg('star','','0')+' '+esc(a.score)+'</span>' : '') +
+    (a.score ? '<span class="badge score">'+svg('star','',1.8)+' '+esc(a.score)+'</span>' : '') +
     '<div class="play-ov"><span class="cir">'+svg('play')+'</span></div>' +
     '</div>' +
     '<div class="body"><div class="nm">'+esc(a.title)+'</div>' +
     '<div class="meta">'+meta.map(esc).join('<i></i>')+'</div></div>' +
-    '<button class="fav-btn'+(f?' on':'')+'" data-fav="'+esc(a.id)+'" data-provider="'+esc(a.provider)+'" data-cover="'+esc(a.poster)+'" data-title="'+esc(a.title)+'" aria-label="Favorit" aria-pressed="'+f+'">'+svg('heart','',2.1)+'</button>' +
+    '<button class="fav-btn'+(f?' on':'')+'" data-fav="'+esc(a.id)+'" data-provider="'+esc(a.provider)+'" data-cover="'+esc(a.poster)+'" data-title="'+esc(a.title)+'" data-score="'+esc(a.score||'')+'" data-epl="'+esc(a.epLabel||'')+'" data-sub="'+esc(a.sub||'')+'" data-type="'+esc(a.type||'')+'" data-slug="'+esc(a.slug||'')+'" aria-label="Favorit" aria-pressed="'+f+'">'+svg('heart','',2.1)+'</button>' +
     '</a>';
 }
 
@@ -952,9 +1015,11 @@ function initRails(root) {
     };
     tr.addEventListener('scroll', ()=>{upd()}, {passive:true}); upd();
     let down=false, sx=0, sl=0, moved=0;
-    tr.addEventListener('pointerdown', e => { if(e.target.closest('button'))return; down=true; moved=0; sx=e.clientX; sl=tr.scrollLeft; tr.classList.add('drag') });
-    window.addEventListener('pointermove', e => { if(!down)return; const d=e.clientX-sx; moved=Math.abs(d); if(moved>6){tr.scrollLeft=sl-d;e.preventDefault()} }, {passive:false});
-    window.addEventListener('pointerup', () => { if(down){down=false;tr.classList.remove('drag')} });
+    tr.addEventListener('pointerdown', e => { if(e.target.closest('button'))return; down=true; moved=0; sx=e.clientX; sl=tr.scrollLeft; tr.classList.add('drag'); try{ tr.setPointerCapture(e.pointerId) }catch{} });
+    tr.addEventListener('pointermove', e => { if(!down)return; const d=e.clientX-sx; moved=Math.abs(d); if(moved>6){tr.scrollLeft=sl-d;e.preventDefault()} });
+    const release = () => { if(down){down=false;tr.classList.remove('drag')} };
+    tr.addEventListener('pointerup', release);
+    tr.addEventListener('pointercancel', release);
     tr.addEventListener('click', e => { if(moved>10){e.preventDefault();e.stopPropagation()} }, true);
   });
 }
@@ -1093,26 +1158,52 @@ async function render() {
 window.addEventListener('hashchange', render);
 
 /* ═══════ VIEW: HOME ═══════ */
+const HOME_COPY = {
+  otakudesu: { a:['Sedang Tayang','Anime yang sedang rilis saat ini'], b:['Anime Selesai','Koleksi anime yang telah tamat'], c:null },
+  oploverz: { a:['Populer Hari Ini','Paling banyak ditonton hari ini'], b:['Rilis Terbaru','Episode terbaru yang baru saja rilis'], c:null },
+  kuramanime: { a:['Sedang Tayang','Episode terbaru dari Kuramanime'], b:['Anime Selesai','Koleksi anime yang telah tamat'], c:['Film Anime','Daftar movie dari Kuramanime'] }
+};
+
+function dropRailArrows(sel) {
+  const sec = $(sel); if (!sec) return;
+  const head = sec.querySelector('.sec-head'); if (!head) return;
+  const btn = head.querySelector('[data-rail]');
+  if (btn && btn.parentElement) btn.parentElement.remove();
+}
+
+function railItems(list) {
+  return list.map((a,i) => '<div class="rv-s" style="--d:'+((i%8)*36)+'ms">'+cardHTML(a)+'</div>').join('');
+}
+
 async function ViewHome(r) {
+  const provider = Store.getProvider();
+  const cp = HOME_COPY[provider] || HOME_COPY.otakudesu;
   view.innerHTML =
     '<div class="shell">' +
     '<section class="hero" aria-label="Nanime">' +
     '<div class="hero-in">' +
-    '<div class="logo-wrap"><div class="logo-inner"><img src="logo.jpg" alt="Logo" width="96" height="96" draggable="false"></div></div>' +
-    '<h1 class="hero-title">NANIME</h1>' +
-    '<p class="hero-tag">Streaming anime <b>premium</b> — Provider: <b>'+esc(PROVIDERS[Store.getProvider()].name)+'</b>. Mendukung pencarian, detail, episode, dan streaming.</p>' +
-    '<div class="hero-cta">' +
-    '<a class="btn primary" href="#/search">'+svg('search','',2.1)+' Jelajahi Anime</a>' +
-    '<a class="btn ghost" href="#/explore">'+svg('compass','',2)+' Jelajahi</a>' +
+    '<div class="hero-row">' +
+    '<div class="logo-wrap"><div class="logo-inner"><img src="logo.jpg" alt="Logo" width="62" height="62" draggable="false"></div></div>' +
+    '<div class="hero-tx"><h1 class="hero-title">NANIME</h1><p class="hero-tag">Streaming anime premium · Provider <b>'+esc(PROVIDERS[provider].name)+'</b></p></div>' +
     '</div>' +
-    '<figure class="dash" style="margin:24px auto 0">' +
+    '<a class="hero-search" href="#/search" aria-label="Cari anime">' +
+    '<span class="sic">'+svg('search','',2)+'</span>' +
+    '<span class="ph">Cari judul anime (English/Japanese)…</span>' +
+    '<span class="go">'+svg('right','',2.3)+'</span>' +
+    '</a>' +
+    '<div class="hero-cta">' +
+    '<a class="btn ghost sm" href="#/explore">'+svg('compass','',2)+' Jelajah</a>' +
+    '<a class="btn ghost sm" href="#/favorite">'+svg('heart','',2)+' Favorit</a>' +
+    '<a class="btn ghost sm" href="#/history">'+svg('clock','',2)+' Riwayat</a>' +
+    '</div>' +
+    '<figure class="dash">' +
     '<video id="dashVideo" src="dashboard.mp4" autoplay loop muted playsinline preload="auto" disablepictureinpicture disableremoteplayback tabindex="-1" aria-hidden="true" draggable="false"></video>' +
-    '<div class="shine"></div>' +
     '</figure>' +
     '</div></section>' +
-    '<section class="sec" id="secOngoing">'+secHead('Sedang Tayang','Anime yang sedang rilis saat ini','railOngoing','#/explore')+'<div class="rail" data-railwrap="w1"><div class="rail-track" id="railOngoing">'+skCards(10)+'</div></div></section>' +
+    '<section class="sec" id="secOngoing">'+secHead(cp.a[0],cp.a[1],'railOngoing','#/explore')+'<div class="rail" data-railwrap="w1"><div class="rail-track" id="railOngoing">'+skCards(10)+'</div></div></section>' +
     '<section class="sec" id="secGenre">'+secHead('Jelajah Genre','Ketuk untuk menyaring katalog')+'<div class="filters" id="genreRow" style="padding:2px"><div class="sk" style="width:80px;height:34px;border-radius:99px"></div><div class="sk" style="width:100px;height:34px;border-radius:99px"></div><div class="sk" style="width:90px;height:34px;border-radius:99px"></div></div></section>' +
-    '<section class="sec" id="secCompleted">'+secHead('Anime Selesai','Koleksi anime yang telah tamat','railCompleted','#/explore')+'<div class="rail" data-railwrap="w2"><div class="rail-track" id="railCompleted">'+skCards(10)+'</div></div></section>' +
+    '<section class="sec" id="secCompleted">'+secHead(cp.b[0],cp.b[1],'railCompleted','#/explore')+'<div class="rail" data-railwrap="w2"><div class="rail-track" id="railCompleted">'+skCards(10)+'</div></div></section>' +
+    (cp.c ? '<section class="sec" id="secMovie" style="display:none">'+secHead(cp.c[0],cp.c[1],'railMovie')+'<div class="rail" data-railwrap="w3"><div class="rail-track" id="railMovie">'+skCards(10)+'</div></div></section>' : '') +
     footerHTML() + '</div>';
 
   initDashVideo();
@@ -1122,11 +1213,21 @@ async function ViewHome(r) {
     const [homeResult, genres] = await Promise.all([API.home(), API.genres()]);
     progress(true, 80);
 
-    const ongoing = homeResult.ongoing;
-    const completed = homeResult.completed;
+    const ong = homeResult.ongoing, cmp = homeResult.completed, mov = homeResult.movie || [];
+    $('#railOngoing').innerHTML = ong.length ? railItems(ong) : '<div class="ep-empty">Belum ada data anime di bagian ini.</div>';
+    if (!ong.length) dropRailArrows('#secOngoing');
+    $('#railCompleted').innerHTML = cmp.length ? railItems(cmp) : '<div class="ep-empty">Belum ada data anime di bagian ini.</div>';
+    if (!cmp.length) dropRailArrows('#secCompleted');
 
-    $('#railOngoing').innerHTML = ongoing.length ? ongoing.map((a,i) => '<div class="rv-s" style="--d:'+(i*38)+'ms">'+cardHTML(a)+'</div>').join('') : stateHTML('empty','Tidak ada anime','Belum ada data anime yang sedang tayang.','');
-    $('#railCompleted').innerHTML = completed.length ? completed.map((a,i) => '<div class="rv-s" style="--d:'+(i*38)+'ms">'+cardHTML(a)+'</div>').join('') : stateHTML('empty','Tidak ada anime','Belum ada data anime selesai.','');
+    const secMovie = $('#secMovie');
+    if (secMovie) {
+      if (mov.length) {
+        secMovie.style.display = '';
+        $('#railMovie').innerHTML = railItems(mov);
+      } else {
+        secMovie.remove();
+      }
+    }
 
     if (genres.length) {
       $('#genreRow').innerHTML = genres.map(g => '<a class="chip" href="#/genre/'+encodeURIComponent(g.genreId)+'?title='+encodeURIComponent(g.title)+'">'+esc(g.title)+'</a>').join('');
@@ -1137,107 +1238,219 @@ async function ViewHome(r) {
   } catch(e) {
     progress(false);
     $('#secOngoing').innerHTML = stateHTML('err','Gagal memuat beranda',e.message||'Terjadi kesalahan.','<button class="btn primary" data-act="reload">'+svg('refresh','',2.1)+' Coba lagi</button>');
+    dropRailArrows('#secOngoing');
   }
+}
+
+let dashVid = null;
+let dashBound = false;
+function forceDash() {
+  const v = dashVid;
+  if (!v || !v.isConnected) { dashVid = null; return; }
+  try {
+    v.muted = true; v.loop = true; v.removeAttribute('controls');
+    const p = v.play(); if (p && p.catch) p.catch(()=>{});
+  } catch(e) {}
 }
 
 function initDashVideo() {
   const v = $('#dashVideo'); if(!v) return;
+  dashVid = v;
   v.removeAttribute('controls');
   v.setAttribute('controlslist','nodownload noplaybackrate noremoteplayback');
   v.muted=true; v.defaultMuted=true; v.loop=true; v.playsInline=true; v.autoplay=true;
   v.setAttribute('tabindex','-1'); v.setAttribute('disablepictureinpicture','');
   v.style.pointerEvents='none'; v.style.userSelect='none';
-  const force = () => {
-    try { v.muted=true; v.loop=true; v.removeAttribute('controls'); const p=v.play(); if(p&&p.catch)p.catch(()=>{}) } catch(e){}
-  };
-  v.addEventListener('pause', force);
-  v.addEventListener('ended', force);
+  v.addEventListener('pause', forceDash);
+  v.addEventListener('ended', forceDash);
   v.addEventListener('contextmenu', e => e.preventDefault());
   v.addEventListener('dragstart', e => e.preventDefault());
-  document.addEventListener('visibilitychange', () => { if(!document.hidden) force() });
-  window.addEventListener('pageshow', force);
-  force();
-  setTimeout(force, 500);
+  if (!dashBound) {
+    dashBound = true;
+    document.addEventListener('visibilitychange', () => { if(!document.hidden) forceDash() });
+    window.addEventListener('pageshow', forceDash);
+  }
+  forceDash();
+  setTimeout(forceDash, 500);
 }
 
 /* ═══════ VIEW: SEARCH ═══════ */
-let searchController = null;
+let searchSeq = 0, lastRes = null, lastQuery = '', searchFilter = 'all';
+
+function syncQueryUrl(q) {
+  try { history.replaceState(null, '', q ? '#/search?q=' + encodeURIComponent(q) : '#/search'); } catch(e) {}
+}
+
+function idleSearchState() {
+  const box = $('#results'); if (!box) return;
+  box.innerHTML = '<div class="state rv in"><div class="ic">'+svg('search','',1.7)+'</div><h3>Mulai Mencari</h3><p>Ketik minimal 2 karakter. Pencarian berjalan di Otakudesu dan Oploverz sekaligus.</p></div>';
+  const ri = $('#resInfo'); if (ri) ri.textContent = 'Ketik minimal 2 karakter untuk mencari';
+}
+
+function paintQHist() {
+  const box = $('#qhist'); if (!box) return;
+  const list = Store.shist || [];
+  box.innerHTML = list.length
+    ? '<span class="lb">Terakhir</span>' + list.map(q => '<button class="chip" data-act="use-q" data-q="'+esc(q)+'">'+svg('clock','',2)+esc(q)+'</button>').join('') +
+      '<button class="chip" data-act="clear-shist">'+svg('trash','',2)+' Hapus</button>'
+    : '';
+  box.style.display = list.length ? '' : 'none';
+}
+
+function paintFilterRow(counts) {
+  const row = $('#sfRow'); if (!row) return;
+  const ids = Object.keys(PROVIDERS).filter(id => PROVIDERS[id].active && PROVIDERS[id].search);
+  row.innerHTML = '<button class="chip'+(searchFilter==='all'?' on':'')+'" data-act="sf" data-v="all">Semua</button>' +
+    ids.map(id => {
+      const n = counts && counts[id] != null ? ' · '+counts[id] : '';
+      return '<button class="chip'+(searchFilter===id?' on':'')+'" data-act="sf" data-v="'+id+'">'+esc(PROVIDERS[id].name)+n+'</button>';
+    }).join('');
+}
+
+function paintSearch() {
+  const box = $('#results'), ri = $('#resInfo');
+  if (!box || !lastRes) return;
+  const counts = {};
+  (lastRes.sources || []).forEach(s => { counts[s.id] = s.ok ? s.count : null; });
+  paintFilterRow(counts);
+  const items = lastRes.items.filter(a => searchFilter === 'all' || a.provider === searchFilter);
+  const srcTxt = (lastRes.sources || []).map(s =>
+    esc(PROVIDERS[s.id].name) + ' <b style="color:var(--txt)">' + (s.ok ? s.count : '—') + '</b>' + (s.ok ? '' : ' <span class="bad">gagal</span>')
+  ).join(' · ');
+  if (!items.length) {
+    if (ri) ri.innerHTML = '0 hasil untuk <b style="color:var(--acc2)">'+esc(lastQuery)+'</b>';
+    box.innerHTML = stateHTML('search','Tidak Ditemukan','Tidak ada anime yang cocok dengan "'+lastQuery+'". Coba kata kunci lain.','<button class="btn primary" data-act="retry-search">'+svg('refresh','',2.1)+' Coba lagi</button>');
+    return;
+  }
+  const sorted = items.map(a => ({a, s: scoreSearchMatch(a, lastQuery)})).sort((x,y) => y.s - x.s).map(x => x.a);
+  if (ri) ri.innerHTML = '<b style="color:var(--txt)">'+sorted.length+'</b> hasil untuk <b style="color:var(--acc2)">'+esc(lastQuery)+'</b><span class="src"> · '+srcTxt+'</span>';
+  box.innerHTML = '<div class="grid wide">' + sorted.map((a,i) => '<div class="rv-s" style="--d:'+((i%8)*36)+'ms">'+cardHTML(a,{g:true})+'</div>').join('') + '</div>';
+  initReveal(box); initLazy(box);
+}
+
+async function runSearch(query) {
+  const seq = ++searchSeq;
+  lastQuery = query;
+  syncQueryUrl(query);
+  const box = $('#results'); if (!box) return;
+  box.innerHTML = '<div class="grid wide">'+skCards(12,true)+'</div>';
+  const ri = $('#resInfo'); if (ri) ri.innerHTML = 'Mencari <b style="color:var(--acc2)">'+esc(query)+'</b>…';
+  try {
+    const res = await API.search(query);
+    if (seq !== searchSeq) return;
+    lastRes = res;
+    paintSearch();
+  } catch (e) {
+    if (seq !== searchSeq) return;
+    lastRes = null;
+    if (ri) ri.innerHTML = 'Gagal mencari <b style="color:var(--acc2)">'+esc(query)+'</b>';
+    box.innerHTML = stateHTML('err','Pencarian Gagal', e.message || 'Terjadi kesalahan saat menghubungi provider.', '<button class="btn primary" data-act="retry-search">'+svg('refresh','',2.1)+' Coba lagi</button>');
+  }
+}
 
 async function ViewSearch(r) {
-  const term = r.parts[1] || '';
-  const provider = Store.getProvider();
-  view.innerHTML = '<div class="shell" style="padding-top:18px">' +
-    '<div style="position:relative" id="sbWrap">' +
+  const term = r.q.q || r.parts[1] || '';
+  searchFilter = 'all'; lastRes = null; lastQuery = term;
+  syncQueryUrl(term);
+  view.innerHTML = '<div class="shell" style="padding-top:6px">' +
+    '<div class="sbar-wrap">' +
     '<div class="searchbar" id="sbar">' +
     '<span class="sic">'+svg('search','',2)+'</span>' +
     '<input id="sinput" type="search" autocomplete="off" spellcheck="false" placeholder="Cari judul anime (English/Japanese)…" value="'+esc(term)+'" aria-label="Cari anime">' +
-    '<span class="prov-ind">'+esc(PROVIDERS[provider].name)+'</span>' +
     '<button class="clr" data-act="s-clear" aria-label="Hapus">'+svg('x','',2.4)+'</button>' +
     '</div>' +
+    '<div class="filters sfil" id="sfRow"></div>' +
     '</div>' +
-    '<div id="resInfo" style="margin:16px 0 12px;font-size:12.6px;color:var(--dim)">'+(term?'Mencari: <b style="color:var(--acc2)">'+esc(term)+'</b>':'Ketik minimal 2 karakter untuk mencari')+'</div>' +
-    '<div id="results">'+(term?'<div class="grid wide">'+skCards(12,true)+'</div>':'<div class="state rv in"><div class="ic">'+svg('search','',1.7)+'</div><h3>Mulai Mencari</h3><p>Ketik minimal 2 karakter untuk mencari.</p></div>')+'</div>' +
+    '<div id="resInfo" style="margin:14px 0 8px;font-size:12.6px;color:var(--dim)"></div>' +
+    '<div id="qhist" class="qhist" style="margin-bottom:4px"></div>' +
+    '<div id="results"></div>' +
     footerHTML() + '</div>';
 
   const inp = $('#sinput'), bar = $('#sbar');
   const sync = () => bar.classList.toggle('has', !!inp.value);
   sync();
+  paintFilterRow(null);
+  paintQHist();
 
-  if (term) runSearch(term);
+  if (term) runSearch(term); else idleSearchState();
 
   inp.addEventListener('input', debounce(() => {
     sync();
     const v = inp.value.trim();
     if (v.length >= 2) runSearch(v);
-    else { $('#results').innerHTML = '<div class="state rv in"><div class="ic">'+svg('search','',1.7)+'</div><h3>Mulai Mencari</h3><p>Ketik minimal 2 karakter untuk mencari.</p></div>'; $('#resInfo').textContent = 'Ketik minimal 2 karakter untuk mencari' }
+    else {
+      searchSeq++;
+      syncQueryUrl(''); lastRes = null; lastQuery = '';
+      idleSearchState(); paintQHist();
+    }
   }, 350));
 
-  inp.addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault(); const v=inp.value.trim(); if(v.length>=2) runSearch(v)} });
-
-  $('.clr', bar)?.addEventListener('click', () => { inp.value=''; sync(); $('#results').innerHTML = '<div class="state rv in"><div class="ic">'+svg('search','',1.7)+'</div><h3>Mulai Mencari</h3><p>Ketik minimal 2 karakter untuk mencari.</p></div>'; $('#resInfo').textContent = 'Ketik minimal 2 karakter untuk mencari'; inp.focus() });
-
-  setTimeout(() => inp.focus(), 150);
-}
-
-async function runSearch(query) {
-  if (searchController) searchController.abort();
-  searchController = new AbortController();
-  
-  const box = $('#results'); if(!box) return;
-  box.innerHTML = '<div class="grid wide">'+skCards(12,true)+'</div>';
-  $('#resInfo').innerHTML = 'Mencari <b style="color:var(--acc2)">'+esc(query)+'</b>…';
-  
-  try {
-    const results = await API.search(query);
-    
-    if (searchController.signal.aborted) return;
-    
-    if (!results.length) {
-      box.innerHTML = stateHTML('search','Tidak Ditemukan','Tidak ada anime yang cocok dengan "<b>'+esc(query)+'</b>". Coba kata kunci lain.');
-      $('#resInfo').innerHTML = '0 hasil untuk <b style="color:var(--acc2)">'+esc(query)+'</b>';
-      return;
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const v = inp.value.trim();
+      if (v.length >= 2) { Store.addQ(v); runSearch(v); }
     }
-    
-    const scored = results.map(a => ({anime:a, score:scoreSearchMatch(a, query)})).filter(x => x.score > 0);
-    scored.sort((a,b) => b.score - a.score);
-    const sorted = scored.map(x => x.anime);
-    
-    $('#resInfo').innerHTML = '<b style="color:var(--txt)">'+sorted.length+'</b> hasil untuk <b style="color:var(--acc2)">'+esc(query)+'</b>';
-    box.innerHTML = '<div class="grid wide">'+sorted.map((a,i) => '<div class="rv-s" style="--d:'+((i%8)*40)+'ms">'+cardHTML(a,{g:true})+'</div>').join('')+'</div>';
-    initReveal(box); initLazy(box);
-  } catch(e) {
-    if (e.name === 'AbortError') return;
-    box.innerHTML = stateHTML('err','Pencarian Gagal',e.message||'Terjadi kesalahan.','<button class="btn primary" data-act="retry-search">Coba lagi</button>');
-  }
+  });
+
+  const clr = bar.querySelector('.clr');
+  if (clr) clr.addEventListener('click', () => {
+    inp.value = ''; sync(); searchSeq++;
+    syncQueryUrl(''); lastRes = null; lastQuery = '';
+    idleSearchState(); paintQHist();
+    inp.focus();
+  });
+
+  if (!term) setTimeout(() => inp.focus(), 150);
 }
 
 /* ═══════ VIEW: EXPLORE ═══════ */
+const EX_COPY = {
+  otakudesu: { a:['Sedang Tayang','Anime ongoing dari Otakudesu'], b:['Anime Selesai','Anime completed dari Otakudesu'] },
+  oploverz: { a:['Katalog Oploverz','Semua judul (A–Z) dari direktori Oploverz'], b:['Anime Selesai','Oploverz tidak menyediakan filter status'] },
+  kuramanime: { a:['Sedang Tayang','Anime ongoing dari Kuramanime'], b:['Anime Selesai','Anime completed dari Kuramanime'] }
+};
+
+function renderExploreList(hostId, res, opt) {
+  const host = $('#'+hostId); if (!host) return;
+  const list = res.list || [];
+  if (!list.length) {
+    host.innerHTML = stateHTML('empty','Tidak ada data','Daftar ini tidak tersedia untuk provider '+PROVIDERS[Store.getProvider()].name+' saat ini.','');
+    dropRailArrows(opt.sec);
+    return;
+  }
+  if (opt.catalog && list.length > 48) {
+    const STEP = 48;
+    let shown = 0;
+    const grid = document.createElement('div'); grid.className = 'grid wide';
+    const more = document.createElement('div'); more.style.cssText = 'display:flex;justify-content:center;margin-top:18px';
+    const btn = document.createElement('button'); btn.className = 'btn ghost'; btn.type = 'button';
+    host.innerHTML = ''; host.appendChild(grid); host.appendChild(more); more.appendChild(btn);
+    dropRailArrows(opt.sec);
+    const paint = () => {
+      const part = list.slice(shown, shown + STEP);
+      grid.insertAdjacentHTML('beforeend', part.map((a,i) => '<div class="rv-s" style="--d:'+((i%8)*30)+'ms">'+cardHTML(a,{g:true})+'</div>').join(''));
+      shown += part.length;
+      initReveal(grid); initLazy(grid);
+      if (shown >= list.length) more.style.display = 'none';
+      else btn.textContent = 'Muat lebih banyak (' + (list.length - shown) + ')';
+    };
+    btn.addEventListener('click', paint);
+    paint();
+    return;
+  }
+  host.innerHTML = '<div class="rail" data-railwrap="'+opt.wrap+'"><div class="rail-track" id="'+opt.rail+'">'+railItems(list)+'</div></div>';
+  initRails(host);
+}
+
 async function ViewExplore(r) {
+  const provider = Store.getProvider();
+  const cp = EX_COPY[provider] || EX_COPY.otakudesu;
   view.innerHTML = '<div class="shell" style="padding-top:18px">' +
-    '<div class="rv in" style="margin-bottom:18px"><h1 style="font-size:clamp(24px,5vw,32px);font-weight:760">Jelajah</h1><p style="margin:6px 0 0;color:var(--mut);font-size:13.4px">Temukan anime berdasarkan genre dan kategori</p></div>' +
+    '<div class="rv in" style="margin-bottom:18px"><h1 style="font-size:clamp(24px,5vw,32px);font-weight:760">Jelajah</h1><p style="margin:6px 0 0;color:var(--mut);font-size:13.4px">Temukan anime berdasarkan genre dan kategori · Provider <b>'+esc(PROVIDERS[provider].name)+'</b></p></div>' +
     '<section class="sec" id="expGenre"><div class="sk" style="height:34px;border-radius:99px;margin-bottom:8px"></div><div class="sk" style="height:34px;border-radius:99px;width:80%"></div></section>' +
-    '<section class="sec" id="expOngoing">'+secHead('Sedang Tayang','Anime yang sedang rilis','railExpOngoing')+'<div class="rail" data-railwrap="we1"><div class="rail-track" id="railExpOngoing">'+skCards(10)+'</div></div></section>' +
-    '<section class="sec" id="expCompleted">'+secHead('Anime Selesai','Koleksi anime yang telah tamat','railExpCompleted')+'<div class="rail" data-railwrap="we2"><div class="rail-track" id="railExpCompleted">'+skCards(10)+'</div></div></section>' +
+    '<section class="sec" id="expOngoing">'+secHead(cp.a[0],cp.a[1],'railExpOngoing')+'<div id="expOngoingBody"><div class="rail" data-railwrap="we1"><div class="rail-track" id="railExpOngoing">'+skCards(10)+'</div></div></div></section>' +
+    '<section class="sec" id="expCompleted">'+secHead(cp.b[0],cp.b[1],'railExpCompleted')+'<div id="expCompletedBody"><div class="rail" data-railwrap="we2"><div class="rail-track" id="railExpCompleted">'+skCards(10)+'</div></div></div></section>' +
     footerHTML() + '</div>';
 
   try {
@@ -1250,8 +1463,8 @@ async function ViewExplore(r) {
         '<div class="filters" style="flex-wrap:wrap;padding:2px">'+genres.map(g => '<a class="chip" href="#/genre/'+encodeURIComponent(g.genreId)+'?title='+encodeURIComponent(g.title)+'">'+esc(g.title)+'</a>').join('')+'</div>';
     }
 
-    $('#railExpOngoing').innerHTML = ongoing.list.length ? ongoing.list.map((a,i) => '<div class="rv-s" style="--d:'+(i*38)+'ms">'+cardHTML(a)+'</div>').join('') : '<div style="padding:20px;color:var(--dim);font-size:13px">Tidak ada data.</div>';
-    $('#railExpCompleted').innerHTML = completed.list.length ? completed.list.map((a,i) => '<div class="rv-s" style="--d:'+(i*38)+'ms">'+cardHTML(a)+'</div>').join('') : '<div style="padding:20px;color:var(--dim);font-size:13px">Tidak ada data.</div>';
+    renderExploreList('expOngoingBody', ongoing, { catalog: !!ongoing.catalog, sec:'#expOngoing', rail:'railExpOngoing', wrap:'we1' });
+    renderExploreList('expCompletedBody', completed, { catalog:false, sec:'#expCompleted', rail:'railExpCompleted', wrap:'we2' });
 
     initReveal(view); initLazy(view); initRails(view);
   } catch(e) {
@@ -1274,7 +1487,18 @@ async function ViewFavorite() {
     box.innerHTML = '<div class="state rv in"><div class="ic" style="color:var(--love);background:linear-gradient(150deg,rgba(255,77,109,.12),rgba(255,77,109,.02));border-color:rgba(255,77,109,.18)">'+svg('heart','',1.7)+'</div><h3>Belum Ada Favorit</h3><p>Ketuk ikon hati pada poster anime untuk menyimpannya di sini.</p><a class="btn primary" href="#/home" style="margin-top:6px">'+svg('compass','',2)+' Mulai Jelajahi</a></div>';
     return;
   }
-  box.innerHTML = '<div class="grid wide">'+favs.map((f,i) => '<div class="rv-s" style="--d:'+((i%8)*42)+'ms"><a class="card g" href="#/anime/'+esc(f.id)+'?provider='+esc(f.provider||'')+'"><div class="poster"><img src="'+esc(f.cover||f.poster||'')+'" class="ld" alt="" loading="lazy"><div class="veil"></div>'+(f.score?'<span class="badge score">'+svg('star','','0')+' '+esc(f.score)+'</span>':'')+'<div class="play-ov"><span class="cir">'+svg('play')+'</span></div></div><div class="body"><div class="nm">'+esc(f.title)+'</div><div class="meta">'+(f.year||'—')+'</div></div></a><button class="fav-btn on" style="opacity:1;transform:none" data-fav="'+f.id+'" data-cover="'+esc(f.cover||f.poster||'')+'" data-title="'+esc(f.title)+'" aria-label="Hapus favorit" aria-pressed="true">'+svg('heart','',2.1)+'</button></div>').join('')+'</div>';
+  box.innerHTML = '<div class="grid wide">' + favs.map((f,i) =>
+    '<div class="rv-s" style="--d:'+((i%8)*36)+'ms">' +
+    '<a class="card g" href="#/anime/'+encodeURIComponent(f.id)+'?provider='+encodeURIComponent(f.provider||'')+(f.slug?'&slug='+encodeURIComponent(f.slug):'')+'">' +
+    '<div class="poster"><span class="perr" aria-hidden="true">'+svg('film','',1.7)+'</span>' +
+    '<img src="'+esc(f.cover||f.poster||'')+'" class="ld" alt="'+esc(f.title)+'" loading="lazy" onerror="this.style.display=\'none\'">' +
+    '<div class="veil"></div>' +
+    (f.score?'<span class="badge score">'+svg('star','',1.8)+' '+esc(f.score)+'</span>':'') +
+    '<div class="play-ov"><span class="cir">'+svg('play')+'</span></div></div>' +
+    '<div class="body"><div class="nm">'+esc(f.title)+'</div>' +
+    '<div class="meta">'+[f.epLabel,f.sub,f.type].filter(Boolean).map(esc).join('<i></i>')+'</div></div></a>' +
+    '<button class="fav-btn on" data-fav="'+esc(f.id)+'" data-provider="'+esc(f.provider||'')+'" data-cover="'+esc(f.cover||f.poster||'')+'" data-title="'+esc(f.title)+'" data-score="'+esc(f.score||'')+'" data-epl="'+esc(f.epLabel||'')+'" data-sub="'+esc(f.sub||'')+'" data-type="'+esc(f.type||'')+'" data-slug="'+esc(f.slug||'')+'" aria-label="Hapus favorit" aria-pressed="true">'+svg('heart','',2.1)+'</button>' +
+    '</div>').join('') + '</div>';
   initReveal(box); initLazy(box);
 }
 
@@ -1292,7 +1516,16 @@ async function ViewHistory() {
     box.innerHTML = '<div class="state rv in"><div class="ic">'+svg('clock','',1.7)+'</div><h3>Belum Ada Riwayat</h3><p>Anime yang kamu tonton akan otomatis tersimpan di sini.</p><a class="btn primary" href="#/home" style="margin-top:6px">'+svg('play','',2)+' Mulai Menonton</a></div>';
     return;
   }
-  box.innerHTML = '<div class="grid wide">'+hist.map((h,i) => '<div class="rv-s" style="--d:'+((i%8)*42)+'ms"><a class="card g" href="#/watch/'+esc(h.id)+'/'+h.ep+'?provider='+encodeURIComponent(h.provider||'')+'"><div class="poster"><img src="'+esc(h.cover||h.poster||'')+'" class="ld" alt="" loading="lazy"><div class="veil"></div><span class="badge">EP '+h.ep+'</span><div class="play-ov"><span class="cir">'+svg('play')+'</span></div></div><div class="body"><div class="nm">'+esc(h.title)+'</div><div class="meta">Episode '+h.ep+'</div></div></a></div>').join('')+'</div>';
+  box.innerHTML = '<div class="grid wide">' + hist.map((h,i) =>
+    '<div class="rv-s" style="--d:'+((i%8)*36)+'ms">' +
+    '<a class="card g" href="#/watch/'+encodeURIComponent(h.id)+'/'+encodeURIComponent(h.ep)+'?provider='+encodeURIComponent(h.provider||'')+(h.eid?'&eid='+encodeURIComponent(h.eid):'')+(h.eslug?'&eslug='+encodeURIComponent(h.eslug):'')+'">' +
+    '<div class="poster"><span class="perr" aria-hidden="true">'+svg('film','',1.7)+'</span>' +
+    '<img src="'+esc(h.cover||h.poster||'')+'" class="ld" alt="'+esc(h.title)+'" loading="lazy" onerror="this.style.display=\'none\'">' +
+    '<div class="veil"></div><span class="badge">EP '+esc(h.ep)+'</span>' +
+    '<div class="play-ov"><span class="cir">'+svg('play')+'</span></div></div>' +
+    '<div class="body"><div class="nm">'+esc(h.title)+'</div>' +
+    '<div class="meta">Episode '+esc(h.ep)+'</div></div></a>' +
+    '</div>').join('') + '</div>';
   initReveal(box); initLazy(box);
 }
 
@@ -1350,13 +1583,29 @@ async function ViewDetail(r) {
     renderDetail(anime);
   } catch(e) {
     progress(false);
-    view.innerHTML = '<div class="shell" style="padding-top:40px">'+stateHTML('err','Gagal memuat detail',e.message||'Terjadi kesalahan.','<div style="display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin-top:12px"><button class="btn primary" data-act="reload">'+svg('refresh','',2.1)+' Coba lagi</button><a class="btn ghost" href="#/home">Beranda</a></div>')+'</div>';
+    const notFound = e && e.status === 404;
+    const msg = notFound ? 'Anime tidak ditemukan pada provider ini. Judul mungkin sudah dipindah atau salah eja.' : (e.message || 'Terjadi kesalahan.');
+    view.innerHTML = '<div class="shell" style="padding-top:40px">'+stateHTML(notFound?'empty':'err', notFound?'Tidak Ditemukan':'Gagal memuat detail', msg, '<div style="display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin-top:12px"><button class="btn primary" data-act="reload">'+svg('refresh','',2.1)+' Coba lagi</button><a class="btn ghost" href="#/home">Beranda</a></div>')+'</div>';
   }
 }
 
 function renderDetail(anime) {
   const fav = Store.isFav(anime.id);
   EP = anime.episodeList || [];
+
+  const genreSec = (anime.genres && anime.genres.length)
+    ? '<section class="panel rv"><h3>'+svg('compass','',2)+' Genre</h3><div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      anime.genres.map(g => (g && g.id)
+        ? '<a class="chip" href="#/genre/'+encodeURIComponent(g.id)+'?title='+encodeURIComponent(g.t||'')+'">'+esc(g.t||'')+'</a>'
+        : '<span class="chip">'+esc((g && g.t) || '')+'</span>').join('') +
+      '</div></section>'
+    : '';
+
+  const recSec = (anime.recommendations && anime.recommendations.length)
+    ? '<section class="panel rv"><h3>'+svg('compass','',2)+' Rekomendasi <span style="font-size:11.5px;color:var(--dim);font-weight:500">· '+anime.recommendations.length+' judul</span></h3><div class="grid wide">' +
+      anime.recommendations.map((a,i) => '<div class="rv-s" style="--d:'+((i%8)*30)+'ms">'+cardHTML(a,{g:true})+'</div>').join('') +
+      '</div></section>'
+    : '';
 
   view.innerHTML =
     '<div class="detail-hero">' +
@@ -1366,27 +1615,28 @@ function renderDetail(anime) {
     '<div class="detail-meta">' +
     '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px">' +
     '<span class="badge" style="position:static">'+esc(PROVIDERS[anime.provider]?.name||anime.provider)+'</span>' +
-    (anime.status && anime.status!=='-' ? '<span class="badge" style="position:static">'+esc(anime.status)+'</span>' : '') +
+    (anime.status ? '<span class="badge" style="position:static">'+esc(anime.status)+'</span>' : '') +
     '</div>' +
     '<h1>'+esc(anime.title)+'</h1>' +
     (anime.alt ? '<div class="alt">'+esc(anime.alt)+'</div>' : '') +
     '<div class="stats">' +
-    (anime.score && anime.score!=='-' ? '<span class="stat">'+svg('star','',1.8)+' <b>'+esc(anime.score)+'</b></span>' : '') +
-    (anime.type && anime.type!=='-' ? '<span class="stat">'+svg('film','',1.9)+' <b>'+esc(anime.type)+'</b></span>' : '') +
-    (anime.episodes && anime.episodes!=='-' ? '<span class="stat">'+svg('film','',1.9)+' <b>'+esc(String(anime.episodes))+'</b> Eps</span>' : '') +
-    (anime.duration && anime.duration!=='-' ? '<span class="stat">'+svg('clock','',1.9)+' <b>'+esc(anime.duration)+'</b></span>' : '') +
-    (anime.studio && anime.studio!=='-' ? '<span class="stat">'+svg('compass','',1.9)+' <b>'+esc(anime.studio)+'</b></span>' : '') +
+    (anime.score ? '<span class="stat">'+svg('star','',1.8)+' <b>'+esc(anime.score)+'</b></span>' : '') +
+    (anime.type ? '<span class="stat">'+svg('film','',1.9)+' <b>'+esc(anime.type)+'</b></span>' : '') +
+    (anime.episodes ? '<span class="stat">'+svg('film','',1.9)+' <b>'+esc(String(anime.episodes))+'</b> Eps</span>' : '') +
+    (anime.duration ? '<span class="stat">'+svg('clock','',1.9)+' <b>'+esc(anime.duration)+'</b></span>' : '') +
+    (anime.studio ? '<span class="stat">'+svg('compass','',1.9)+' <b>'+esc(anime.studio)+'</b></span>' : '') +
     '</div>' +
     '<div class="detail-actions">' +
     (EP.length ? '<button class="btn primary" data-act="watch-first" data-ep="0">'+svg('play','',2.2)+' Tonton EP '+esc(EP[0].num)+'</button>' : '') +
-    '<button class="btn'+(fav?' danger':' ghost')+'" data-fav="'+esc(anime.id)+'" data-provider="'+esc(anime.provider)+'" data-cover="'+esc(anime.poster)+'" data-title="'+esc(anime.title)+'" id="bigFav" aria-pressed="'+fav+'">'+(fav?svg('heart','',2.1)+' Tersimpan':svg('heart','',2.1)+' Favorit')+'</button>' +
+    '<button class="btn'+(fav?' danger':' ghost')+'" data-fav="'+esc(anime.id)+'" data-provider="'+esc(anime.provider)+'" data-cover="'+esc(anime.poster)+'" data-title="'+esc(anime.title)+'" data-score="'+esc(anime.score||'')+'" data-type="'+esc(anime.type||'')+'" data-sub="'+esc(anime.year||'')+'" data-slug="'+esc(anime.slug||'')+'" id="bigFav" aria-pressed="'+fav+'">'+(fav?svg('heart','',2.1)+' Tersimpan':svg('heart','',2.1)+' Favorit')+'</button>' +
     '</div></div></div></div></div>' +
     '<div class="shell" style="padding-top:22px;display:grid;gap:16px">' +
     '<section class="panel rv"><h3>'+svg('info','',2)+' Sinopsis</h3><div class="syn clip" id="syn">'+esc(anime.synopsis||'Sinopsis tidak tersedia.')+'</div>'+((anime.synopsis||'').length>340?'<button class="readmore" data-act="toggle-syn">Baca selengkapnya '+svg('down','',2.4)+'</button>':'')+'</section>' +
-    (anime.genres && anime.genres.length ? '<section class="panel rv"><h3>'+svg('compass','',2)+' Genre</h3><div style="display:flex;gap:8px;flex-wrap:wrap">'+anime.genres.map(g => '<span class="chip">'+esc(g)+'</span>').join('')+'</div></section>' : '') +
+    genreSec +
     '<section class="panel rv" id="epPanel"><h3>'+svg('film','',2)+' Daftar Episode <span style="font-size:11.5px;color:var(--dim);font-weight:500">· '+EP.length+' entri</span></h3>' +
-    (EP.length ? '<div class="ep-grid" style="max-height:380px;overflow:auto">'+EP.map((e,i) => '<button class="ep rv-s" style="--d:'+((i%10)*26)+'ms" data-ep-idx="'+i+'" aria-label="Putar episode '+esc(e.num)+'"><span class="no">'+e.num+'</span><span class="tx"><b>Episode '+esc(e.num)+'</b><span>'+esc(e.date||'')+'</span></span><span class="go">'+svg('play','',2.2)+'</span></button>').join('')+'</div>' : '<div class="state" style="padding:30px">Episode belum tersedia.</div>') +
+    (EP.length ? '<div class="ep-grid" style="max-height:380px;overflow:auto">'+EP.map((e,i) => '<button class="ep rv-s" style="--d:'+((i%10)*26)+'ms" data-ep-idx="'+i+'" aria-label="Putar episode '+esc(e.num)+'"><span class="no">'+esc(e.num)+'</span><span class="tx"><b>Episode '+esc(e.num)+'</b><span>'+esc(e.date||'')+'</span></span><span class="go">'+svg('play','',2.2)+'</span></button>').join('')+'</div>' : '<div class="ep-empty">Provider ini tidak menyediakan daftar episode.</div>') +
     '</section>' +
+    recSec +
     footerHTML() + '</div>';
 
   initReveal(view); initLazy(view);
@@ -1395,7 +1645,7 @@ function renderDetail(anime) {
     b.addEventListener('click', () => {
       const idx = +b.dataset.epIdx;
       const ep = EP[idx];
-      go('/watch/'+encodeURIComponent(anime.id)+'/'+encodeURIComponent(ep.num)+'?provider='+encodeURIComponent(anime.provider)+'&eid='+encodeURIComponent(ep.id)+'&eslug='+encodeURIComponent(ep.slug||''));
+      if (ep) go('/watch/'+encodeURIComponent(anime.id)+'/'+encodeURIComponent(ep.num)+'?provider='+encodeURIComponent(anime.provider)+'&eid='+encodeURIComponent(ep.id)+'&eslug='+encodeURIComponent(ep.slug||''));
     });
   });
 }
@@ -1414,24 +1664,29 @@ async function ViewWatch(r) {
   try {
     anime = await API.detail(provider, param, eslug);
   } catch(e) {
-    view.innerHTML = '<div class="shell">'+stateHTML('err','Gagal memuat anime',e.message||'','<button class="btn primary" data-act="reload">'+svg('refresh','',2.1)+' Coba lagi</button>')+'</div>';
+    const notFound = e && e.status === 404;
+    view.innerHTML = '<div class="shell">'+stateHTML(notFound?'empty':'err', notFound?'Anime Tidak Ditemukan':'Gagal memuat anime', notFound?'Judul ini tidak tersedia pada provider ini.':(e.message||''), '<div style="display:flex;gap:9px;flex-wrap:wrap;justify-content:center"><button class="btn primary" data-act="reload">'+svg('refresh','',2.1)+' Coba lagi</button><a class="btn ghost" href="#/home">Beranda</a></div>')+'</div>';
     return;
   }
   DET = anime;
 
-  const ep = (anime.episodeList||[]).find(e => String(e.num)===String(epNum));
-  const epIdx = (anime.episodeList||[]).findIndex(e => String(e.num)===String(epNum));
-  const prevEp = epIdx>0 ? anime.episodeList[epIdx-1] : null;
-  const nextEp = epIdx>=0 && epIdx<anime.episodeList.length-1 ? anime.episodeList[epIdx+1] : null;
+  const epList = anime.episodeList || [];
+  const epIdx = epList.findIndex(e => String(e.num) === String(epNum));
+  const ep = epIdx > -1 ? epList[epIdx] : null;
+  const prevEp = epIdx > 0 ? epList[epIdx-1] : null;
+  const nextEp = epIdx > -1 && epIdx < epList.length-1 ? epList[epIdx+1] : null;
+  const eidUse = eid || (ep && ep.id ? String(ep.id) : '') || epNum;
+  const eslugUse = eslug || (ep && ep.slug ? String(ep.slug) : '') || '';
+  const favW = Store.isFav(anime.id);
 
   $('#wInfo').innerHTML =
     '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap"><div style="flex:1;min-width:240px">' +
-    '<a href="#/anime/'+esc(anime.id)+'?provider='+encodeURIComponent(provider)+'" class="link-more" style="margin-bottom:8px">'+svg('back','',2.4)+' '+esc(anime.title)+'</a>' +
+    '<a href="#/anime/'+encodeURIComponent(anime.id)+'?provider='+encodeURIComponent(provider)+(anime.slug?'&slug='+encodeURIComponent(anime.slug):'')+'" class="link-more" style="margin-bottom:8px">'+svg('back','',2.4)+' '+esc(anime.title)+'</a>' +
     '<h1 style="font-size:clamp(19px,4vw,26px);font-weight:740;margin-top:6px">Episode '+esc(epNum)+'</h1>' +
-    '<div class="stats" style="margin-top:10px"><span class="stat">'+svg('film','',1.9)+' <b>'+esc(epNum)+'</b></span>'+(anime.type&&anime.type!=='-'?'<span class="stat">'+esc(anime.type)+'</span>':'')+'</div></div>' +
+    '<div class="stats" style="margin-top:10px"><span class="stat">'+svg('film','',1.9)+' <b>'+esc(epNum)+'</b></span>'+(anime.type?'<span class="stat">'+esc(anime.type)+'</span>':'')+'</div></div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-    '<button class="btn ghost sm" data-fav="'+esc(anime.id)+'" data-provider="'+esc(anime.provider)+'" data-cover="'+esc(anime.poster)+'" data-title="'+esc(anime.title)+'">'+svg('heart','',2.1)+' Favorit</button>' +
-    '<a class="btn ghost sm" href="#/anime/'+esc(anime.id)+'?provider='+encodeURIComponent(provider)+'">'+svg('film','',2)+' Episode</a>' +
+    '<button class="btn'+(favW?' danger':' ghost')+' sm" data-fav="'+esc(anime.id)+'" data-provider="'+esc(anime.provider)+'" data-cover="'+esc(anime.poster)+'" data-title="'+esc(anime.title)+'" data-score="'+esc(anime.score||'')+'" data-type="'+esc(anime.type||'')+'" data-slug="'+esc(anime.slug||'')+'" aria-pressed="'+favW+'">'+svg('heart','',2.1)+(favW?' Tersimpan':' Favorit')+'</button>' +
+    '<a class="btn ghost sm" href="#/anime/'+encodeURIComponent(anime.id)+'?provider='+encodeURIComponent(provider)+(anime.slug?'&slug='+encodeURIComponent(anime.slug):'')+'">'+svg('film','',2)+' Episode</a>' +
     '</div></div>' +
     '<div id="wEpNav" style="display:flex;gap:9px;margin-top:18px;flex-wrap:wrap">' +
     (prevEp ? '<a class="btn ghost" href="#/watch/'+encodeURIComponent(anime.id)+'/'+encodeURIComponent(prevEp.num)+'?provider='+encodeURIComponent(provider)+'&eid='+encodeURIComponent(prevEp.id)+'&eslug='+encodeURIComponent(prevEp.slug||'')+'">'+svg('left','',2.2)+' EP '+esc(prevEp.num)+'</a>' : '') +
@@ -1440,25 +1695,26 @@ async function ViewWatch(r) {
 
   try {
     progress(true, 45);
-    const stream = await API.episode(provider, {episodeId:eid||epNum, episodeSlug:eslug||epNum, episode:epNum, animeId:anime.id, animeSlug:anime.slug||''});
+    const stream = await API.episode(provider, {episodeId:eidUse, episodeSlug:eslugUse || epNum, episode:epNum, animeId:anime.id, animeSlug:anime.slug||''});
     progress(true, 100); setTimeout(() => progress(false), 240);
 
     let playerUrl = stream.playerUrl || '';
-    
+    const hasSrv = !!(stream.servers && stream.servers.length);
+
     let playerMarkup = '';
     if (playerUrl) {
       playerMarkup = '<iframe id="playerFrame" src="'+esc(playerUrl)+'" allowfullscreen loading="eager" referrerpolicy="no-referrer" style="width:100%;height:100%;border:0;background:#000"></iframe>';
     } else {
-      playerMarkup = '<div class="empty"><div>'+svg('server','',1.7)+'<strong>Stream tidak tersedia</strong><p style="font-size:12.8px;max-width:44ch;line-height:1.62">Provider tidak memberikan URL player untuk episode ini. Coba pilih server alternatif di bawah.</p></div></div>';
+      playerMarkup = '<div class="empty"><div>'+svg('server','',1.7)+'<strong>Stream tidak tersedia</strong><p style="font-size:12.8px;max-width:44ch;line-height:1.62">'+(hasSrv ? 'Provider tidak memberikan URL player untuk episode ini. Coba pilih server alternatif di bawah.' : 'Provider tidak memberikan URL player untuk episode ini.')+'</p></div></div>';
     }
-    
+
     $('#wHost').innerHTML = '<div class="pw">'+playerMarkup+'</div>';
 
-    if (stream.servers && stream.servers.length > 0) {
-      const srvHTML = '<div style="margin-top:16px"><div style="font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);font-weight:700;margin-bottom:9px">Pilih Server Streaming</div><div class="srv" id="srvRow">' + 
-        stream.servers.map((s,i) => '<button class="srv-btn'+(i===0?' on':'')+'" data-server-id="'+esc(s.id)+'" data-quality="'+esc(s.quality||'')+'">' + 
-          svg('server','',2)+esc(s.name)+(s.quality?' <span style="font-size:10px;opacity:.7">('+esc(s.quality)+')</span>':'') + 
-        '</button>').join('') + 
+    if (hasSrv) {
+      const srvHTML = '<div style="margin-top:16px"><div style="font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);font-weight:700;margin-bottom:9px">Pilih Server Streaming</div><div class="srv" id="srvRow">' +
+        stream.servers.map((s,i) => '<button class="srv-btn'+(i===0?' on':'')+'" data-server-id="'+esc(s.id)+'" data-quality="'+esc(s.quality||'')+'">' +
+          svg('server','',2)+esc(s.name)+(s.quality?' <span style="font-size:10px;opacity:.7">('+esc(s.quality)+')</span>':'') +
+        '</button>').join('') +
         '</div></div>';
       $('#wInfo').insertAdjacentHTML('beforeend', srvHTML);
 
@@ -1467,7 +1723,8 @@ async function ViewWatch(r) {
           const serverId = b.dataset.serverId;
           if(!serverId){toast('Server ID kosong.','err');return}
           if(provider!=='otakudesu'){toast('Resolver server hanya untuk Otakudesu.','err');return}
-          
+
+          const label = b.innerHTML;
           b.textContent = 'Memuat…'; b.disabled = true;
           try {
             const url = await API.resolveServer(serverId);
@@ -1478,35 +1735,47 @@ async function ViewWatch(r) {
             b.classList.add('on');
             toast('Server aktif.','ok');
           } catch(e) { toast(e.message,'err') }
-          finally { b.disabled = false; }
+          finally { b.disabled = false; b.innerHTML = label; }
         });
       });
     } else if (!playerUrl) {
-      const srvHTML = '<div style="margin-top:16px;padding:14px;border-radius:14px;background:rgba(255,159,10,.05);border:1px solid rgba(255,159,10,.18);color:var(--mut);font-size:12.8px;line-height:1.62"><b style="color:var(--warn)">⚠ Tidak ada stream tersedia</b><br>Provider tidak memberikan URL player atau server alternatif untuk episode ini.</div>';
+      const srvHTML = '<div style="margin-top:16px;padding:14px;border-radius:14px;background:rgba(255,159,10,.05);border:1px solid rgba(255,159,10,.18);color:var(--mut);font-size:12.8px;line-height:1.62"><b style="color:var(--warn)">Tidak ada stream untuk episode ini</b><br>Provider tidak memberikan URL player maupun server alternatif. Coba episode lain dari daftar di halaman detail.<br><a class="btn ghost sm" style="margin-top:10px" href="#/anime/'+encodeURIComponent(anime.id)+'?provider='+encodeURIComponent(provider)+(anime.slug?'&slug='+encodeURIComponent(anime.slug):'')+'">'+svg('film','',2)+' Lihat daftar episode</a></div>';
       $('#wInfo').insertAdjacentHTML('beforeend', srvHTML);
     }
 
-    Store.addHist({id:anime.id, slug:anime.slug||anime.id, title:anime.title, cover:anime.poster, ep:epNum, provider, t:0, dur:0});
+    Store.addHist({id:anime.id, slug:anime.slug||anime.id, title:anime.title, cover:anime.poster, ep:epNum, provider, eid:eidUse, eslug:eslugUse, t:0, dur:0});
 
   } catch(e) {
     progress(false);
-    $('#wHost').innerHTML = '<div class="pw"><div class="empty"><div>'+svg('alert','',1.7)+'<strong>Stream gagal dimuat</strong><p style="font-size:12.8px;max-width:44ch;line-height:1.62">'+esc(e.message||'Tidak ada sumber.')+'</p><div style="display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin-top:14px"><button class="btn primary" data-act="reload">'+svg('refresh','',2.1)+' Coba lagi</button><a class="btn ghost" href="#/anime/'+esc(anime.id)+'?provider='+encodeURIComponent(provider)+'">Kembali</a></div></div></div></div>';
+    $('#wHost').innerHTML = '<div class="pw"><div class="empty"><div>'+svg('alert','',1.7)+'<strong>Stream gagal dimuat</strong><p style="font-size:12.8px;max-width:44ch;line-height:1.62">'+esc(e.message||'Tidak ada sumber.')+'</p><div style="display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin-top:14px"><button class="btn primary" data-act="reload">'+svg('refresh','',2.1)+' Coba lagi</button><a class="btn ghost" href="#/anime/'+encodeURIComponent(anime.id)+'?provider='+encodeURIComponent(provider)+'">Kembali</a></div></div></div></div>';
   }
 }
 
 /* ═══════ GLOBAL EVENTS ═══════ */
 document.addEventListener('click', async e => {
+  const cardInSearch = e.target.closest('a.card');
+  if (cardInSearch && curRoute === 'search' && lastQuery) Store.addQ(lastQuery);
+
   const fav = e.target.closest('[data-fav]');
   if(fav) {
     e.preventDefault(); e.stopPropagation();
     const id = fav.dataset.fav;
     const provider = fav.dataset.provider || Store.getProvider();
-    const added = Store.toggleFav({id, title:fav.dataset.title, cover:fav.dataset.cover, provider});
+    const added = Store.toggleFav({
+      id, title:fav.dataset.title, cover:fav.dataset.cover, provider,
+      score:fav.dataset.score||'', epLabel:fav.dataset.epl||'', sub:fav.dataset.sub||'',
+      type:fav.dataset.type||'', slug:fav.dataset.slug||''
+    });
     $$('[data-fav="'+id+'"]').forEach(b => {
-      b.classList.toggle('on', added);
+      const sm = b.classList.contains('sm');
+      if (b.classList.contains('btn')) {
+        b.className = 'btn' + (added ? ' danger' : ' ghost') + (sm ? ' sm' : '');
+        b.innerHTML = added ? svg('heart','',2.1)+' Tersimpan' : svg('heart','',2.1)+' Favorit';
+      } else {
+        b.classList.toggle('on', added);
+      }
       b.setAttribute('aria-pressed', String(added));
       b.classList.remove('beat'); void b.offsetWidth; b.classList.add('beat');
-      if(b.id==='bigFav'){b.className='btn'+(added?' danger':' ghost');b.innerHTML=added?svg('heart','',2.1)+' Tersimpan':svg('heart','',2.1)+' Favorit'}
     });
     toast(added?'Ditambahkan ke favorit.':'Dihapus dari favorit.', added?'ok':'info');
     renderNav();
@@ -1530,8 +1799,8 @@ document.addEventListener('click', async e => {
       if(ep) go('/watch/'+encodeURIComponent(DET.id)+'/'+encodeURIComponent(ep.num)+'?provider='+encodeURIComponent(DET.provider)+'&eid='+encodeURIComponent(ep.id)+'&eslug='+encodeURIComponent(ep.slug||''));
       return;
     }
-    if(a==='clear-fav'){
-      if(confirm('Kosongkan semua favorit?')){Store.favs=[];LS.set('favs',[]);renderNav();ViewFavorite();toast('Favorit dikosongkan.','ok')}
+    if(a==='clear-fav' || a==='clear-favs'){
+      if(confirm('Kosongkan semua favorit?')){Store.favs=[];LS.set('favs',[]);renderNav();if(curRoute==='favorite')ViewFavorite();toast('Favorit dikosongkan.','ok')}
       return;
     }
     if(a==='clear-hist'){
@@ -1548,6 +1817,21 @@ document.addEventListener('click', async e => {
     }
     if(a==='toggle-autoNext'){Store.setCfg('autoNext',!Store.cfg.autoNext);act.classList.toggle('on',Store.cfg.autoNext);return}
     if(a==='rail'){railScroll(act.dataset.rail,+act.dataset.dir);return}
+    if(a==='retry-search'){ if(lastQuery) runSearch(lastQuery); return }
+    if(a==='clear-shist'){ Store.clearQ(); paintQHist(); toast('Riwayat pencarian dihapus.','ok'); return }
+    if(a==='use-q'){
+      const q = act.dataset.q || '';
+      const inp = $('#sinput'), sbar = $('#sbar');
+      if (inp) inp.value = q;
+      if (sbar) sbar.classList.toggle('has', !!q);
+      if (q.length >= 2) runSearch(q);
+      return;
+    }
+    if(a==='sf'){
+      const v = act.dataset.v || 'all';
+      if (v !== searchFilter) { searchFilter = v; paintSearch(); }
+      return;
+    }
   }
 
   const railBtn = e.target.closest('[data-rail]');

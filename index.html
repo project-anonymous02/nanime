@@ -438,13 +438,18 @@ Pengaturan
 
 /* ═══════ CONFIG ═══════ */
 const API_BASE = "https://making-garcia-swap-commons.trycloudflare.com";
+const MOVIE_API_BASE = "https://null-involves-winner-tissue.trycloudflare.com";
 
 const PROVIDERS = {
   otakudesu: { name:"Otakudesu", active:true, search:true, priority:1, desc:"Provider utama. Home, search, detail, episode, server, genre, schedule." },
   oploverz:  { name:"Oploverz",  active:true, search:true, priority:2, desc:"Provider alternatif. Home, search, detail, episode dengan streamingUrl langsung." },
   kuramanime:{ name:"Kuramanime",active:true, search:false,priority:3, desc:"Provider alternatif. Home, detail, episode, properties (genre/season/studio)." },
-  samehadaku:{ name:"Samehadaku",active:false,search:false,priority:4, desc:"Status: OFF. Tidak tersedia saat ini." }
+  samehadaku:{ name:"Samehadaku",active:false,search:false,priority:4, desc:"Status: OFF. Tidak tersedia saat ini." },
+  kusonime:  { name:"Kusonime",  active:true, search:true, priority:5, kind:"movie", filterLabel:"Movie", desc:"Sumber anime movie terpisah (base API kedua). Home, search, detail. Tidak menyediakan streaming." }
 };
+
+const isMovieSource = id => !!(PROVIDERS[id] && PROVIDERS[id].kind === 'movie');
+const searchLabel = id => (PROVIDERS[id] && (PROVIDERS[id].filterLabel || PROVIDERS[id].name)) || id;
 
 /* ═══════ ICONS ═══════ */
 const I = {
@@ -537,16 +542,16 @@ const Store = {
   shist: LS.get('shist',[]),
   cfg: LS.get('cfg',{provider:'otakudesu',autoNext:true}),
   
-  isFav(id){return this.favs.some(f=>f.id===id)},
+  isFav(id, provider){return this.favs.some(f => f.id===id && (f.provider||'')===(provider||''))},
   toggleFav(a){
-    const i=this.favs.findIndex(f=>f.id===a.id);
+    const i=this.favs.findIndex(f => f.id===a.id && (f.provider||'')===(a.provider||''));
     if(i>-1){this.favs.splice(i,1);LS.set('favs',this.favs);return false}
     this.favs.unshift(a);
     if(this.favs.length>220)this.favs.length=220;
     LS.set('favs',this.favs);return true;
   },
   addHist(o){
-    this.hist=this.hist.filter(h=>h.id!==o.id);
+    this.hist=this.hist.filter(h => !(h.id===o.id && (h.provider||'')===(o.provider||'')));
     this.hist.unshift(o);
     if(this.hist.length>24)this.hist.length=24;
     LS.set('hist',this.hist);
@@ -561,7 +566,10 @@ const Store = {
   },
   clearQ(){ this.shist = []; LS.set('shist', []) },
   setCfg(k,v){this.cfg[k]=v;LS.set('cfg',this.cfg)},
-  getProvider(){return this.cfg.provider||'otakudesu'}
+  getProvider(){
+    const p = this.cfg.provider;
+    return (p && PROVIDERS[p] && !isMovieSource(p)) ? p : 'otakudesu';
+  }
 };
 
 /* ═══════ TOAST ═══════ */
@@ -581,7 +589,7 @@ const CACHE = new Map();
 const INFLIGHT = new Map();
 const TTL = { home:600000, search:300000, detail:1800000, episode:360000, genre:3600000 };
 
-async function apiGet(endpoint, timeout=20000, cacheKey=null, ttl=0) {
+async function apiGet(endpoint, timeout=20000, cacheKey=null, ttl=0, base=API_BASE) {
   if (cacheKey && CACHE.has(cacheKey)) {
     const c = CACHE.get(cacheKey);
     if (Date.now() - c.ts < ttl) return c.data;
@@ -593,7 +601,7 @@ async function apiGet(endpoint, timeout=20000, cacheKey=null, ttl=0) {
   
   const promise = (async () => {
     try {
-      const response = await fetch(`${API_BASE}${endpoint}`, {
+      const response = await fetch(`${base}${endpoint}`, {
         method:'GET', headers:{Accept:'application/json'}, signal:controller.signal
       });
       const raw = await response.text();
@@ -688,11 +696,36 @@ function normalizeKuramanimeCard(item) {
   };
 }
 
+function normalizeKusonimeCard(item, forceType) {
+  if (!item) return null;
+  let slug = cleanVal(item.endpoint).replace(/^\/+|\/+$/g, '');
+  if (!slug) {
+    const u = String(item.url || '');
+    if (u.indexOf('://') > -1) slug = u.split('://').pop().split('/').filter(Boolean).slice(1).join('/');
+    slug = slug.split(/[?#]/)[0].replace(/\/+$/, '');
+  }
+  const title = cleanVal(item.title) || cleanVal(item.name);
+  if (!slug || !title) return null;
+  return {
+    id: slug,
+    provider: 'kusonime',
+    title,
+    poster: String(item.thumbnail || item.image || ''),
+    score: '',
+    type: cleanVal(item.type || forceType || ''),
+    status: cleanVal(item.status),
+    epLabel: '',
+    sub: '',
+    sourceUrl: item.url || ''
+  };
+}
+
 function normalizeCard(item, provider) {
   switch (provider) {
     case 'otakudesu': return normalizeOtakudesuCard(item);
     case 'oploverz': return normalizeOploverzCard(item);
     case 'kuramanime': return normalizeKuramanimeCard(item);
+    case 'kusonime': return normalizeKusonimeCard(item);
     default: return null;
   }
 }
@@ -735,22 +768,40 @@ const API = {
   async search(query) {
     if (!query || query.trim().length < 2) return { items: [], sources: [] };
     const preferred = Store.getProvider();
-    const ids = Object.keys(PROVIDERS).filter(id => PROVIDERS[id].active && PROVIDERS[id].search);
+    const ids = Object.keys(PROVIDERS).filter(id => PROVIDERS[id].active && PROVIDERS[id].search && !isMovieSource(id));
     ids.sort((a, b) => (a === preferred ? -1 : b === preferred ? 1 : 0));
     
-    const sources = await Promise.all(ids.map(async id => {
-      try {
+    const jobs = ids.map(id => ({
+      id,
+      run: async () => {
         const r = await apiGet(`/${id}/search?q=${encodeURIComponent(query)}`, 20000, `search:${id}:${query}`, TTL.search);
-        const list = (r?.data?.animeList || []).map(i => normalizeCard(i, id)).filter(Boolean);
-        return { id, ok: true, count: list.length, items: list };
-      } catch (e) {
-        if (e.status === 404) return { id, ok: true, count: 0, items: [] };
-        console.warn('Search failed:', id, e);
-        return { id, ok: false, count: 0, items: [], error: e.message || 'Gagal' };
+        return (r?.data?.animeList || []).map(i => normalizeCard(i, id)).filter(Boolean);
       }
     }));
     
-    if (sources.every(s => !s.ok)) {
+    const movieSrc = PROVIDERS.kusonime;
+    if (movieSrc && movieSrc.active && movieSrc.search) {
+      jobs.push({
+        id: 'kusonime',
+        run: async () => {
+          const r = await apiGet('/api/search/?s=' + encodeURIComponent(query), 20000, `search:kusonime:${query}`, TTL.search, MOVIE_API_BASE);
+          return (r?.data?.listAnime || []).map(i => normalizeKusonimeCard(i)).filter(Boolean);
+        }
+      });
+    }
+    
+    const sources = await Promise.all(jobs.map(async job => {
+      try {
+        const list = await job.run();
+        return { id: job.id, ok: true, count: list.length, items: list };
+      } catch (e) {
+        if (e.status === 404) return { id: job.id, ok: true, count: 0, items: [] };
+        console.warn('Search failed:', job.id, e);
+        return { id: job.id, ok: false, count: 0, items: [], error: e.message || 'Gagal' };
+      }
+    }));
+    
+    if (!sources.length || sources.every(s => !s.ok)) {
       throw new Error(sources.map(s => s.error).filter(Boolean)[0] || 'Pencarian gagal.');
     }
     
@@ -765,7 +816,58 @@ const API = {
     return { items, sources: sources.map(s => ({ id: s.id, ok: s.ok, count: s.count, error: s.error })) };
   },
   
+  async movies() {
+    try {
+      const page = n => apiGet(n === 1 ? '/api/seasons/anime-movie' : `/api/seasons/anime-movie/page/${n}`,
+        20000, `movie:season:${n}`, TTL.home, MOVIE_API_BASE);
+      const results = await Promise.all([1, 2].map(n => page(n).catch(e => { console.warn('Movie page failed:', n, e); return null; })));
+      const items = [], seen = new Set();
+      let okCount = 0;
+      results.forEach(r => {
+        if (!r || !Array.isArray(r.data)) return;
+        okCount++;
+        r.data.forEach(i => {
+          const c = normalizeKusonimeCard(i, 'Movie');
+          if (!c || seen.has(c.id)) return;
+          seen.add(c.id);
+          items.push(c);
+        });
+      });
+      if (!okCount) return { items: [], error: 'Sumber movie tidak merespons.' };
+      return { items, error: '' };
+    } catch (e) {
+      console.warn('Movie list failed:', e);
+      return { items: [], error: e.message || 'Gagal' };
+    }
+  },
+  
   async detail(provider, id, slug='') {
+    if (provider === 'kusonime') {
+      const s = String(slug || id || '').replace(/^\/+|\/+$/g, '');
+      if (!s) { const err = new Error('Film tidak ditemukan.'); err.status = 404; throw err; }
+      const r = await apiGet(`/api/anime/${encodeURIComponent(s)}/`, 20000, `detail:kusonime:${s}`, TTL.detail, MOVIE_API_BASE);
+      const d = r?.data;
+      if (!d || !cleanVal(d.title)) { const err = new Error('Film tidak ditemukan.'); err.status = 404; throw err; }
+      const isMovie = /^movie$/i.test(cleanVal(d.type));
+      return {
+        id: s, slug:'', provider,
+        title: cleanVal(d.title) || 'Unknown',
+        alt: cleanVal(d.japanese),
+        poster: d.thumbnail || '',
+        score: cleanVal(d.score),
+        type: cleanVal(d.type),
+        status: cleanVal(d.status),
+        year: cleanVal(d.released_on),
+        episodes: isMovie ? '' : cleanVal(d.total_episode),
+        duration: cleanVal(d.duration),
+        studio: cleanVal(d.producers),
+        genres: String(d.genre || '').split(',').map(x => ({ t: cleanVal(x), id: '' })).filter(g => g.t),
+        synopsis: cleanVal(d.sinopsis) || 'Sinopsis tidak tersedia.',
+        episodeList: [],
+        recommendations: []
+      };
+    }
+    
     let endpoint;
     if (provider === 'otakudesu') endpoint = `/otakudesu/anime/${encodeURIComponent(id)}`;
     else if (provider === 'oploverz') endpoint = `/oploverz/anime/${encodeURIComponent(id)}`;
@@ -942,11 +1044,11 @@ const API = {
 /* ═══════ COMPONENTS ═══════ */
 function cardHTML(a, opt) {
   opt = opt || {};
-  const f = Store.isFav(a.id);
+  const f = Store.isFav(a.id, a.provider);
   const meta = [a.epLabel, a.sub, a.type].filter(Boolean);
   const prov = PROVIDERS[a.provider]?.name || a.provider || '';
   
-  return '<a class="card'+(opt.g?' g':'')+'" href="#/anime/'+esc(a.id)+'?provider='+esc(a.provider)+(a.slug?'&slug='+encodeURIComponent(a.slug):'')+'" data-card="'+esc(a.id)+'" data-provider="'+esc(a.provider)+'" aria-label="'+esc(a.title)+'">' +
+  return '<a class="card'+(opt.g?' g':'')+'" href="#/anime/'+encodeURIComponent(a.id)+'?provider='+encodeURIComponent(a.provider)+(a.slug?'&slug='+encodeURIComponent(a.slug):'')+'" data-card="'+esc(a.id)+'" data-provider="'+esc(a.provider)+'" aria-label="'+esc(a.title)+'">' +
     '<div class="poster">' +
     '<span class="perr" aria-hidden="true">'+svg('film','',1.7)+'</span>' +
     '<img data-src="'+esc(a.poster)+'" alt="'+esc(a.title)+'" loading="lazy" onload="this.classList.add(\'ld\')" onerror="this.style.display=\'none\'">' +
@@ -1043,7 +1145,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeSheet() })
 /* ═══════ SETTINGS ═══════ */
 function settingsHTML() {
   let h = '<div class="set-grp"><h4>Provider Utama</h4>';
-  Object.entries(PROVIDERS).forEach(([id, p]) => {
+  Object.entries(PROVIDERS).filter(([, p]) => !p.kind).forEach(([id, p]) => {
     const isActive = Store.getProvider() === id;
     const statusClass = p.active ? 'live' : 'dead';
     const dotClass = p.active ? 'on' : 'off';
@@ -1058,6 +1160,22 @@ function settingsHTML() {
       '</div>';
   });
   h += '</div>';
+  
+  const movieSrcs = Object.entries(PROVIDERS).filter(([, p]) => p.kind);
+  if (movieSrcs.length) {
+    h += '<div class="set-grp"><h4>Sumber Movie</h4>';
+    movieSrcs.forEach(([id, p]) => {
+      h += '<div class="adp '+(p.active?'live':'dead')+'">' +
+        '<div class="top">' +
+        '<span class="dot '+(p.active?'on':'off')+'"></span>' +
+        '<b>'+esc(p.name)+'</b>' +
+        '<span style="font-size:11px;color:var(--dim)">'+(p.active?'Aktif':'OFF')+'</span>' +
+        '</div>' +
+        '<p class="desc">'+esc(p.desc)+'</p>' +
+        '</div>';
+    });
+    h += '</div>';
+  }
   
   h += '<div class="set-grp"><h4>Pemutaran</h4>' +
     '<div class="kv"><span>Auto-next episode</span><button class="sw'+(Store.cfg.autoNext?' on':'')+'" data-act="toggle-autoNext" role="switch"><i></i></button></div>' +
@@ -1203,17 +1321,17 @@ async function ViewHome(r) {
     '<section class="sec" id="secOngoing">'+secHead(cp.a[0],cp.a[1],'railOngoing','#/explore')+'<div class="rail" data-railwrap="w1"><div class="rail-track" id="railOngoing">'+skCards(10)+'</div></div></section>' +
     '<section class="sec" id="secGenre">'+secHead('Jelajah Genre','Ketuk untuk menyaring katalog')+'<div class="filters" id="genreRow" style="padding:2px"><div class="sk" style="width:80px;height:34px;border-radius:99px"></div><div class="sk" style="width:100px;height:34px;border-radius:99px"></div><div class="sk" style="width:90px;height:34px;border-radius:99px"></div></div></section>' +
     '<section class="sec" id="secCompleted">'+secHead(cp.b[0],cp.b[1],'railCompleted','#/explore')+'<div class="rail" data-railwrap="w2"><div class="rail-track" id="railCompleted">'+skCards(10)+'</div></div></section>' +
-    (cp.c ? '<section class="sec" id="secMovie" style="display:none">'+secHead(cp.c[0],cp.c[1],'railMovie')+'<div class="rail" data-railwrap="w3"><div class="rail-track" id="railMovie">'+skCards(10)+'</div></div></section>' : '') +
+    '<section class="sec" id="secMovie" style="display:none">'+secHead((cp.c && cp.c[0]) || 'Film Anime','Anime movie terbaru','railMovie')+'<div class="rail" data-railwrap="w3"><div class="rail-track" id="railMovie">'+skCards(10)+'</div></div></section>' +
     footerHTML() + '</div>';
 
   initDashVideo();
 
   try {
     progress(true, 20);
-    const [homeResult, genres] = await Promise.all([API.home(), API.genres()]);
+    const [homeResult, genres, movieResult] = await Promise.all([API.home(), API.genres(), API.movies()]);
     progress(true, 80);
 
-    const ong = homeResult.ongoing, cmp = homeResult.completed, mov = homeResult.movie || [];
+    const ong = homeResult.ongoing, cmp = homeResult.completed;
     $('#railOngoing').innerHTML = ong.length ? railItems(ong) : '<div class="ep-empty">Belum ada data anime di bagian ini.</div>';
     if (!ong.length) dropRailArrows('#secOngoing');
     $('#railCompleted').innerHTML = cmp.length ? railItems(cmp) : '<div class="ep-empty">Belum ada data anime di bagian ini.</div>';
@@ -1221,9 +1339,15 @@ async function ViewHome(r) {
 
     const secMovie = $('#secMovie');
     if (secMovie) {
+      const own = provider === 'kuramanime' ? (homeResult.movie || []) : [];
+      const mov = own.concat(movieResult.items || []);
       if (mov.length) {
         secMovie.style.display = '';
         $('#railMovie').innerHTML = railItems(mov);
+      } else if (movieResult.error) {
+        secMovie.style.display = '';
+        $('#railMovie').innerHTML = '<div class="ep-empty">Film tidak dapat dimuat saat ini.</div>';
+        dropRailArrows('#secMovie');
       } else {
         secMovie.remove();
       }
@@ -1283,7 +1407,7 @@ function syncQueryUrl(q) {
 
 function idleSearchState() {
   const box = $('#results'); if (!box) return;
-  box.innerHTML = '<div class="state rv in"><div class="ic">'+svg('search','',1.7)+'</div><h3>Mulai Mencari</h3><p>Ketik minimal 2 karakter. Pencarian berjalan di Otakudesu dan Oploverz sekaligus.</p></div>';
+  box.innerHTML = '<div class="state rv in"><div class="ic">'+svg('search','',1.7)+'</div><h3>Mulai Mencari</h3><p>Ketik minimal 2 karakter. Pencarian berjalan di Otakudesu, Oploverz, dan sumber movie sekaligus.</p></div>';
   const ri = $('#resInfo'); if (ri) ri.textContent = 'Ketik minimal 2 karakter untuk mencari';
 }
 
@@ -1303,7 +1427,7 @@ function paintFilterRow(counts) {
   row.innerHTML = '<button class="chip'+(searchFilter==='all'?' on':'')+'" data-act="sf" data-v="all">Semua</button>' +
     ids.map(id => {
       const n = counts && counts[id] != null ? ' · '+counts[id] : '';
-      return '<button class="chip'+(searchFilter===id?' on':'')+'" data-act="sf" data-v="'+id+'">'+esc(PROVIDERS[id].name)+n+'</button>';
+      return '<button class="chip'+(searchFilter===id?' on':'')+'" data-act="sf" data-v="'+id+'">'+esc(searchLabel(id))+n+'</button>';
     }).join('');
 }
 
@@ -1315,7 +1439,7 @@ function paintSearch() {
   paintFilterRow(counts);
   const items = lastRes.items.filter(a => searchFilter === 'all' || a.provider === searchFilter);
   const srcTxt = (lastRes.sources || []).map(s =>
-    esc(PROVIDERS[s.id].name) + ' <b style="color:var(--txt)">' + (s.ok ? s.count : '—') + '</b>' + (s.ok ? '' : ' <span class="bad">gagal</span>')
+    esc(searchLabel(s.id)) + ' <b style="color:var(--txt)">' + (s.ok ? s.count : '—') + '</b>' + (s.ok ? '' : ' <span class="bad">gagal</span>')
   ).join(' · ');
   if (!items.length) {
     if (ri) ri.innerHTML = '0 hasil untuk <b style="color:var(--acc2)">'+esc(lastQuery)+'</b>';
@@ -1590,7 +1714,7 @@ async function ViewDetail(r) {
 }
 
 function renderDetail(anime) {
-  const fav = Store.isFav(anime.id);
+  const fav = Store.isFav(anime.id, anime.provider);
   EP = anime.episodeList || [];
 
   const genreSec = (anime.genres && anime.genres.length)
@@ -1677,7 +1801,7 @@ async function ViewWatch(r) {
   const nextEp = epIdx > -1 && epIdx < epList.length-1 ? epList[epIdx+1] : null;
   const eidUse = eid || (ep && ep.id ? String(ep.id) : '') || epNum;
   const eslugUse = eslug || (ep && ep.slug ? String(ep.slug) : '') || '';
-  const favW = Store.isFav(anime.id);
+  const favW = Store.isFav(anime.id, anime.provider);
 
   $('#wInfo').innerHTML =
     '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap"><div style="flex:1;min-width:240px">' +
@@ -1760,13 +1884,14 @@ document.addEventListener('click', async e => {
   if(fav) {
     e.preventDefault(); e.stopPropagation();
     const id = fav.dataset.fav;
-    const provider = fav.dataset.provider || Store.getProvider();
+    const rawProv = fav.dataset.provider || '';
+    const provider = rawProv || Store.getProvider();
     const added = Store.toggleFav({
       id, title:fav.dataset.title, cover:fav.dataset.cover, provider,
       score:fav.dataset.score||'', epLabel:fav.dataset.epl||'', sub:fav.dataset.sub||'',
       type:fav.dataset.type||'', slug:fav.dataset.slug||''
     });
-    $$('[data-fav="'+id+'"]').forEach(b => {
+    $$('[data-fav]').filter(b => b.dataset.fav === id && (b.dataset.provider || '') === rawProv).forEach(b => {
       const sm = b.classList.contains('sm');
       if (b.classList.contains('btn')) {
         b.className = 'btn' + (added ? ' danger' : ' ghost') + (sm ? ' sm' : '');

@@ -213,14 +213,14 @@ main.anim-in{animation:viewIn .32s var(--ease) both}
 .fav-btn.beat svg{animation:beat .55s var(--spring)}
 @keyframes beat{0%{transform:scale(1)}35%{transform:scale(1.42)}60%{transform:scale(.88)}100%{transform:scale(1)}}
 
-.searchbar{position:relative;display:flex;align-items:center;gap:11px;height:54px;padding:0 15px;border-radius:18px;background:rgba(255,255,255,.035);border:1px solid var(--line);transition:.36s var(--ease)}
+.searchbar{position:relative;display:flex;align-items:center;gap:9px;height:44px;padding:0 12px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid var(--line);transition:.36s var(--ease)}
 .searchbar::before{content:"";position:absolute;inset:-1px;border-radius:19px;padding:1px;opacity:0;transition:.4s var(--ease);background:linear-gradient(120deg,rgba(125,180,255,.7),rgba(125,180,255,.06) 40%,rgba(140,90,255,.5));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
 .searchbar:focus-within{background:rgba(255,255,255,.062);border-color:transparent;box-shadow:0 14px 44px -18px rgba(62,123,250,.6);transform:translateY(-1px)}
 .searchbar:focus-within::before{opacity:1}
 .searchbar .sic{color:var(--dim);display:grid;place-items:center;transition:.4s var(--spring)}
-.searchbar .sic svg{width:19px;height:19px}
+.searchbar .sic svg{width:17px;height:17px}
 .searchbar:focus-within .sic{color:var(--acc2);transform:scale(1.1) rotate(-8deg)}
-.searchbar input{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;font-size:15px;font-weight:500;letter-spacing:-.01em}
+.searchbar input{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;font-size:14px;font-weight:500;letter-spacing:-.01em}
 .searchbar input::placeholder{color:var(--dim)}
 .searchbar .clr{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--dim);opacity:0;transform:scale(.7);transition:.3s var(--spring);pointer-events:none}
 .searchbar .clr svg{width:15px;height:15px}
@@ -228,7 +228,7 @@ main.anim-in{animation:viewIn .32s var(--ease) both}
 .searchbar .clr:hover{background:rgba(255,255,255,.08);color:#fff}
 .searchbar .prov-ind{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;color:var(--acc2);background:var(--acc-soft);border:1px solid rgba(62,123,250,.22);flex:none}
 
-.filters{display:flex;gap:8px;overflow-x:auto;padding:14px 2px 4px;scrollbar-width:none}
+.filters{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 4px;scrollbar-width:none}
 .filters::-webkit-scrollbar{display:none}
 
 .detail-hero{position:relative;margin:0 -18px;padding:0 18px;overflow:hidden}
@@ -375,13 +375,20 @@ footer.ft img{width:22px;height:22px;border-radius:7px}
 .pw .empty svg{width:34px;height:34px;display:block;margin:0 auto 10px;color:var(--dim)}
 .card .poster .perr{position:absolute;inset:0;display:grid;place-items:center;color:#3a4350;pointer-events:none}
 .card .poster .perr svg{width:30px;height:30px}
-.sbar-wrap{position:sticky;top:0;z-index:45;padding:10px 0 4px;box-shadow:0 0 0 100vmax rgba(5,6,10,.9);clip-path:inset(0 -100vmax);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.filters.sfil{flex-wrap:wrap;padding:12px 2px 2px;overflow:visible}
-.qhist{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:4px 2px 0}
+.sbar-wrap{position:sticky;top:0;z-index:45;padding:8px 0 2px;box-shadow:0 0 0 100vmax rgba(5,6,10,.9);clip-path:inset(0 -100vmax);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.filters.sfil{padding:8px 2px 2px}
+.filters.sfil .chip{height:30px;font-size:12.2px;padding:0 12px;gap:6px}
+.qhist{display:flex;gap:7px;flex-wrap:wrap;align-items:center;padding:4px 2px 0}
 .qhist .lb{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);font-weight:700;margin-right:2px}
 .qhist .chip{height:30px;font-size:12.2px;padding:0 12px}
 #resInfo .src{color:var(--dim);font-size:11.6px}
 #resInfo .src .bad{color:var(--err);font-weight:600}
+#resInfo{margin:10px 0 6px;font-size:12.2px;color:var(--dim)}
+#results .state{padding:32px 18px;gap:10px}
+#results .state .ic{width:48px;height:48px;border-radius:16px}
+#results .state .ic svg{width:21px;height:21px}
+#results .state h3{font-size:15px}
+#results .state p{font-size:12.6px;line-height:1.55}
 .ep-empty{font-size:13px;color:var(--dim);padding:14px 4px}
 .panel h3 svg{width:17px;height:17px;flex:none;color:var(--acc2)}
 @media(max-width:400px){.grid.wide{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}}
@@ -437,15 +444,15 @@ Pengaturan
 'use strict';
 
 /* ═══════ CONFIG ═══════ */
-const API_BASE = "https://making-garcia-swap-commons.trycloudflare.com";
-const MOVIE_API_BASE = "https://null-involves-winner-tissue.trycloudflare.com";
+const API_BASE = "https://vaccine-sphere-agenda-intro.trycloudflare.com";
+const MOVIE_API_BASE = "https://cams-reason-drew-teaches.trycloudflare.com";
 
 const PROVIDERS = {
   otakudesu: { name:"Otakudesu", active:true, search:true, priority:1, desc:"Provider utama. Home, search, detail, episode, server, genre, schedule." },
   oploverz:  { name:"Oploverz",  active:true, search:true, priority:2, desc:"Provider alternatif. Home, search, detail, episode dengan streamingUrl langsung." },
   kuramanime:{ name:"Kuramanime",active:true, search:false,priority:3, desc:"Provider alternatif. Home, detail, episode, properties (genre/season/studio)." },
   samehadaku:{ name:"Samehadaku",active:false,search:false,priority:4, desc:"Status: OFF. Tidak tersedia saat ini." },
-  kusonime:  { name:"Kusonime",  active:true, search:true, priority:5, kind:"movie", filterLabel:"Movie", desc:"Sumber anime movie terpisah (base API kedua). Home, search, detail. Tidak menyediakan streaming." }
+  kusonime:  { name:"Kusonime",  active:true, search:true, priority:5, kind:"movie", filterLabel:"Movie", desc:"Sumber anime movie terpisah (base API kedua). Home, search, detail. Tidak punya stream sendiri — tombol Tonton Film mencari provider lain yang mendukung streaming." }
 };
 
 const isMovieSource = id => !!(PROVIDERS[id] && PROVIDERS[id].kind === 'movie');
@@ -500,34 +507,6 @@ function normalizeSearchText(s) {
     .replace(/[^\w\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-}
-
-function buildSearchFields(anime) {
-  const fields = [];
-  if (anime.title) fields.push(normalizeSearchText(anime.title));
-  if (anime.englishTitle) fields.push(normalizeSearchText(anime.englishTitle));
-  if (anime.japaneseTitle) fields.push(normalizeSearchText(anime.japaneseTitle));
-  if (anime.romajiTitle) fields.push(normalizeSearchText(anime.romajiTitle));
-  if (anime.altTitles) anime.altTitles.forEach(t => fields.push(normalizeSearchText(t)));
-  return [...new Set(fields.filter(Boolean))];
-}
-
-function scoreSearchMatch(anime, query) {
-  const q = normalizeSearchText(query);
-  if (!q) return 0;
-  const fields = buildSearchFields(anime);
-  let best = 0;
-  for (const f of fields) {
-    if (f === q) { best = Math.max(best, 100); break; }
-    if (f.startsWith(q)) best = Math.max(best, 80);
-    else if (f.includes(q)) best = Math.max(best, 60);
-    else {
-      const tokens = q.split(' ').filter(Boolean);
-      const matched = tokens.filter(t => f.includes(t)).length;
-      if (matched > 0) best = Math.max(best, 30 + (matched / tokens.length) * 20);
-    }
-  }
-  return best;
 }
 
 /* ═══════ STORE ═══════ */
@@ -720,6 +699,33 @@ function normalizeKusonimeCard(item, forceType) {
   };
 }
 
+/* ═══════ KUSONIME: DOWNLOAD LIST ═══════ */
+/* Struktur tervalidasi: [{title, download_link:[{type:"480P", links:[{name,url}]}]}] */
+function parseKusonimeDownloads(list) {
+  const out = [];
+  if (!Array.isArray(list)) return out;
+  list.forEach(group => {
+    const qlist = group && Array.isArray(group.download_link) ? group.download_link : [];
+    qlist.forEach(q => {
+      const quality = cleanVal(q && q.type) || 'Unknown';
+      const links = q && Array.isArray(q.links) ? q.links : [];
+      links.forEach(l => {
+        const url = cleanVal(l && l.url);
+        if (!/^https?:\/\//i.test(url)) return;
+        out.push({ quality, name: cleanVal(l && l.name) || 'Link', url });
+      });
+    });
+  });
+  return out;
+}
+
+/* Host download file-hosting (bukan media). Dipakai untuk info jujur, bukan pemutaran. */
+const DOWNLOAD_HOSTS = ['acefile.co','akirabox.com','terabox','hxfile.co','megaup.net','mega.nz','pixeldrain.com','drive.google.com','s.id','mir.cr'];
+function isDownloadHost(url) {
+  const u = String(url || '').toLowerCase();
+  return DOWNLOAD_HOSTS.some(h => u.indexOf(h) > -1);
+}
+
 function normalizeCard(item, provider) {
   switch (provider) {
     case 'otakudesu': return normalizeOtakudesuCard(item);
@@ -863,6 +869,7 @@ const API = {
         studio: cleanVal(d.producers),
         genres: String(d.genre || '').split(',').map(x => ({ t: cleanVal(x), id: '' })).filter(g => g.t),
         synopsis: cleanVal(d.sinopsis) || 'Sinopsis tidak tersedia.',
+        downloads: parseKusonimeDownloads(d.list_download),
         episodeList: [],
         recommendations: []
       };
@@ -952,6 +959,11 @@ const API = {
     if (provider === 'otakudesu') endpoint = `/otakudesu/episode/${encodeURIComponent(params.episodeId)}`;
     else if (provider === 'oploverz') endpoint = `/oploverz/episode/${encodeURIComponent(params.episodeSlug || params.episodeId)}`;
     else if (provider === 'kuramanime') endpoint = `/kuramanime/episode/${encodeURIComponent(params.animeId)}/${encodeURIComponent(params.animeSlug)}/${encodeURIComponent(params.episodeId)}`;
+    else if (provider === 'kusonime') {
+      const err = new Error('Sumber film ini (Kusonime) tidak memiliki endpoint streaming — hanya link download file hosting. Gunakan tombol "Tonton Film" di halaman detail untuk memeriksa sumber lain.');
+      err.code = 'no-stream';
+      throw err;
+    }
     else throw new Error('Provider tidak tersedia.');
     
     const r = await apiGet(endpoint, 20000, `episode:${provider}:${params.episodeId}`, TTL.episode);
@@ -980,9 +992,17 @@ const API = {
       };
     }
     
+    const qlist = (details.server && Array.isArray(details.server.qualityList)) ? details.server.qualityList : [];
+    const qualities = qlist.map(q => ({
+      title: String(q.title || '').trim(),
+      servers: (q.serverList || []).map(s => ({ name: s.title, id: s.serverId }))
+    }));
+    const allServers = [];
+    qualities.forEach(q => q.servers.forEach(s => allServers.push({ ...s, quality: q.title })));
     return {
       provider, title: details.episodeTitle || details.title || `Episode ${params.episode}`,
-      playerUrl: '', qualities: [], servers: []
+      playerUrl: '', qualities, servers: allServers,
+      note: allServers.length ? '' : 'Provider ini tidak mengembalikan URL player maupun server streaming dari API.'
     };
   },
   
@@ -1040,6 +1060,77 @@ const API = {
     return { list:(r?.data?.animeList||[]).map(i=>normalizeCard(i,'otakudesu')).filter(Boolean), pagination:r?.pagination||null };
   }
 };
+
+/* ═══════ MOVIE: RESOLVE PLAYABLE SOURCE ═══════ */
+/* Film (Kusonime/Kuramanime) tidak punya stream sendiri. Karena itu cari judul yang
+   sama di provider serial (punya embed player), lalu putar lewat player existing. */
+function normMovieTitle(s) {
+  return normalizeSearchText(String(s || '')
+    .replace(/\((?:episode|eps)?\s*\d+\s*[–-]\s*\d+\)/gi, ' ')
+    .replace(/\b(subtitle indonesia|sub indo|batch|bd|web-?dl|webdl|dub|dubbed|indonesia|complete|movie|film|ova|ona|special|season|s\d+|part\s*\d+|episode|eps?|\d{4})\b/gi, ' ')
+  ).replace(/\s+/g, ' ').trim();
+}
+
+function titleMatchScore(source, candidate) {
+  const a = normMovieTitle(source), b = normMovieTitle(candidate);
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const ta = a.split(' ').filter(t => t.length > 1);
+  const tb = b.split(' ').filter(t => t.length > 1);
+  if (!ta.length || !tb.length) return 0;
+  const setb = new Set(tb);
+  const hit = ta.filter(t => setb.has(t)).length;
+  const cov = Math.min(hit / ta.length, hit / tb.length);
+  if (hit >= 2 && cov >= 0.8) return cov;
+  if (hit >= 1 && ta.length === 1 && tb.length === 1) return 0.7;
+  return 0;
+}
+
+async function resolveMovieSource(anime) {
+  const title = cleanVal(anime && anime.title);
+  if (!title) return null;
+  /* Coba judul penuh, lalu judul yang sudah dibersihkan dari kata Batch/Subtitle Indonesia/dsb.
+     (judul penuh sering membuat pencarian provider lain tidak menemukan apa-apa) */
+  const cleaned = normMovieTitle(title);
+  const queries = [...new Set([cleaned, title].filter(q => q && q.length >= 2))];
+  const found = [];
+  const seen = new Set();
+  for (const pid of ['otakudesu', 'oploverz']) {
+    for (const q of queries) {
+      let list = [];
+      try {
+        const r = await apiGet(`/${pid}/search?q=${encodeURIComponent(q)}`, 20000, `mres:${pid}:${q}`, TTL.search);
+        list = (r?.data?.animeList || []).map(i => normalizeCard(i, pid)).filter(Boolean);
+      } catch (e) {
+        if (e.status !== 404) console.warn('Movie resolve search failed:', pid, e);
+        continue;
+      }
+      list.forEach(c => {
+        const key = pid + ':' + c.id;
+        if (seen.has(key)) return;
+        const sc = titleMatchScore(title, c.title);
+        if (sc > 0) { seen.add(key); found.push({ ...c, match: sc }); }
+      });
+      if (found.length) break;
+    }
+    if (found.length) break;
+  }
+  if (!found.length) return null;
+  found.sort((x, y) => (y.match - x.match) || ((PROVIDERS[x.provider]?.priority || 9) - (PROVIDERS[y.provider]?.priority || 9)));
+  const best = found[0];
+  try {
+    const det = await API.detail(best.provider, best.id, best.slug || '');
+    const ep = (det.episodeList || [])[0];
+    if (!ep) return null;
+    return {
+      provider: det.provider, id: det.id, slug: det.slug || '', title: det.title,
+      poster: det.poster || '', epNum: ep.num, eid: ep.id || '', eslug: ep.slug || '', match: best.match
+    };
+  } catch (e) {
+    console.warn('Movie resolve detail failed:', e);
+    return null;
+  }
+}
 
 /* ═══════ COMPONENTS ═══════ */
 function cardHTML(a, opt) {
@@ -1446,9 +1537,10 @@ function paintSearch() {
     box.innerHTML = stateHTML('search','Tidak Ditemukan','Tidak ada anime yang cocok dengan "'+lastQuery+'". Coba kata kunci lain.','<button class="btn primary" data-act="retry-search">'+svg('refresh','',2.1)+' Coba lagi</button>');
     return;
   }
-  const sorted = items.map(a => ({a, s: scoreSearchMatch(a, lastQuery)})).sort((x,y) => y.s - x.s).map(x => x.a);
-  if (ri) ri.innerHTML = '<b style="color:var(--txt)">'+sorted.length+'</b> hasil untuk <b style="color:var(--acc2)">'+esc(lastQuery)+'</b><span class="src"> · '+srcTxt+'</span>';
-  box.innerHTML = '<div class="grid wide">' + sorted.map((a,i) => '<div class="rv-s" style="--d:'+((i%8)*36)+'ms">'+cardHTML(a,{g:true})+'</div>').join('') + '</div>';
+  /* Urutan hasil = urutan dari masing-masing provider (relevansi ranking situs),
+     tanpa re-sort global yang merusak urutan season/franchise. */
+  if (ri) ri.innerHTML = '<b style="color:var(--txt)">'+items.length+'</b> hasil untuk <b style="color:var(--acc2)">'+esc(lastQuery)+'</b><span class="src"> · '+srcTxt+'</span>';
+  box.innerHTML = '<div class="grid wide">' + items.map((a,i) => '<div class="rv-s" style="--d:'+((i%8)*36)+'ms">'+cardHTML(a,{g:true})+'</div>').join('') + '</div>';
   initReveal(box); initLazy(box);
 }
 
@@ -1485,7 +1577,7 @@ async function ViewSearch(r) {
     '</div>' +
     '<div class="filters sfil" id="sfRow"></div>' +
     '</div>' +
-    '<div id="resInfo" style="margin:14px 0 8px;font-size:12.6px;color:var(--dim)"></div>' +
+    '<div id="resInfo"></div>' +
     '<div id="qhist" class="qhist" style="margin-bottom:4px"></div>' +
     '<div id="results"></div>' +
     footerHTML() + '</div>';
@@ -1716,6 +1808,7 @@ async function ViewDetail(r) {
 function renderDetail(anime) {
   const fav = Store.isFav(anime.id, anime.provider);
   EP = anime.episodeList || [];
+  const movieFlow = anime.provider === 'kusonime' || /movie/i.test(cleanVal(anime.type));
 
   const genreSec = (anime.genres && anime.genres.length)
     ? '<section class="panel rv"><h3>'+svg('compass','',2)+' Genre</h3><div style="display:flex;gap:8px;flex-wrap:wrap">' +
@@ -1751,10 +1844,12 @@ function renderDetail(anime) {
     (anime.studio ? '<span class="stat">'+svg('compass','',1.9)+' <b>'+esc(anime.studio)+'</b></span>' : '') +
     '</div>' +
     '<div class="detail-actions">' +
-    (EP.length ? '<button class="btn primary" data-act="watch-first" data-ep="0">'+svg('play','',2.2)+' Tonton EP '+esc(EP[0].num)+'</button>' : '') +
+    (movieFlow ? '<button class="btn primary" data-act="watch-movie">'+svg('play','',2.2)+' Tonton Film</button>' : '') +
+    (!movieFlow && EP.length ? '<button class="btn primary" data-act="watch-first" data-ep="0">'+svg('play','',2.2)+' Tonton EP '+esc(EP[0].num)+'</button>' : '') +
     '<button class="btn'+(fav?' danger':' ghost')+'" data-fav="'+esc(anime.id)+'" data-provider="'+esc(anime.provider)+'" data-cover="'+esc(anime.poster)+'" data-title="'+esc(anime.title)+'" data-score="'+esc(anime.score||'')+'" data-type="'+esc(anime.type||'')+'" data-sub="'+esc(anime.year||'')+'" data-slug="'+esc(anime.slug||'')+'" id="bigFav" aria-pressed="'+fav+'">'+(fav?svg('heart','',2.1)+' Tersimpan':svg('heart','',2.1)+' Favorit')+'</button>' +
     '</div></div></div></div></div>' +
     '<div class="shell" style="padding-top:22px;display:grid;gap:16px">' +
+    '<div id="movieStream" style="display:none"></div>' +
     '<section class="panel rv"><h3>'+svg('info','',2)+' Sinopsis</h3><div class="syn clip" id="syn">'+esc(anime.synopsis||'Sinopsis tidak tersedia.')+'</div>'+((anime.synopsis||'').length>340?'<button class="readmore" data-act="toggle-syn">Baca selengkapnya '+svg('down','',2.4)+'</button>':'')+'</section>' +
     genreSec +
     '<section class="panel rv" id="epPanel"><h3>'+svg('film','',2)+' Daftar Episode <span style="font-size:11.5px;color:var(--dim);font-weight:500">· '+EP.length+' entri</span></h3>' +
@@ -1824,12 +1919,13 @@ async function ViewWatch(r) {
 
     let playerUrl = stream.playerUrl || '';
     const hasSrv = !!(stream.servers && stream.servers.length);
+    const noStreamNote = stream.note || '';
 
     let playerMarkup = '';
     if (playerUrl) {
       playerMarkup = '<iframe id="playerFrame" src="'+esc(playerUrl)+'" allowfullscreen loading="eager" referrerpolicy="no-referrer" style="width:100%;height:100%;border:0;background:#000"></iframe>';
     } else {
-      playerMarkup = '<div class="empty"><div>'+svg('server','',1.7)+'<strong>Stream tidak tersedia</strong><p style="font-size:12.8px;max-width:44ch;line-height:1.62">'+(hasSrv ? 'Provider tidak memberikan URL player untuk episode ini. Coba pilih server alternatif di bawah.' : 'Provider tidak memberikan URL player untuk episode ini.')+'</p></div></div>';
+      playerMarkup = '<div class="empty"><div>'+svg('server','',1.7)+'<strong>Stream tidak tersedia</strong><p style="font-size:12.8px;max-width:44ch;line-height:1.62">'+esc(hasSrv ? 'Provider tidak memberikan URL player untuk episode ini. Coba pilih server alternatif di bawah.' : (noStreamNote || 'Provider tidak memberikan URL player untuk episode ini.'))+'</p></div></div>';
     }
 
     $('#wHost').innerHTML = '<div class="pw">'+playerMarkup+'</div>';
@@ -1863,7 +1959,7 @@ async function ViewWatch(r) {
         });
       });
     } else if (!playerUrl) {
-      const srvHTML = '<div style="margin-top:16px;padding:14px;border-radius:14px;background:rgba(255,159,10,.05);border:1px solid rgba(255,159,10,.18);color:var(--mut);font-size:12.8px;line-height:1.62"><b style="color:var(--warn)">Tidak ada stream untuk episode ini</b><br>Provider tidak memberikan URL player maupun server alternatif. Coba episode lain dari daftar di halaman detail.<br><a class="btn ghost sm" style="margin-top:10px" href="#/anime/'+encodeURIComponent(anime.id)+'?provider='+encodeURIComponent(provider)+(anime.slug?'&slug='+encodeURIComponent(anime.slug):'')+'">'+svg('film','',2)+' Lihat daftar episode</a></div>';
+      const srvHTML = '<div style="margin-top:16px;padding:14px;border-radius:14px;background:rgba(255,159,10,.05);border:1px solid rgba(255,159,10,.18);color:var(--mut);font-size:12.8px;line-height:1.62"><b style="color:var(--warn)">Tidak ada stream untuk episode ini</b><br>'+esc(noStreamNote || 'Provider tidak memberikan URL player maupun server alternatif.')+' Coba episode lain dari daftar di halaman detail.<br><a class="btn ghost sm" style="margin-top:10px" href="#/anime/'+encodeURIComponent(anime.id)+'?provider='+encodeURIComponent(provider)+(anime.slug?'&slug='+encodeURIComponent(anime.slug):'')+'">'+svg('film','',2)+' Lihat daftar episode</a></div>';
       $('#wInfo').insertAdjacentHTML('beforeend', srvHTML);
     }
 
@@ -1917,6 +2013,41 @@ document.addEventListener('click', async e => {
     if(a==='back'){e.preventDefault();back();return}
     if(a==='goto'){e.preventDefault();go(act.dataset.to.replace(/^#/,''));return}
     if(a==='toggle-syn'){const s=$('#syn');const open=s.classList.toggle('clip')===false;act.classList.toggle('open',open);act.innerHTML=(open?'Tampilkan lebih sedikit ':'Baca selengkapnya ')+svg('down','',2.4);return}
+    if(a==='watch-movie'){
+      e.preventDefault();
+      if(!DET) return;
+      const host = $('#movieStream');
+      const label = act.innerHTML;
+      act.disabled = true; act.innerHTML = svg('refresh','',2.1)+' Memeriksa…';
+      if(host){
+        host.style.display = '';
+        host.innerHTML = '<div class="panel"><div style="display:flex;gap:10px;align-items:center;color:var(--mut);font-size:13px">'+svg('search','',2)+' Memeriksa sumber video yang dapat diputar…</div></div>';
+        host.scrollIntoView({behavior:'smooth', block:'nearest'});
+      }
+      const res = await resolveMovieSource(DET);
+      act.disabled = false; act.innerHTML = label;
+      if (res) {
+        toast('Sumber ditemukan di '+PROVIDERS[res.provider].name+'.', 'ok');
+        go('/watch/'+encodeURIComponent(res.id)+'/'+encodeURIComponent(res.epNum)+'?provider='+encodeURIComponent(res.provider)+'&eid='+encodeURIComponent(res.eid || res.epNum)+'&eslug='+encodeURIComponent(res.eslug || ''));
+        return;
+      }
+      if (host) {
+        const mirrors = Array.isArray(DET.downloads) ? DET.downloads : [];
+        const byQ = {};
+        mirrors.forEach(m => { (byQ[m.quality] = byQ[m.quality] || []).push(m) });
+        const mirrorHTML = Object.keys(byQ).length
+          ? '<div style="margin-top:14px"><div style="font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);font-weight:700;margin-bottom:8px">Mirror file unduhan (bukan pemutaran)</div>' +
+            Object.keys(byQ).map(q => '<div style="margin-bottom:9px"><b style="color:var(--txt);font-size:12.4px">'+esc(q)+'</b><div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:5px">' +
+              byQ[q].map(m => '<a class="chip" href="'+esc(m.url)+'" target="_blank" rel="noopener noreferrer">'+svg('globe','',2)+esc(m.name)+'</a>').join('') +
+            '</div></div>').join('') + '</div>'
+          : '';
+        host.innerHTML = '<div class="panel"><h3>'+svg('alert','',2)+' Tidak ada sumber video yang dapat diputar</h3>' +
+          '<p style="color:var(--mut);font-size:13px;line-height:1.65;margin:8px 0 0">Sumber film ini hanya menyediakan file unduhan dari hosting pihak ketiga (umumnya arsip RAR), bukan stream yang bisa diputar langsung di pemutar. Judul ini juga tidak ditemukan pada provider lain yang mendukung streaming.</p>' +
+          mirrorHTML + '</div>';
+        host.scrollIntoView({behavior:'smooth', block:'nearest'});
+      }
+      return;
+    }
     if(a==='watch-first'){
       if(!DET) return;
       const idx = +act.dataset.ep;

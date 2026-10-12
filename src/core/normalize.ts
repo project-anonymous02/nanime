@@ -1,0 +1,132 @@
+import { cleanVal, seriesSlug } from './utils';
+import type { Card } from './types';
+
+export function getPoster(item: any): string {
+  if (!item) return '';
+  return item.poster || item.image || item.cover || item.thumbnail || '';
+}
+
+export function normalizeOtakudesuCard(item: any): Card | null {
+  if (!item) return null;
+  const eps = cleanVal(item.episodes);
+  const isOngoing = !!(item.latestReleaseDate || item.releaseDay);
+  const date = cleanVal(item.latestReleaseDate || item.lastReleaseDate);
+  return {
+    id: String(item.animeId || ''),
+    provider: 'otakudesu',
+    title: cleanVal(item.title) || 'Unknown',
+    poster: String(getPoster(item)),
+    score: cleanVal(item.score),
+    type: cleanVal(item.type),
+    status: cleanVal(item.status),
+    epLabel: eps ? (isOngoing ? 'Ep ' + eps : eps + ' Eps') : '',
+    sub: date || cleanVal(item.releaseDay),
+    sourceUrl: item.otakudesuUrl || ''
+  };
+}
+
+export function normalizeOploverzCard(item: any): Card | null {
+  if (!item) return null;
+  const href = item.href || '';
+  let slug = cleanVal(item.slug);
+  if (!slug && href.indexOf('/anime/') > -1) slug = href.split('/anime/').pop().split(/[?#/]/).filter(Boolean)[0] || '';
+  if (!slug) slug = seriesSlug(item.seriesName || item.title || '');
+  const series = item.seriesName ? String(item.seriesName).split('\t')[0].replace(/\s+/g, ' ').trim() : '';
+  return {
+    id: slug || cleanVal(item.title) || 'Unknown',
+    provider: 'oploverz',
+    title: series || cleanVal(item.title) || 'Unknown',
+    poster: String(getPoster(item)),
+    score: cleanVal(item.score),
+    type: cleanVal(item.type),
+    status: cleanVal(item.status),
+    epLabel: cleanVal(item.episode),
+    sub: cleanVal(item.releaseTime) || cleanVal(item.status),
+    sourceUrl: href
+  };
+}
+
+export function normalizeKuramanimeCard(item: any): Card | null {
+  if (!item) return null;
+  const eps = cleanVal(item.episodes);
+  const total = cleanVal(item.totalEpisodes);
+  return {
+    id: String(item.animeId || ''),
+    provider: 'kuramanime',
+    title: cleanVal(item.title) || 'Unknown',
+    poster: String(getPoster(item)),
+    score: cleanVal(item.highlight),
+    type: cleanVal(item.type),
+    status: '',
+    epLabel: eps ? (total ? eps + '/' + total : 'Ep ' + eps) : '',
+    sub: cleanVal(item.quality),
+    sourceUrl: item.kuramanimeUrl || '',
+    slug: item.animeSlug || ''
+  };
+}
+
+export function normalizeKusonimeCard(item: any, forceType?: string): Card | null {
+  if (!item) return null;
+  let slug = cleanVal(item.endpoint).replace(/^\/+|\/+$/g, '');
+  if (!slug) {
+    const u = String(item.url || '');
+    if (u.indexOf('://') > -1) slug = (u.split('://').pop() || '').split('/').filter(Boolean).slice(1).join('/');
+    slug = slug.split(/[?#]/)[0].replace(/\/+$/, '');
+  }
+  const title = cleanVal(item.title) || cleanVal(item.name);
+  if (!slug || !title) return null;
+  return {
+    id: slug,
+    provider: 'kusonime',
+    title,
+    poster: String(item.thumbnail || item.image || ''),
+    score: '',
+    type: cleanVal(item.type || forceType || ''),
+    status: cleanVal(item.status),
+    epLabel: '',
+    sub: '',
+    sourceUrl: item.url || ''
+  };
+}
+
+export function normalizeCard(item: any, provider: string): Card | null {
+  switch (provider) {
+    case 'otakudesu':
+      return normalizeOtakudesuCard(item);
+    case 'oploverz':
+      return normalizeOploverzCard(item);
+    case 'kuramanime':
+      return normalizeKuramanimeCard(item);
+    case 'kusonime':
+      return normalizeKusonimeCard(item);
+    default:
+      return null;
+  }
+}
+
+/* Struktur tervalidasi: [{title, download_link:[{type:"480P", links:[{name,url}]}]}] */
+export function parseKusonimeDownloads(list: any): { quality: string; name: string; url: string }[] {
+  const out: { quality: string; name: string; url: string }[] = [];
+  if (!Array.isArray(list)) return out;
+  list.forEach(group => {
+    const qlist = group && Array.isArray(group.download_link) ? group.download_link : [];
+    qlist.forEach((q: any) => {
+      const quality = cleanVal(q && q.type) || 'Unknown';
+      const links = q && Array.isArray(q.links) ? q.links : [];
+      links.forEach((l: any) => {
+        const url = cleanVal(l && l.url);
+        if (!/^https?:\/\//i.test(url)) return;
+        out.push({ quality, name: cleanVal(l && l.name) || 'Link', url });
+      });
+    });
+  });
+  return out;
+}
+
+/* Host download file-hosting (bukan media). Dipakai untuk info jujur, bukan pemutaran. */
+export const DOWNLOAD_HOSTS = ['acefile.co', 'akirabox.com', 'terabox', 'hxfile.co', 'megaup.net', 'mega.nz', 'pixeldrain.com', 'drive.google.com', 's.id', 'mir.cr'];
+
+export function isDownloadHost(url: string): boolean {
+  const u = String(url || '').toLowerCase();
+  return DOWNLOAD_HOSTS.some(h => u.indexOf(h) > -1);
+}

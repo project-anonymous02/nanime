@@ -1,0 +1,22 @@
+{
+  "name": "Nanime — Premium Anime Streaming",
+  "short_name": "Nanime",
+  "description": "Streaming anime subtitle Indonesia tanpa backend, jalan langsung di browser & APK Android.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#05060A",
+  "theme_color": "#05060A",
+  "lang": "id",
+  "categories": ["entertainment", "video"],
+  "icons": [
+    { "src": "logo.jpg", "sizes": "192x192", "type": "image/jpeg", "purpose": "any" },
+    { "src": "logo.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Cari Anime", "url": "./index.html#/search" },
+    { "name": "Jadwal", "url": "./index.html#/schedule" },
+    { "name": "Favorit", "url": "./index.html#/favorite" }
+  ]
+}

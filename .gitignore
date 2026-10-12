@@ -1,0 +1,14 @@
+node_modules/
+dist/
+android/
+.and-code/
+*.log
+.DS_Store
+.vite/
+coverage/
+release/
+*.apk
+*.aab
+
+# Clone referensi API (bukan bagian build)
+apis/

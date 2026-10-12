@@ -31,8 +31,12 @@ jobs:
       - name: Build web
         run: npm run build
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # Android SDK sudah terpasang bawaan runner GitHub; tidak perlu setup-android
+      - name: Verifikasi Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" 2>/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --list_installed 2>/dev/null | head -20 || true
 
       - name: Capacitor add & sync
         run: |

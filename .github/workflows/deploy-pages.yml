@@ -1,8 +1,7 @@
 name: Deploy GitHub Pages
 
+# Jalankan manual: aktifkan dulu Pages (Settings → Pages → Source: GitHub Actions)
 on:
-  push:
-    branches: [main, master]
   workflow_dispatch:
 
 permissions:

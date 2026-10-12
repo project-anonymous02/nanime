@@ -54,6 +54,7 @@ export interface StreamServer {
   name: string;
   id: string;
   quality?: string;
+  def?: boolean;
 }
 
 export interface Stream {

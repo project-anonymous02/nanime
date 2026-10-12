@@ -17,4 +17,11 @@ describe('native scraper source mapping', () => {
     expect(sourcePath(makeTask('kusonime', 'movies', { page: 1 }))).toBe('/anime-movie-list/');
     expect(sourcePath(makeTask('kusonime', 'search', { query: 'movie' }))).toBe('/?s=movie&post_type=post');
   });
+
+  it('episode Oploverz menerima slug maupun URL lengkap', () => {
+    expect(sourcePath(makeTask('oploverz', 'episode', { slug: 'naruto-episode-220' }))).toBe('/naruto-episode-220/');
+    expect(sourcePath(makeTask('oploverz', 'episode', { episodeId: 'naruto-episode-220' }))).toBe('/naruto-episode-220/');
+    expect(sourcePath(makeTask('oploverz', 'episode', { episodeId: 'https://oploverz.am/naruto-episode-220/' }))).toBe('/naruto-episode-220/');
+    expect(sourcePath(makeTask('oploverz', 'episode', { episodeId: 'https://oploverz.am/naruto-episode-220/?page=2' }))).toBe('/naruto-episode-220/');
+  });
 });

@@ -64,7 +64,8 @@ export function footerHTML(): string {
   return (
     '<footer class="ft"><span class="lg"><img src="logo.jpg" alt="" width="22" height="22">' +
     '<b style="color:var(--mut);font-weight:600">Nanime</b> · Premium Anime Streaming</span>' +
-    '<span>Client-side · Tanpa backend · ' + esc(PROVIDERS[Store.getProvider()].name) + '</span></footer>'
+    '<span>Client-side · Tanpa backend · ' + esc(PROVIDERS[Store.getProvider()].name) + '</span>' +
+    '<span class="cr">Made By Nata, using third-party APIs. This client scrapes and aggregates anime metadata and stream links from third-party public sources (e.g. Otakudesu, Oploverz, Kuramanime, Kusonime) for personal use only. It hosts no video files on its own servers; all titles, artwork, subtitles and streams belong to their respective owners and uploaders. Nanime is not affiliated with, endorsed by, or responsible for any of those sites — if you enjoy a series, please support the official release.</span></footer>'
   );
 }
 

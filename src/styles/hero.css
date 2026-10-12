@@ -14,6 +14,7 @@
 .hero-title{font-family:'Sora Variable',sans-serif;font-weight:800;line-height:1;font-size:clamp(26px,6.6vw,40px);letter-spacing:-.05em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero-tag{margin:5px 0 0;color:var(--mut);font-size:12.6px;line-height:1.45}
 .hero-tag b{color:#cfe0ff;font-weight:600}
+.hero-cr{margin-top:6px;font-size:10.4px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
 .hero-search{display:flex;align-items:center;gap:11px;height:50px;margin-top:16px;padding:0 8px 0 16px;border-radius:99px;background:rgba(255,255,255,.045);border:1px solid var(--line2);color:var(--dim);transition:.3s var(--ease)}
 .hero-search:hover{background:rgba(255,255,255,.075);border-color:rgba(125,180,255,.4);transform:translateY(-1px);color:var(--mut)}
 .hero-search:active{transform:scale(.99)}

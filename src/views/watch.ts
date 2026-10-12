@@ -15,6 +15,8 @@ const host = () => document.getElementById('view') as HTMLElement;
 let saveTimer: ReturnType<typeof setInterval> | null = null;
 let cur: { anime: Detail; epNum: string; eid: string; eslug: string; provider: string } | null = null;
 let playerEl: HTMLVideoElement | null = null;
+let lastDownloads: DownloadLink[] = [];
+let lastNextHref = '';
 
 function stopSaving(): void {
   if (saveTimer) {
@@ -263,6 +265,8 @@ export async function ViewWatch(r: ParsedRoute): Promise<void> {
     setTimeout(() => progress(false), 240);
 
     const downloads = stream.downloads || [];
+    lastDownloads = downloads;
+    lastNextHref = nextHref;
     const playerUrl = stream.playerUrl || '';
     (cur as any).embedUrl = playerUrl;
     const native = isVideoUrl(playerUrl);
@@ -300,9 +304,15 @@ export async function ViewWatch(r: ParsedRoute): Promise<void> {
     const infoEl = document.getElementById('wInfo');
     if (hasSrv && infoEl) {
       const favQ = Store.cfg.defaultQuality;
-      const ordered = favQ
-        ? [...stream.servers].sort((a, b) => (b.quality || '').indexOf(favQ) > -1 ? 1 : (a.quality || '').indexOf(favQ) > -1 ? -1 : 0)
-        : stream.servers;
+      const ordered = [...stream.servers].sort((a, b) => {
+        if (a.def !== b.def) return a.def ? -1 : 1;
+        if (favQ) {
+          const pa = (a.quality || '').indexOf(favQ) > -1 ? 1 : 0;
+          const pb = (b.quality || '').indexOf(favQ) > -1 ? 1 : 0;
+          if (pa !== pb) return pb - pa;
+        }
+        return 0;
+      });
       infoEl.insertAdjacentHTML(
         'beforeend',
         '<div style="margin-top:16px"><div style="font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);font-weight:700;margin-bottom:9px">Pilih Server Streaming</div>' +
@@ -324,8 +334,8 @@ export async function ViewWatch(r: ParsedRoute): Promise<void> {
             toast('Server ID kosong.', 'err');
             return;
           }
-          if (provider !== 'otakudesu') {
-            toast('Resolver server hanya untuk Otakudesu.', 'err');
+          if (!['otakudesu', 'oploverz'].includes(provider)) {
+            toast('Pemilihan server tidak tersedia untuk provider ini.', 'err');
             return;
           }
           const label = b.innerHTML;
@@ -397,15 +407,14 @@ export async function ViewWatch(r: ParsedRoute): Promise<void> {
 function useNativeUrl(url: string): void {
   const box = document.getElementById('wHost');
   if (!box) return;
-  const downloads: DownloadLink[] = [];
+  const downloads: DownloadLink[] = lastDownloads;
   const v0 = document.getElementById('player') as HTMLVideoElement | null;
   const t = v0 ? v0.currentTime : 0;
   box.innerHTML =
     '<div class="pw native"><video id="player" playsinline preload="metadata" src="' + esc(url) + '"></video>' +
     playerControlsHTML() + '</div>';
   const v = document.getElementById('player') as HTMLVideoElement;
-  const nextHref = '';
-  bindControls(v, downloads, nextHref);
+  bindControls(v, downloads, lastNextHref);
   v.currentTime = t;
   v.play().catch(() => {});
 }

@@ -8,7 +8,9 @@ export function getPoster(item: any): string {
 
 export function normalizeOtakudesuCard(item: any): Card | null {
   if (!item) return null;
-  const eps = cleanVal(item.episodes);
+  /* .epz bisa " Episode 2" (ongoing) atau "12 Episode" (complete) — ambil angkanya saja. */
+  const epsRaw = cleanVal(item.episodes);
+  const eps = (epsRaw.match(/\d+/) || [])[0] || '';
   const isOngoing = !!(item.latestReleaseDate || item.releaseDay);
   const date = cleanVal(item.latestReleaseDate || item.lastReleaseDate);
   return {
@@ -32,6 +34,10 @@ export function normalizeOploverzCard(item: any): Card | null {
   if (!slug && href.indexOf('/anime/') > -1) slug = href.split('/anime/').pop().split(/[?#/]/).filter(Boolean)[0] || '';
   if (!slug) slug = seriesSlug(item.seriesName || item.title || '');
   const series = item.seriesName ? String(item.seriesName).split('\t')[0].replace(/\s+/g, ' ').trim() : '';
+  /* Di oploverz, .epx berisi status ("Ongoing"/"Completed"), bukan nomor episode. */
+  const epx = cleanVal(item.episode);
+  const isStatus = /^(ongoing|completed|ongoing\s|completed\s)/i.test(epx) || !/\d/.test(epx);
+  const epLabel = cleanVal(item.episodes) || (isStatus ? '' : epx);
   return {
     id: slug || cleanVal(item.title) || 'Unknown',
     provider: 'oploverz',
@@ -39,9 +45,9 @@ export function normalizeOploverzCard(item: any): Card | null {
     poster: String(getPoster(item)),
     score: cleanVal(item.score),
     type: cleanVal(item.type),
-    status: cleanVal(item.status),
-    epLabel: cleanVal(item.episode),
-    sub: cleanVal(item.releaseTime) || cleanVal(item.status),
+    status: cleanVal(item.status) || (isStatus ? epx : ''),
+    epLabel,
+    sub: cleanVal(item.releaseTime) || '',
     sourceUrl: href
   };
 }

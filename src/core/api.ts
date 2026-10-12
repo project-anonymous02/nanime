@@ -224,6 +224,9 @@ export const API = {
     if (!data) throw new ApiError('Detail anime tidak ditemukan.', 404);
 
     if (provider === 'otakudesu') {
+      const epList = (data.episodeList || []).map((i: any) => ({ num: cleanVal(i.num) || cleanVal(i.title), id: i.episodeId, slug: '', date: cleanVal(i.date) }));
+      /* Di series ongoing, "Total Episode" berisi "?" — ganti dengan jumlah episode yang terdaftar. */
+      const epsRaw = cleanVal(data.episodes);
       return {
         id, slug: '', provider,
         title: cleanVal(data.title) || 'Unknown',
@@ -233,14 +236,14 @@ export const API = {
         type: cleanVal(data.type),
         status: cleanVal(data.status),
         year: cleanVal(data.aired),
-        episodes: cleanVal(data.episodes),
+        episodes: /^\d+$/.test(epsRaw) ? epsRaw : epList.length ? String(epList.length) : '',
         duration: cleanVal(data.duration),
         studio: cleanVal(data.studios),
         genres: (data.genreList || []).map((i: any) => ({ t: cleanVal(i.title), id: i.genreId || '' })).filter((g: any) => g.t),
         synopsis: (data.synopsis?.paragraphList || []).join('\n\n') || 'Sinopsis tidak tersedia.',
         downloads: [],
         batchId: cleanVal(data.batch?.batchId) || '',
-        episodeList: (data.episodeList || []).map((i: any) => ({ num: i.title, id: i.episodeId, slug: '', date: '' })),
+        episodeList: (data.episodeList || []).map((i: any) => ({ num: cleanVal(i.num) || cleanVal(i.title), id: i.episodeId, slug: '', date: cleanVal(i.date) })),
         recommendations: (data.recommendedAnimeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean)
       };
     }
@@ -316,31 +319,19 @@ export const API = {
     const downloads = toDownloads(details.download?.qualityList);
     const info = details.info || {};
 
-    if (provider === 'otakudesu') {
-      const qualities: { title: string; servers: { name: string; id: string }[] }[] = (details.server?.qualityList || []).map((q: any) => ({
+    if (provider === 'otakudesu' || provider === 'oploverz') {
+      const qualities: { title: string; servers: { name: string; id: string; def: boolean }[] }[] = (details.server?.qualityList || []).map((q: any) => ({
         title: String(q.title || '').trim(),
-        servers: (q.serverList || []).map((s: any) => ({ name: s.title, id: s.serverId }))
+        servers: (q.serverList || []).map((s: any) => ({ name: String(s.title || '').trim(), id: s.serverId, def: !!s.default }))
       }));
-      const allServers: { name: string; id: string; quality: string }[] = [];
+      const allServers: { name: string; id: string; quality: string; def: boolean }[] = [];
       qualities.forEach(q => q.servers.forEach(s => allServers.push({ ...s, quality: q.title })));
       return {
         provider,
         title: details.title || 'Episode ' + (params.episode || ''),
-        playerUrl: details.defaultStreamingUrl || '',
+        playerUrl: provider === 'otakudesu' ? details.defaultStreamingUrl || '' : details.streamingUrl || '',
         qualities,
         servers: allServers,
-        downloads,
-        info
-      };
-    }
-
-    if (provider === 'oploverz') {
-      return {
-        provider,
-        title: details.title || 'Episode ' + (params.episode || ''),
-        playerUrl: details.streamingUrl || '',
-        qualities: [],
-        servers: [],
         downloads,
         info
       };
@@ -369,6 +360,15 @@ export const API = {
 
   async resolveServer(serverId: string): Promise<string> {
     if (/^https?:\/\//i.test(serverId)) return serverId;
+    if (serverId.startsWith('oplz:')) {
+      try {
+        const decoded = atob(serverId.slice(5).replace(/-/g, '+').replace(/_/g, '/'));
+        const doc = new DOMParser().parseFromString(decoded, 'text/html');
+        return doc.querySelector('iframe')?.getAttribute('src') || '';
+      } catch {
+        throw new Error('Token server Oploverz tidak valid.');
+      }
+    }
     const r = await apiGet(task('otakudesu', 'server', { id: serverId }), 20000, 'server:' + serverId, TTL.episode);
     return r?.data?.details?.url || '';
   },

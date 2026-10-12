@@ -107,7 +107,7 @@ export async function ViewHome(_r: ParsedRoute): Promise<void> {
     '<div class="hero-row">' +
     '<div class="logo-wrap"><div class="logo-inner"><img src="logo.jpg" alt="Logo" width="62" height="62" draggable="false"></div></div>' +
     '<div class="hero-tx"><h1 class="hero-title">NANIME</h1><p class="hero-tag">Streaming anime premium · Provider <b>' +
-      esc(PROVIDERS[provider].name) + '</b></p></div>' +
+      esc(PROVIDERS[provider].name) + '</b></p><p class="hero-cr">Made By Nata, using third-party public APIs — we host nothing, own nothing. Support the official releases.</p></div>' +
     '</div>' +
     '<a class="hero-search" href="#/search" aria-label="Cari anime">' +
     '<span class="sic">' + svg('search', '', 2) + '</span>' +

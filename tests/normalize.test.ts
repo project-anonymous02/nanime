@@ -31,6 +31,34 @@ describe('normalize', () => {
     expect(c!.epLabel).toBe('12 Eps');
   });
 
+  it('kartu otakudesu membuang kata "Episode" dari .epz', () => {
+    const ongoing = normalizeOtakudesuCard({ animeId: 'b', title: 'B', episodes: ' Episode 2', latestReleaseDate: '12 Okt', releaseDay: 'Senin' });
+    expect(ongoing!.epLabel).toBe('Ep 2');
+    expect(ongoing!.sub).toBe('12 Okt');
+    /* .epztipe di list ongoing adalah hari rilis, bukan rating/status. */
+    expect(ongoing!.score).toBe('');
+    expect(ongoing!.status).toBe('');
+
+    const complete = normalizeOtakudesuCard({ animeId: 'c', title: 'C', episodes: '12 Episode', score: '7.65' });
+    expect(complete!.epLabel).toBe('12 Eps');
+    expect(complete!.score).toBe('7.65');
+  });
+
+  it('kartu oploverz tidak menduplikasi status sebagai episode', () => {
+    /* .epx di oploverz berisi status ("Ongoing"/"Completed"), bukan nomor episode. */
+    const ongoing = normalizeOploverzCard({ href: 'https://oploverz.test/anime/x/', title: 'X', episode: 'Ongoing', type: 'TV' });
+    expect(ongoing!.epLabel).toBe('');
+    expect(ongoing!.status).toBe('Ongoing');
+    expect(ongoing!.sub).toBe('');
+
+    const movie = normalizeOploverzCard({ href: 'https://oploverz.test/anime/y/', title: 'Y', episode: 'Completed', type: 'Movie' });
+    expect(movie!.epLabel).toBe('');
+    expect(movie!.status).toBe('Completed');
+    /* Nomor episode asli tetap dipakai bila ada. */
+    const withEp = normalizeOploverzCard({ href: 'https://oploverz.test/anime/z/', title: 'Z', episodes: 'EP 12', episode: 'Ongoing' });
+    expect(withEp!.epLabel).toBe('EP 12');
+  });
+
   it('kartu oploverz mengambil slug dari href', () => {
     const c = normalizeOploverzCard({
       href: 'https://oploverz.test/anime/solo-leveling/?page=2',

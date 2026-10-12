@@ -53,4 +53,5 @@
 
 footer.ft{margin:46px 0 8px;padding:22px 0 8px;border-top:1px solid var(--line);display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;font-size:11.8px;color:var(--dim)}
 footer.ft .lg{display:flex;align-items:center;gap:9px;color:var(--mut)}
+footer.ft .cr{flex:1 0 100%;text-align:center;font-size:11.4px;letter-spacing:.02em;color:var(--mut);line-height:1.62;max-width:74ch;margin:2px auto 0}
 footer.ft img{width:22px;height:22px;border-radius:7px}

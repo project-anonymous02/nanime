@@ -124,6 +124,7 @@ export interface ContinueItem extends HistItem {
 
 export interface ScheduleItem {
   time: string;
+  episode?: string;
   title: string;
   id: string;
   provider: string;
@@ -142,5 +143,4 @@ export interface Config {
   notifyInterval: number;
   defaultQuality: string;
   keepHistory: boolean;
-  apiBase: { wajik: string; kusonime: string };
 }

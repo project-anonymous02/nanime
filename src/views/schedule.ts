@@ -40,7 +40,7 @@ function paint(): void {
         (it.poster ? '<span class="th" style="width:44px;height:60px;flex:none;border-radius:9px;overflow:hidden;border:1px solid var(--line)"><img src="' + esc(it.poster) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"></span>' : '') +
         '<span class="tx"><b>' + esc(it.title) + '</b><span>' +
         esc((PROVIDERS[it.provider] && PROVIDERS[it.provider].name) || it.provider) +
-        (it.time ? ' · ' + esc(it.time) : '') + '</span></span>' +
+        (it.episode ? ' · ' + esc(it.episode) : it.time ? ' · ' + esc(it.time) : '') + '</span></span>' +
         '<span class="go" style="width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--dim)">' + svg('right', '', 2.2) + '</span>' +
         '</a></div>'
     )

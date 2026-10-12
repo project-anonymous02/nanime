@@ -1,8 +1,6 @@
-import { PROVIDERS, type ApiSource } from '../core/config';
+import { PROVIDERS } from '../core/config';
 import { Store, DEFAULT_CFG, storageSize } from '../core/store';
-import { currentBase, setBase, candidates } from '../core/transport';
-import { clearCache, cacheStats, ping } from '../core/client';
-import { API } from '../core/api';
+import { clearCache, cacheStats } from '../core/client';
 import { esc } from '../core/utils';
 import { svg } from '../core/icons';
 import { openSheet, updateSheetBody } from '../ui/sheet';
@@ -116,24 +114,11 @@ export function settingsHTML(): string {
 
   const cs = cacheStats();
   h +=
-    '<div class="set-grp"><h4>Sumber Data</h4>' +
-    '<div class="note">Nanime memilih base API secara otomatis dari rantai kandidat (same-origin lalu instance publik). Kamu bisa mengeset override manual per sumber bila perlu — kosongkan untuk kembali otomatis.</div>' +
-    (['wajik', 'kusonime'] as ApiSource[]).map(src => {
-      const base = Store.cfg.apiBase?.[src] || '';
-      return (
-        '<div style="margin-top:11px">' +
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
-        '<b style="font-size:12.6px;flex:1">' + (src === 'wajik' ? 'Wajik (Utakudesu/Oploverz/Kuramanime)' : 'Kusonime (Movie)') + '</b>' +
-        '<button class="btn ghost sm" data-act="ping" data-src="' + src + '">Uji</button></div>' +
-        '<input class="txtin" type="text" placeholder="https://… (kosongkan = otomatis)" value="' + esc(base) + '" data-base-src="' + src + '">' +
-        '<div style="margin-top:6px;font-size:11.4px;color:var(--dim)">Aktif: <b style="color:var(--mut)">' + esc(currentBase(src) || 'same-origin') + '</b> · Kandidat: ' +
-        candidates(src).map(c => esc(c || '/')).join(' → ') + '</div></div>'
-      );
-    }).join('') +
+    '<div class="set-grp"><h4>Status Provider</h4>' +
+    '<div class="note">APK: HTTP native via CapacitorHttp (bypass CORS). Browser: CORS diblokir — pasang APK untuk akses penuh.</div>' +
     '<div class="kv" style="margin-top:12px"><span>Cache respons</span><span>' + cs.entries + ' entri · ' + fmtBytes(cs.bytes) + '</span></div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
     '<button class="btn ghost sm" data-act="clear-cache">' + svg('refresh', '', 2) + ' Bersihkan cache</button>' +
-    '<button class="btn ghost sm" data-act="verify-all">' + svg('globe', '', 2) + ' Uji semua sumber</button>' +
     '</div></div>';
 
   h +=
@@ -152,7 +137,7 @@ export function settingsHTML(): string {
   h +=
     '<div class="set-grp"><h4>Tentang</h4>' +
     '<div class="note"><b>Nanime v' + '2.0' + '</b> — streaming anime subtitle Indonesia sepenuhnya di sisi klien tanpa backend milik sendiri. Provider aktif: <b>' +
-    esc(PROVIDERS[Store.getProvider()].name) + '</b>. Semua data dinormalisasi dari response JSON aktual masing-masing provider.</div>' +
+    esc(PROVIDERS[Store.getProvider()].name) + '</b>.</div>' +
     '</div>';
 
   return h;
@@ -160,25 +145,15 @@ export function settingsHTML(): string {
 
 export function openSettings(): void {
   openSheet('Pengaturan', settingsHTML());
-  bindBaseInputs();
+  bindFileInput();
 }
 
 export function refreshSettings(): void {
   updateSheetBody(settingsHTML());
-  bindBaseInputs();
+  bindFileInput();
 }
 
-function bindBaseInputs(): void {
-  document.querySelectorAll<HTMLInputElement>('[data-base-src]').forEach(inp => {
-    inp.addEventListener('change', () => {
-      const src = inp.dataset.baseSrc as ApiSource;
-      const v = inp.value.trim();
-      Store.setCfg('apiBase', Object.assign({}, Store.cfg.apiBase, { [src]: v }));
-      if (v) setBase(src, v);
-      toast(v ? 'Base ' + src + ' diset manual.' : 'Base ' + src + ' kembali otomatis.', 'ok');
-      refreshSettings();
-    });
-  });
+function bindFileInput(): void {
   const fileInp = document.querySelector<HTMLInputElement>('input[data-act="import-file"]');
   if (fileInp) {
     fileInp.addEventListener('change', async () => {
@@ -238,14 +213,6 @@ export const SettingsActions = {
     syncNotifySetting();
     toast('Interval notifikasi: ' + n + ' menit.', 'ok');
   },
-  async ping(src: string) {
-    toast('Menguji ' + src + '…', 'info');
-    const r = await ping(src as ApiSource);
-    toast(
-      r.ok ? 'OK · ' + r.ms + 'ms · base: ' + (r.base || 'same-origin') : 'Gagal · ' + r.ms + 'ms',
-      r.ok ? 'ok' : 'err'
-    );
-  },
   clearCache() {
     clearCache();
     toast('Cache respons dibersihkan.', 'ok');
@@ -260,18 +227,5 @@ export const SettingsActions = {
     applyTheme();
     toast('Semua data direset.', 'ok');
     setTimeout(() => location.reload(), 600);
-  },
-  verifyAll: async () => {
-    const srcs: ApiSource[] = ['wajik', 'kusonime'];
-    for (const s of srcs) {
-      const r = await ping(s);
-      toast(r.ok ? s + ' OK · ' + r.ms + 'ms' : s + ' gagal', r.ok ? 'ok' : 'err');
-    }
-    try {
-      await API.ongoing(1);
-      toast('Endpoint utama responsif.', 'ok');
-    } catch (e: any) {
-      toast(e?.message || 'Endpoint utama gagal.', 'err');
-    }
   }
 };

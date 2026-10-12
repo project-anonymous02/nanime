@@ -37,7 +37,6 @@ Table of Contents
 - "Technology Stack" (#technology-stack)
 - "Environment Configuration" (#environment-configuration)
 - "Local Development" (#local-development)
-- "Vercel Deployment" (#vercel-deployment)
 - "Production Considerations" (#production-considerations)
 - "Security" (#security)
 - "API and Content Disclaimer" (#api-and-content-disclaimer)
@@ -1106,7 +1105,6 @@ nanime/
 │   └── utils/
 │
 ├── package.json
-├── vercel.json
 └── README.md
 
 Struktur sebenarnya dapat berubah sesuai framework yang digunakan.
@@ -1194,7 +1192,8 @@ atau:
 
 Deployment
 
-- Vercel
+- Android APK melalui GitHub Actions
+- Web statis melalui workflow deploy-pages setelah GitHub Pages diaktifkan
 
 Storage
 
@@ -1205,29 +1204,9 @@ Untuk favorite tanpa authentication:
 
 ---
 
-Vercel Deployment
-
-Nanime dirancang agar website dapat di-deploy menggunakan Vercel.
-
-Contoh konfigurasi:
-
-vercel.json
-
-Configuration harus disesuaikan dengan framework yang digunakan.
-
----
-
-Important Vercel Considerations
-
-Vercel digunakan terutama sebagai platform deployment untuk website dan API layer yang sesuai.
-
-Tidak semua sumber video harus berada di Vercel.
-
-External API dan external video source dapat tetap digunakan selama:
-
-- API dapat diakses
-- Video source dapat diputar oleh browser
-- CORS tidak menghalangi penggunaan
+- APK Android mengambil halaman sumber melalui HTTP native Capacitor dari perangkat.
+- Build browser mempertahankan UI, tetapi browser dapat memblokir pengambilan halaman sumber karena CORS.
+- Nanime tidak memakai backend scraper atau API relay pihak ketiga.
 - TOS dan legal restrictions diperhatikan
 
 ---
@@ -1295,7 +1274,7 @@ Kemudian lakukan test production secara lokal apabila framework mendukungnya.
 
 Deployment Checklist
 
-Sebelum deploy ke Vercel, pastikan:
+Sebelum merilis, pastikan:
 
 - [ ] Build berhasil
 - [ ] Routing bekerja
@@ -1588,7 +1567,7 @@ Technical
 - [ ] Search debounce
 - [ ] Lazy loading
 - [ ] Production build
-- [ ] Vercel deployment
+- [ ] APK Android terbangun di GitHub Actions
 
 Quality
 

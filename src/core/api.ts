@@ -1,5 +1,6 @@
-import { PROVIDERS, TTL, isMovieSource, type ApiSource } from './config';
+import { PROVIDERS, TTL, isMovieSource } from './config';
 import { apiGet, ApiError } from './client';
+import type { ScrapeTask, Source } from './scraper';
 import {
   normalizeCard,
   normalizeKusonimeCard,
@@ -17,10 +18,10 @@ import type {
   Stream
 } from './types';
 
-const W: ApiSource = 'wajik';
-const K: ApiSource = 'kusonime';
-
 const j = encodeURIComponent;
+const task = (provider: string, action: ScrapeTask['action'], extra: Partial<ScrapeTask> = {}): ScrapeTask => ({
+  provider: provider as Source, action, ...extra
+});
 
 export interface ScheduleGroup {
   day: string;
@@ -70,36 +71,31 @@ function toDownloads(formatList: any): DownloadLink[] {
 
 export const API = {
   async home(): Promise<{ ongoing: Card[]; completed: Card[]; movie: Card[] }> {
-    const provider = Store.getProvider();
-    let ongoing: Card[] = [], completed: Card[] = [], movie: Card[] = [];
-
-    try {
-      if (provider === 'otakudesu') {
-        const r = await apiGet(W, '/otakudesu/home', 20000, 'home:otakudesu', TTL.home);
-        ongoing = (r?.data?.ongoing?.animeList || []).map((i: any) => normalizeCard(i, 'otakudesu')).filter(Boolean);
-        completed = (r?.data?.completed?.animeList || []).map((i: any) => normalizeCard(i, 'otakudesu')).filter(Boolean);
-      } else if (provider === 'oploverz') {
-        const r = await apiGet(W, '/oploverz/home', 20000, 'home:oploverz', TTL.home);
-        ongoing = (r?.data?.popularToday?.animeList || []).map((i: any) => normalizeCard(i, 'oploverz')).filter(Boolean);
-        completed = (r?.data?.latestRelease?.animeList || []).map((i: any) => normalizeCard(i, 'oploverz')).filter(Boolean);
-      } else if (provider === 'kuramanime') {
-        const r = await apiGet(W, '/kuramanime/home', 20000, 'home:kuramanime', TTL.home);
-        ongoing = (r?.data?.ongoing?.episodeList || []).map((i: any) => normalizeCard(i, 'kuramanime')).filter(Boolean);
-        completed = (r?.data?.completed?.animeList || []).map((i: any) => normalizeCard(i, 'kuramanime')).filter(Boolean);
-        movie = (r?.data?.movie?.animeList || []).map((i: any) => normalizeCard(i, 'kuramanime')).filter(Boolean);
-      }
-    } catch (e) {
-      console.warn('Primary provider failed:', e);
+    const preferred = Store.getProvider();
+    const order = [preferred, ...['otakudesu', 'oploverz', 'kuramanime'].filter(id => id !== preferred)];
+    const failures: string[] = [];
+    for (const provider of order) {
       try {
-        const r = await apiGet(W, '/otakudesu/home', 20000, 'home:otakudesu:fallback', TTL.home);
-        ongoing = (r?.data?.ongoing?.animeList || []).map((i: any) => normalizeCard(i, 'otakudesu')).filter(Boolean);
-        completed = (r?.data?.completed?.animeList || []).map((i: any) => normalizeCard(i, 'otakudesu')).filter(Boolean);
-      } catch (e2) {
-        console.error('Fallback also failed:', e2);
-        throw e2 instanceof ApiError ? e2 : new Error('Semua provider gagal dimuat.');
+        const r = await apiGet(task(provider, 'home'), 20000, 'home:' + provider, TTL.home);
+        let ongoing: Card[] = [], completed: Card[] = [], movie: Card[] = [];
+        if (provider === 'otakudesu') {
+          ongoing = (r?.data?.ongoing?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
+          completed = (r?.data?.completed?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
+        } else if (provider === 'oploverz') {
+          ongoing = (r?.data?.popularToday?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
+          completed = (r?.data?.latestRelease?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
+        } else {
+          ongoing = (r?.data?.ongoing?.episodeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
+          completed = (r?.data?.completed?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
+          movie = (r?.data?.movie?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
+        }
+        if (ongoing.length || completed.length || movie.length) return { ongoing, completed, movie };
+        failures.push(provider + ': halaman tidak berisi daftar anime');
+      } catch (e: any) {
+        failures.push(provider + ': ' + (e?.message || 'gagal'));
       }
     }
-    return { ongoing, completed, movie };
+    throw new ApiError('Semua sumber gagal dimuat. ' + failures.join(' · '));
   },
 
   async search(query: string): Promise<SearchResult> {
@@ -113,7 +109,7 @@ export const API = {
     const jobs: { id: string; run: () => Promise<Card[]> }[] = ids.map(id => ({
       id,
       run: async () => {
-        const r = await apiGet(W, '/' + id + '/search?q=' + j(query), 20000, 'search:' + id + ':' + query, TTL.search);
+        const r = await apiGet(task(id, 'search', { query }), 20000, 'search:' + id + ':' + query, TTL.search);
         return (r?.data?.animeList || []).map((i: any) => normalizeCard(i, id)).filter(Boolean);
       }
     }));
@@ -123,7 +119,7 @@ export const API = {
       jobs.push({
         id: 'kusonime',
         run: async () => {
-          const r = await apiGet(K, '/api/search/?s=' + j(query), 20000, 'search:kusonime:' + query, TTL.search);
+          const r = await apiGet(task('kusonime', 'search', { query }), 20000, 'search:kusonime:' + query, TTL.search);
           return (r?.data?.listAnime || []).map((i: any) => normalizeKusonimeCard(i)).filter(Boolean);
         }
       });
@@ -163,8 +159,7 @@ export const API = {
     try {
       const page = (n: number) =>
         apiGet(
-          K,
-          n === 1 ? '/api/seasons/anime-movie' : '/api/seasons/anime-movie/page/' + n,
+          task('kusonime', 'movies', { page: n }),
           20000,
           'movie:season:' + n,
           TTL.home
@@ -197,7 +192,7 @@ export const API = {
     if (provider === 'kusonime') {
       const s = String(slug || id || '').replace(/^\/+|\/+$/g, '');
       if (!s) throw new ApiError('Film tidak ditemukan.', 404);
-      const r = await apiGet(K, '/api/anime/' + j(s) + '/', 20000, 'detail:kusonime:' + s, TTL.detail);
+      const r = await apiGet(task('kusonime', 'detail', { id: s, slug: s }), 20000, 'detail:kusonime:' + s, TTL.detail);
       const d = r?.data;
       if (!d || !cleanVal(d.title)) throw new ApiError('Film tidak ditemukan.', 404);
       const isMovie = /^movie$/i.test(cleanVal(d.type));
@@ -223,13 +218,8 @@ export const API = {
       };
     }
 
-    let endpoint: string;
-    if (provider === 'otakudesu') endpoint = '/otakudesu/anime/' + j(id);
-    else if (provider === 'oploverz') endpoint = '/oploverz/anime/' + j(id);
-    else if (provider === 'kuramanime') endpoint = '/kuramanime/anime/' + j(id) + '/' + j(slug || id);
-    else throw new ApiError('Provider tidak tersedia.');
-
-    const r = await apiGet(W, endpoint, 20000, 'detail:' + provider + ':' + id, TTL.detail);
+    if (!['otakudesu', 'oploverz', 'kuramanime'].includes(provider)) throw new ApiError('Provider tidak tersedia.');
+    const r = await apiGet(task(provider, 'detail', { id, slug }), 20000, 'detail:' + provider + ':' + id, TTL.detail);
     const data = r?.data?.details;
     if (!data) throw new ApiError('Detail anime tidak ditemukan.', 404);
 
@@ -312,21 +302,14 @@ export const API = {
     provider: string,
     params: { episodeId: string; episodeSlug?: string; episode?: string; animeId?: string; animeSlug?: string }
   ): Promise<Stream & { downloads: DownloadLink[]; info: any }> {
-    let endpoint: string;
-    if (provider === 'otakudesu') endpoint = '/otakudesu/episode/' + j(params.episodeId);
-    else if (provider === 'oploverz') endpoint = '/oploverz/episode/' + j(params.episodeSlug || params.episodeId);
-    else if (provider === 'kuramanime')
-      endpoint =
-        '/kuramanime/episode/' + j(params.animeId || '') + '/' + j(params.animeSlug || '') + '/' + j(params.episodeId);
-    else if (provider === 'kusonime') {
+    if (provider === 'kusonime') {
       const err = new ApiError(
         'Sumber film ini (Kusonime) tidak memiliki endpoint streaming — hanya link download file hosting. Gunakan tombol "Tonton Film" di halaman detail untuk memeriksa sumber lain.'
       );
       (err as any).code = 'no-stream';
       throw err;
-    } else throw new ApiError('Provider tidak tersedia.');
-
-    const r = await apiGet(W, endpoint, 20000, 'episode:' + provider + ':' + params.episodeId, TTL.episode);
+    } else if (!['otakudesu', 'oploverz', 'kuramanime'].includes(provider)) throw new ApiError('Provider tidak tersedia.');
+    const r = await apiGet(task(provider, 'episode', { id: params.episodeId, slug: params.episodeSlug, animeId: params.animeId, animeSlug: params.animeSlug, episodeId: params.episodeId }), 20000, 'episode:' + provider + ':' + params.episodeId, TTL.episode);
     const details = r?.data?.details;
     if (!details) throw new ApiError('Data episode tidak ditemukan.', 404);
 
@@ -385,18 +368,19 @@ export const API = {
   },
 
   async resolveServer(serverId: string): Promise<string> {
-    const r = await apiGet(W, '/otakudesu/server/' + j(serverId), 20000, 'server:' + serverId, TTL.episode);
+    if (/^https?:\/\//i.test(serverId)) return serverId;
+    const r = await apiGet(task('otakudesu', 'server', { id: serverId }), 20000, 'server:' + serverId, TTL.episode);
     return r?.data?.details?.url || '';
   },
 
   async batchDownloads(batchId: string): Promise<DownloadLink[]> {
-    const r = await apiGet(W, '/otakudesu/batch/' + j(batchId), 20000, 'batch:' + batchId, TTL.detail);
+    const r = await apiGet(task('otakudesu', 'batch', { id: batchId }), 20000, 'batch:' + batchId, TTL.detail);
     return toDownloads(r?.data?.details?.download?.formatList);
   },
 
   async genres(): Promise<{ genreId: string; title: string }[]> {
     try {
-      const r = await apiGet(W, '/otakudesu/genre', 20000, 'genres', TTL.genre);
+      const r = await apiGet(task('otakudesu', 'genres'), 20000, 'genres', TTL.genre);
       return r?.data?.genreList || [];
     } catch {
       return [];
@@ -407,14 +391,14 @@ export const API = {
     const provider = Store.getProvider();
     try {
       if (provider === 'otakudesu') {
-        const r = await apiGet(W, '/otakudesu/ongoing?page=' + page, 20000, 'ongoing:otakudesu:' + page, TTL.home);
+        const r = await apiGet(task('otakudesu', 'ongoing', { page }), 20000, 'ongoing:otakudesu:' + page, TTL.home);
         return {
           list: (r?.data?.animeList || []).map((i: any) => normalizeCard(i, 'otakudesu')).filter(Boolean),
           pagination: r?.pagination || null
         };
       }
       if (provider === 'oploverz') {
-        const r = await apiGet(W, '/oploverz/anime?page=' + page, 20000, 'ongoing:oploverz:' + page, TTL.home);
+        const r = await apiGet(task('oploverz', 'ongoing', { page }), 20000, 'ongoing:oploverz:' + page, TTL.home);
         const sections = r?.data?.sectionList || [];
         const list: Card[] = [];
         sections.forEach((s: any) =>
@@ -427,8 +411,7 @@ export const API = {
       }
       if (provider === 'kuramanime') {
         const r = await apiGet(
-          W,
-          '/kuramanime/anime?status=ongoing&page=' + page,
+          task('kuramanime', 'ongoing', { page }),
           20000,
           'ongoing:kuramanime:' + page,
           TTL.home
@@ -448,7 +431,7 @@ export const API = {
     const provider = Store.getProvider();
     try {
       if (provider === 'otakudesu') {
-        const r = await apiGet(W, '/otakudesu/completed?page=' + page, 20000, 'completed:otakudesu:' + page, TTL.home);
+        const r = await apiGet(task('otakudesu', 'completed', { page }), 20000, 'completed:otakudesu:' + page, TTL.home);
         return {
           list: (r?.data?.animeList || []).map((i: any) => normalizeCard(i, 'otakudesu')).filter(Boolean),
           pagination: r?.pagination || null
@@ -456,8 +439,7 @@ export const API = {
       }
       if (provider === 'oploverz') {
         const r = await apiGet(
-          W,
-          '/oploverz/anime?page=' + page + '&status=completed',
+          task('oploverz', 'completed', { page }),
           20000,
           'completed:oploverz:' + page,
           TTL.home
@@ -469,8 +451,7 @@ export const API = {
       }
       if (provider === 'kuramanime') {
         const r = await apiGet(
-          W,
-          '/kuramanime/anime?status=completed&page=' + page,
+          task('kuramanime', 'completed', { page }),
           20000,
           'completed:kuramanime:' + page,
           TTL.home
@@ -488,8 +469,7 @@ export const API = {
 
   async genre(genreId: string, page = 1): Promise<ListResult> {
     const r = await apiGet(
-      W,
-      '/otakudesu/genre/' + j(genreId) + '?page=' + page,
+      task('otakudesu', 'genre', { id: genreId, page }),
       20000,
       'genre:' + genreId + ':' + page,
       TTL.genre
@@ -513,7 +493,7 @@ export const API = {
     const jobs: Promise<void>[] = [];
 
     jobs.push(
-      apiGet(W, '/otakudesu/schedule', 25000, 'sched:otakudesu', TTL.schedule)
+      apiGet(task('otakudesu', 'schedule'), 25000, 'sched:otakudesu', TTL.schedule)
         .then((r: any) => {
           (r?.data?.scheduleList || []).forEach((day: any) => {
             const idx = dayIndex(day?.title);
@@ -531,13 +511,14 @@ export const API = {
     );
 
     jobs.push(
-      apiGet(W, '/oploverz/schedule', 25000, 'sched:oploverz', TTL.schedule)
+      apiGet(task('oploverz', 'schedule'), 25000, 'sched:oploverz', TTL.schedule)
         .then((r: any) => {
           (r?.data?.scheduleList || []).forEach((day: any) => {
             const idx = dayIndex(day?.day || day?.title);
             (day?.animeList || []).forEach((a: any) =>
               push(idx, {
-                time: cleanVal(a?.episode),
+                time: '',
+                episode: cleanVal(a?.episode),
                 title: cleanVal(a?.title),
                 id: cleanVal(a?.slug) || seriesSlug(a?.title),
                 provider: 'oploverz',
@@ -551,7 +532,7 @@ export const API = {
 
     if (provider === 'kuramanime') {
       jobs.push(
-        apiGet(W, '/kuramanime/schedule?day=all', 25000, 'sched:kuramanime', TTL.schedule)
+        apiGet(task('kuramanime', 'schedule', { day: 'all' }), 25000, 'sched:kuramanime', TTL.schedule)
           .then((r: any) => {
             (r?.data?.animeList || []).forEach((a: any) =>
               push(dayIndex(a?.day), {

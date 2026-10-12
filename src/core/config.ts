@@ -1,5 +1,3 @@
-export type ApiSource = 'wajik' | 'kusonime';
-
 export interface ProviderDef {
   name: string;
   active: boolean;
@@ -10,11 +8,7 @@ export interface ProviderDef {
   desc: string;
 }
 
-/**
- * Daftar provider aplikasi.
- * - wajik    : otakudesu / oploverz / kuramanime (apis/wajik-anime-api)
- * - kusonime : sumber film (apis/Kusonime-API)
- */
+/** Provider HTML yang diakses langsung dari aplikasi Android. */
 export const PROVIDERS: Record<string, ProviderDef> = {
   otakudesu: { name: 'Otakudesu', active: true, search: true, priority: 1, desc: 'Provider utama. Home, search, detail, episode, server, genre, schedule.' },
   oploverz: { name: 'Oploverz', active: true, search: true, priority: 2, desc: 'Provider alternatif. Home, search, detail, episode dengan streamingUrl langsung.' },
@@ -27,28 +21,12 @@ export const PROVIDERS: Record<string, ProviderDef> = {
     priority: 5,
     kind: 'movie',
     filterLabel: 'Movie',
-    desc: 'Sumber anime movie terpisah (apis/Kusonime-API). Home, search, detail. Tidak punya stream sendiri — tombol Tonton Film mencari provider lain yang mendukung streaming.'
+    desc: 'Sumber anime movie. Home, search, detail dan tautan unduh; pemutaran memakai provider streaming lain.'
   }
 };
 
 export const isMovieSource = (id: string) => !!(PROVIDERS[id] && PROVIDERS[id].kind === 'movie');
 export const searchLabel = (id: string) => (PROVIDERS[id] && (PROVIDERS[id].filterLabel || PROVIDERS[id].name)) || id;
-
-/**
- * Kandidat base URL per sumber API — tanpa konfigurasi manual.
- * P urutan: same-origin (deployment yang menyemat API di origin yang sama)
- * lalu instance publik resmi. Pemenangnya di-cache di localStorage dan
- * otomatis dirotasi kalau gagal, jadi pengguna tidak pernah mengurus URL.
- */
-export const API_CANDIDATES: Record<ApiSource, string[]> = {
-  wajik: ['', 'https://wajik-anime-api.vercel.app'],
-  kusonime: ['', 'https://kusonime-api.vercel.app']
-};
-
-export const API_PROBE: Record<ApiSource, string> = {
-  wajik: '/otakudesu/ongoing?page=1',
-  kusonime: '/api/search/?s=a'
-};
 
 export const TTL = {
   home: 600000,

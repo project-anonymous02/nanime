@@ -56,7 +56,7 @@
 .tab:active svg{transform:scale(.86)}
 .tab .badge{position:absolute;top:5px;right:calc(50% - 20px);min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--love);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;box-shadow:0 3px 10px -3px rgba(255,77,109,.8)}
 
-#view{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 26px);min-height:60dvh}
+#view{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 26px);min-height:60dvh;height:100dvh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 main.anim-in{animation:viewIn .32s var(--ease) both}
 @keyframes viewIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 

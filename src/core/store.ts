@@ -60,8 +60,7 @@ export const DEFAULT_CFG: Config = {
   notify: false,
   notifyInterval: 15,
   defaultQuality: '',
-  keepHistory: true,
-  apiBase: { wajik: '', kusonime: '' }
+  keepHistory: true
 };
 
 export interface UserStatusMap {
@@ -74,8 +73,19 @@ class StoreImpl {
   shist: string[] = LS.get<string[]>('shist', []);
   cont: ContinueItem[] = LS.get<ContinueItem[]>('cont', []);
   meta: UserStatusMap = LS.get<UserStatusMap>('meta', {});
-  cfg: Config = Object.assign({}, DEFAULT_CFG, LS.get<Partial<Config>>('cfg', {}));
+  cfg: Config = this.readConfig();
   seen: Record<string, number> = LS.get<Record<string, number>>('seen', {});
+
+  private readConfig(): Config {
+    const saved = LS.get<Partial<Config> & { apiBase?: unknown }>('cfg', {});
+    delete saved.apiBase;
+    // Older builds saved remote API bases. Remove these stale values entirely.
+    LS.del('apiWin.wajik');
+    LS.del('apiWin.kusonime');
+    const cfg = Object.assign({}, DEFAULT_CFG, saved);
+    LS.set('cfg', cfg);
+    return cfg;
+  }
 
   isFav(id: string, provider?: string): boolean {
     return this.favs.some(f => f.id === id && (f.provider || '') === (provider || ''));

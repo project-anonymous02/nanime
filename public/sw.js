@@ -1,4 +1,4 @@
-/* Service worker Nanime — cache-first untuk aset statis, network-first untuk API. */
+/* Service worker Nanime — cache aset same-origin; scraper native tidak melewati service worker. */
 const CACHE = 'nanime-v2';
 const PRECACHE = ['./', './index.html', './logo.jpg', './manifest.webmanifest'];
 
@@ -21,26 +21,9 @@ self.addEventListener('message', e => {
   if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
-function isApi(url) {
-  return /\/(otakudesu|oploverz|kuramanime|api)\//.test(url.pathname) || /vercel\.app/.test(url.hostname);
-}
-
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-
-  if (isApi(new URL(req.url))) {
-    e.respondWith(
-      fetch(req)
-        .then(res => {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(req, copy)).catch(() => undefined);
-          return res;
-        })
-        .catch(() => caches.match(req))
-    );
-    return;
-  }
 
   if (req.mode === 'navigate') {
     e.respondWith(

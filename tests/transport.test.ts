@@ -1,31 +1,20 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { candidates, currentBase, setBase } from '../src/core/transport';
-import { API_CANDIDATES } from '../src/core/config';
-import { Store } from '../src/core/store';
+import { describe, it, expect } from 'vitest';
+import { sourcePath, type ScrapeTask } from '../src/core/scraper';
 
-describe('transport — resolusi base URL tanpa konfigurasi', () => {
-  beforeEach(() => {
-    (globalThis as any).localStorage.clear();
-    Store.cfg.apiBase = { wajik: '', kusonime: '' };
+describe('native scraper source mapping', () => {
+  const makeTask = (provider: ScrapeTask['provider'], action: ScrapeTask['action'], extra: Partial<ScrapeTask> = {}): ScrapeTask => ({
+    provider, action, ...extra
   });
 
-  it('same-origin didahulukan, lalu instance publik', () => {
-    expect(candidates('wajik')).toEqual(API_CANDIDATES.wajik);
-    expect(candidates('kusonime')).toEqual(API_CANDIDATES.kusonime);
+  it('maps Otakudesu operations to source pages', () => {
+    expect(sourcePath(makeTask('otakudesu', 'home'))).toBe('/');
+    expect(sourcePath(makeTask('otakudesu', 'ongoing', { page: 2 }))).toBe('/ongoing-anime/page/2/');
+    expect(sourcePath(makeTask('otakudesu', 'search', { query: 'one piece' }))).toBe('/?s=one%20piece&post_type=anime');
   });
 
-  it('pemenang tersimpan naik ke urutan pertama', () => {
-    setBase('wajik', 'https://mirror.test');
-    expect(currentBase('wajik')).toBe('https://mirror.test');
-    expect(candidates('wajik')[0]).toBe('https://mirror.test');
-    expect(candidates('wajik')).toContain('');
-  });
-
-  it('override manual mendahului semua kandidat', () => {
-    setBase('wajik', 'https://mirror.test');
-    Store.cfg.apiBase = { wajik: 'https://custom.test', kusonime: '' };
-    const list = candidates('wajik');
-    expect(list[0]).toBe('https://custom.test');
-    expect(new Set(list).size).toBe(list.length);
+  it('maps Oploverz schedule and Kusonime source paths', () => {
+    expect(sourcePath(makeTask('oploverz', 'schedule'))).toBe('/jadwal-rilis/');
+    expect(sourcePath(makeTask('kusonime', 'movies', { page: 1 }))).toBe('/anime-movie-list/');
+    expect(sourcePath(makeTask('kusonime', 'search', { query: 'movie' }))).toBe('/?s=movie&post_type=post');
   });
 });

@@ -1,11 +1,14 @@
-import { PROVIDERS, TTL, type ApiSource } from './config';
+import { PROVIDERS, TTL } from './config';
 import { apiGet } from './client';
 import { normalizeCard } from './normalize';
 import { API } from './api';
 import { cleanVal, normalizeSearchText } from './utils';
 import type { Card } from './types';
+import type { ScrapeTask } from './scraper';
 
-const W: ApiSource = 'wajik';
+const task = (provider: string, action: ScrapeTask['action'], extra: Partial<ScrapeTask> = {}): ScrapeTask => ({
+  provider: provider as ScrapeTask['provider'], action, ...extra
+});
 
 export function normMovieTitle(s: unknown): string {
   return normalizeSearchText(
@@ -67,7 +70,7 @@ export async function resolveMovieSource(anime: {
     for (const q of queries) {
       let list: Card[] = [];
       try {
-        const r = await apiGet(W, '/' + pid + '/search?q=' + encodeURIComponent(q), 20000, 'mres:' + pid + ':' + q, TTL.search);
+        const r = await apiGet(task(pid as 'otakudesu' | 'oploverz', 'search', { query: q }), 20000, 'mres:' + pid + ':' + q, TTL.search);
         list = (r?.data?.animeList || []).map((i: any) => normalizeCard(i, pid)).filter(Boolean);
       } catch (e: any) {
         if (e?.status !== 404) console.warn('Movie resolve search failed:', pid, e);

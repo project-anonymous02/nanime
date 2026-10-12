@@ -263,14 +263,8 @@ async function handleAct(act: HTMLElement, e: MouseEvent): Promise<void> {
       return;
     case 'set-interval':
       return;
-    case 'ping':
-      SettingsActions.ping(act.getAttribute('data-src') || 'wajik');
-      return;
     case 'clear-cache':
       SettingsActions.clearCache();
-      return;
-    case 'verify-all':
-      SettingsActions.verifyAll();
       return;
     case 'export-data':
       exportData();

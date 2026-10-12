@@ -4,6 +4,9 @@
   "version": "2.0.0",
   "type": "module",
   "description": "Nanime — streaming anime premium, pure client (tanpa backend) untuk web & Android APK.",
+  "engines": {
+    "node": ">=22.22.2"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

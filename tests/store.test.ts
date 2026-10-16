@@ -51,11 +51,11 @@ describe('Store', () => {
     expect(Store.meta.a.rating).toBe(3);
   });
 
-  it('provider kusonime tidak dipakai sebagai provider utama', () => {
+  it('provider dipilih otomatis (prioritas registry), bukan dari cfg', () => {
     Store.cfg.provider = 'kusonime';
-    expect(Store.getProvider()).toBe('otakudesu');
+    expect(Store.getProvider()).toBe('doronime');
     Store.cfg.provider = 'oploverz';
-    expect(Store.getProvider()).toBe('oploverz');
+    expect(Store.getProvider()).toBe('doronime');
   });
 
   it('clearAll mengosongkan semuanya', () => {

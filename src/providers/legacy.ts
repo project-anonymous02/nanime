@@ -251,7 +251,7 @@ export const otakudesu: AnimeProvider = {
   name: 'Otakudesu',
   active: true,
   searchable: true,
-  priority: 1,
+  priority: 10,
   desc: 'Provider utama. Home, search, detail, episode, server, genre, jadwal.',
   async home() {
     const r = await apiGet(task('otakudesu', 'home'), 20000, 'home:otakudesu', TTL.home);
@@ -312,7 +312,7 @@ export const oploverz: AnimeProvider = {
   name: 'Oploverz',
   active: true,
   searchable: true,
-  priority: 2,
+  priority: 11,
   desc: 'Provider alternatif. Home, search, detail, episode dengan streamingUrl langsung.',
   async home() {
     const r = await apiGet(task('oploverz', 'home'), 20000, 'home:oploverz', TTL.home);
@@ -362,7 +362,7 @@ export const kuramanime: AnimeProvider = {
   name: 'Kuramanime',
   active: true,
   searchable: true,
-  priority: 3,
+  priority: 12,
   desc: 'Provider alternatif. Home, detail, episode, properties (genre/season/studio).',
   async home() {
     const r = await apiGet(task('kuramanime', 'home'), 20000, 'home:kuramanime', TTL.home);
@@ -399,7 +399,7 @@ export const kusonime: AnimeProvider = {
   active: true,
   searchable: true,
   movieOnly: true,
-  priority: 5,
+  priority: 13,
   desc: 'Sumber anime movie. Home, search, detail dan tautan unduh; pemutaran memakai provider streaming lain.',
   async home() {
     /* Kusonime tidak punya halaman home terpisah — pakai daftar movie. */

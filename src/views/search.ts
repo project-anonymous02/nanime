@@ -1,4 +1,4 @@
-import { PROVIDERS, searchLabel } from '../core/config';
+import { searchLabel } from '../core/config';
 import { API } from '../core/api';
 import { Store } from '../core/store';
 import { debounce, esc } from '../core/utils';
@@ -12,7 +12,6 @@ import type { Card, SearchResult } from '../core/types';
 let searchSeq = 0;
 let lastRes: SearchResult | null = null;
 let lastQuery = '';
-let searchFilter = 'all';
 let sortMode: 'rel' | 'az' | 'score' = 'rel';
 let typeFilter = 'all';
 
@@ -46,18 +45,11 @@ function paintQHist(): void {
   box.style.display = list.length ? '' : 'none';
 }
 
-function paintFilterRow(counts: Record<string, number | null> | null): void {
+function paintFilterRow(): void {
   const row = document.getElementById('sfRow');
   if (!row) return;
-  const ids = Object.keys(PROVIDERS).filter(id => PROVIDERS[id].active && PROVIDERS[id].search);
   row.innerHTML =
-    '<button class="chip' + (searchFilter === 'all' ? ' on' : '') + '" data-act="sf" data-v="all">Semua</button>' +
-    ids.map(id => {
-      const n = counts && counts[id] != null ? ' · ' + counts[id] : '';
-      return '<button class="chip' + (searchFilter === id ? ' on' : '') + '" data-act="sf" data-v="' + id + '">' + esc(searchLabel(id)) + n + '</button>';
-    }).join('') +
-    '<span style="width:1px;height:22px;background:var(--line);margin:0 3px;flex:none"></span>' +
-    '<button class="chip' + (sortMode === 'rel' ? ' on' : '') + '" data-act="ss" data-v="rel">Urut: Relawan</button>' +
+    '<button class="chip' + (sortMode === 'rel' ? ' on' : '') + '" data-act="ss" data-v="rel">Urut: Relevan</button>' +
     '<button class="chip' + (sortMode === 'az' ? ' on' : '') + '" data-act="ss" data-v="az">A–Z</button>' +
     '<button class="chip' + (sortMode === 'score' ? ' on' : '') + '" data-act="ss" data-v="score">Rating</button>' +
     '<span style="width:1px;height:22px;background:var(--line);margin:0 3px;flex:none"></span>' +
@@ -68,7 +60,7 @@ function paintFilterRow(counts: Record<string, number | null> | null): void {
 
 function visibleItems(): Card[] {
   if (!lastRes) return [];
-  let items = lastRes.items.filter(a => searchFilter === 'all' || a.provider === searchFilter);
+  let items = lastRes.items;
   if (typeFilter === 'movie') items = items.filter(a => /movie|film/i.test(a.type || '') || a.provider === 'kusonime');
   if (typeFilter === 'series') items = items.filter(a => !/movie|film/i.test(a.type || '') && a.provider !== 'kusonime');
   if (sortMode === 'az') items = [...items].sort((a, b) => a.title.localeCompare(b.title));
@@ -82,11 +74,7 @@ function paintSearch(): void {
   const box = document.getElementById('results');
   const ri = document.getElementById('resInfo');
   if (!box || !lastRes) return;
-  const counts: Record<string, number | null> = {};
-  (lastRes.sources || []).forEach(s => {
-    counts[s.id] = s.ok ? s.count : null;
-  });
-  paintFilterRow(counts);
+  paintFilterRow();
 
   const items = visibleItems();
   const srcTxt = (lastRes.sources || [])
@@ -162,7 +150,6 @@ function randomResult(): void {
 
 export async function ViewSearch(r: ParsedRoute): Promise<void> {
   const term = r.q.q || r.parts[1] || '';
-  searchFilter = 'all';
   sortMode = 'rel';
   typeFilter = 'all';
   lastRes = null;
@@ -188,7 +175,7 @@ export async function ViewSearch(r: ParsedRoute): Promise<void> {
   const bar = document.getElementById('sbar') as HTMLElement;
   const sync = () => bar.classList.toggle('has', !!inp.value);
   sync();
-  paintFilterRow(null);
+  paintFilterRow();
   paintQHist();
 
   if (term) runSearch(term);
@@ -243,12 +230,6 @@ export async function ViewSearch(r: ParsedRoute): Promise<void> {
 export const SearchActions = {
   retry() {
     if (lastQuery) runSearch(lastQuery);
-  },
-  setFilter(v: string) {
-    if (v !== searchFilter) {
-      searchFilter = v;
-      paintSearch();
-    }
   },
   setSort(v: string) {
     const m = (v === 'az' || v === 'score' ? v : 'rel') as 'rel' | 'az' | 'score';

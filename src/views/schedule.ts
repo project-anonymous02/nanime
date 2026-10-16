@@ -1,6 +1,5 @@
 import { API, dayIndex } from '../core/api';
 import { PROVIDERS, WEEKDAYS_SHORT } from '../core/config';
-import { Store } from '../core/store';
 import { esc } from '../core/utils';
 import { svg } from '../core/icons';
 import { progress } from '../core/client';
@@ -52,8 +51,7 @@ export async function ViewSchedule(_r?: ParsedRoute): Promise<void> {
   host().innerHTML =
     '<div class="shell" style="padding-top:18px">' +
     '<div class="rv in" style="margin-bottom:16px"><h1 style="font-size:clamp(24px,5vw,32px);font-weight:760">Jadwal Rilis</h1>' +
-    '<p style="margin:6px 0 0;color:var(--mut);font-size:13.4px">Jadwal episode mingguan · Provider <b>' +
-      esc(PROVIDERS[Store.getProvider()].name) + '</b></p></div>' +
+    '<p style="margin:6px 0 0;color:var(--mut);font-size:13.4px">Jadwal episode mingguan · <b>Multi-sumber otomatis</b></p></div>' +
     '<div class="sched-days" id="schedDays"></div>' +
     '<div id="schedList" class="sched-list">' + skeleton() + '</div>' +
     footerHTML() + '</div>';

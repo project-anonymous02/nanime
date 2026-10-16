@@ -1,17 +1,17 @@
 /* ═══════ Shell, chrome navigasi ═══════ */
-#bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:radial-gradient(120% 80% at 12% -10%,rgba(46,107,230,.16),transparent 58%),radial-gradient(90% 70% at 92% 4%,rgba(120,90,255,.10),transparent 60%),radial-gradient(120% 90% at 50% 110%,rgba(20,60,140,.12),transparent 62%),linear-gradient(180deg,#05060A,#07080C 45%,#05060A)}
+#bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:radial-gradient(120% 80% at 12% -10%,rgba(229,9,20,.16),transparent 58%),radial-gradient(90% 70% at 92% 4%,rgba(229,9,20,.10),transparent 60%),radial-gradient(120% 90% at 50% 110%,rgba(20,20,24,.12),transparent 62%),linear-gradient(180deg,#05060A,#0A0A0D 45%,#05060A)}
 #bg .orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.42}
-#bg .orb.a{width:480px;height:480px;left:-150px;top:-110px;background:radial-gradient(circle,rgba(62,123,250,.26),transparent 70%)}
-#bg .orb.b{width:420px;height:420px;right:-130px;top:18%;background:radial-gradient(circle,rgba(140,90,255,.15),transparent 70%)}
+#bg .orb.a{width:480px;height:480px;left:-150px;top:-110px;background:radial-gradient(circle,rgba(229,9,20,.26),transparent 70%)}
+#bg .orb.b{width:420px;height:420px;right:-130px;top:18%;background:radial-gradient(circle,rgba(229,9,20,.15),transparent 70%)}
 
-.topgrad{height:3px;position:fixed;left:0;top:0;z-index:400;width:0;background:var(--grad2);box-shadow:0 0 14px rgba(76,141,255,.9);transition:width .3s var(--ease),opacity .3s;opacity:0}
+.topgrad{height:3px;position:fixed;left:0;top:0;z-index:400;width:0;background:var(--grad2);box-shadow:0 0 14px rgba(229,9,20,.9);transition:width .3s var(--ease),opacity .3s;opacity:0}
 .topgrad.on{opacity:1}
 
 #app{position:relative;z-index:1;height:100dvh;display:flex;flex-direction:column}
 .shell{max-width:var(--maxw);margin:0 auto;padding:0 18px}
 
 #topbar{position:sticky;top:0;z-index:60;height:var(--top-h);display:none;align-items:center;gap:12px;padding:0 14px;background:rgba(8,9,12,.8);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-bottom:1px solid var(--line)}
-.tb-logo{display:flex;align-items:center;gap:9px;font-family:'Sora Variable',sans-serif;font-weight:700;letter-spacing:-.03em}
+.tb-logo{display:flex;align-items:center;gap:9px;font-family:Inter,sans-serif;font-weight:700;letter-spacing:-.03em}
 .tb-logo img{width:28px;height:28px;border-radius:8px;object-fit:cover;border:1px solid var(--line2)}
 .tb-logo span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .spacer{flex:1}
@@ -20,7 +20,7 @@
 .ibtn:active{transform:scale(.92)}
 .ibtn svg{width:19px;height:19px}
 .dot{width:7px;height:7px;border-radius:50%;flex:none}
-.dot.on{background:var(--ok);box-shadow:0 0 8px rgba(49,208,170,.7)}
+.dot.on{background:var(--ok);box-shadow:0 0 8px rgba(16,185,129,.7)}
 .dot.off{background:var(--err)}
 .dot.idle{background:var(--warn)}
 
@@ -29,16 +29,16 @@
 .sb-brand .lbox{width:44px;height:44px;border-radius:13px;overflow:hidden;flex:none;border:1px solid var(--line2);box-shadow:var(--sh1),inset 0 1px 0 rgba(255,255,255,.14);transition:.4s var(--spring)}
 .sb-brand .lbox img{width:100%;height:100%;object-fit:cover}
 .sb-brand:hover .lbox{transform:scale(1.06) rotate(-2deg)}
-.sb-brand .wm{display:block;font-family:'Sora Variable',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.05em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sb-brand .wm{display:block;font-family:Inter,sans-serif;font-weight:800;font-size:19px;letter-spacing:-.05em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .sb-brand .sub{display:block;font-size:10.5px;color:var(--dim);letter-spacing:.16em;text-transform:uppercase;margin-top:-2px}
 .sb-nav{display:flex;flex-direction:column;gap:5px}
 .sb-link{position:relative;display:flex;align-items:center;gap:13px;padding:11px 13px;border-radius:14px;color:var(--mut);font-weight:550;font-size:14.5px;transition:.28s var(--ease);overflow:hidden}
 .sb-link svg{width:20px;height:20px;flex:none;transition:.28s var(--spring)}
 .sb-link:hover{color:#fff}
 .sb-link.active{color:#fff}
-.sb-link.active::before{content:"";position:absolute;inset:0;border-radius:14px;background:linear-gradient(100deg,rgba(62,123,250,.22),rgba(62,123,250,.05));box-shadow:inset 0 0 0 1px rgba(125,180,255,.22)}
+.sb-link.active::before{content:"";position:absolute;inset:0;border-radius:14px;background:linear-gradient(100deg,rgba(229,9,20,.22),rgba(229,9,20,.05));box-shadow:inset 0 0 0 1px rgba(255,107,114,.22)}
 .sb-link.active svg{color:var(--acc2)}
-.sb-link .pill{position:absolute;right:11px;top:50%;transform:translateY(-50%);min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--love);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;box-shadow:0 4px 14px -4px rgba(255,77,109,.7)}
+.sb-link .pill{position:absolute;right:11px;top:50%;transform:translateY(-50%);min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--love);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;box-shadow:0 4px 14px -4px rgba(229,9,20,.7)}
 .sb-foot{margin-top:auto}
 .sb-status{padding:12px 13px;border-radius:15px;background:var(--glass);border:1px solid var(--line);font-size:12px;margin-bottom:10px}
 .sb-status .row{display:flex;align-items:center;gap:8px;color:var(--mut)}
@@ -54,7 +54,7 @@
 .tab.active .ind{opacity:1;transform:scale(1)}
 .tab.active svg{color:var(--acc2);transform:translateY(-1px) scale(1.06)}
 .tab:active svg{transform:scale(.86)}
-.tab .badge{position:absolute;top:5px;right:calc(50% - 20px);min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--love);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;box-shadow:0 3px 10px -3px rgba(255,77,109,.8)}
+.tab .badge{position:absolute;top:5px;right:calc(50% - 20px);min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--love);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;box-shadow:0 3px 10px -3px rgba(229,9,20,.8)}
 
 #view{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 26px);flex:1 1 0;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 main.anim-in{animation:viewIn .32s var(--ease) both}

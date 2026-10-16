@@ -51,19 +51,54 @@ function personalPanel(id: string): string {
 
 function downloadPanel(downloads: DownloadLink[], batchId?: string): string {
   const hasBatch = !!batchId;
-  if (!downloads.length && !hasBatch) return '';
   return (
-    '<section class="panel rv" id="dlPanel"><h3>' + svg('download', '', 2) + ' Unduhan</h3>' +
+    '<section class="panel rv" id="dlPanel"><h3>' + svg('download', '', 2) + ' Unduhan ' +
+    '<span style="font-size:11.5px;color:var(--dim);font-weight:500" id="dlCount"></span></h3>' +
+    '<p style="font-size:12.2px;color:var(--mut);line-height:1.6;margin:2px 0 10px">Digabung otomatis dari semua portal unduhan, dirapikan per kualitas.</p>' +
     '<div id="dlBody">' +
     (downloads.length
       ? downloadGroupsHTML(downloads)
-      : '<div class="ep-empty">Unduhan per-episode tidak tersedia di provider ini.</div>') +
+      : '<div class="ep-empty">Memuat tautan unduhan gabungan…</div>') +
     '</div>' +
+    '<div id="dlSrc"></div>' +
     (hasBatch
       ? '<div style="margin-top:12px"><button class="btn ghost sm" data-act="load-batch">' + svg('layers', '', 2) + ' Muat Unduhan Batch</button></div>'
       : '') +
     '</section>'
   );
+}
+
+/** Gabungkan unduhan tingkat-seri dari semua portal berdasarkan judul. */
+async function enrichDownloads(anime: Detail): Promise<void> {
+  const body = document.getElementById('dlBody');
+  if (!body) return;
+  try {
+    const agg = await API.aggregateDownloads(anime.provider, {
+      title: anime.title,
+      animeId: anime.id,
+      animeSlug: anime.slug || ''
+    });
+    if (!document.body.contains(body)) return;
+    const seen = new Set<string>();
+    const merged = [...(anime.downloads || []), ...agg.links].filter(l => {
+      if (!l.url || seen.has(l.url)) return false;
+      seen.add(l.url);
+      return true;
+    });
+    if (merged.length) renderDownloadBody(merged);
+    const src = agg.byProvider.filter(b => b.links.length);
+    const count = document.getElementById('dlCount');
+    if (count) count.textContent = merged.length ? '· ' + merged.length + ' tautan' : '';
+    const srcEl = document.getElementById('dlSrc');
+    if (srcEl && src.length) {
+      srcEl.innerHTML =
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">' +
+        src.map(b => '<span class="chip">' + esc(b.name) + ' · ' + b.links.length + '</span>').join('') +
+        '</div>';
+    }
+  } catch {
+    /* biarkan unduhan provider tunggal bila agregasi gagal */
+  }
 }
 
 export function renderDownloadBody(links: DownloadLink[]): void {
@@ -285,6 +320,41 @@ export function renderDetail(anime: Detail): void {
         '</div></section>'
       : '';
 
+  const synSec =
+    '<section class="panel rv"><h3>' + svg('info', '', 2) + ' Sinopsis</h3><div class="syn clip" id="syn">' +
+    esc(anime.synopsis || 'Sinopsis tidak tersedia.') + '</div>' +
+    ((anime.synopsis || '').length > 340
+      ? '<button class="readmore" data-act="toggle-syn">Baca selengkapnya ' + svg('down', '', 2.4) + '</button>'
+      : '') +
+    '</section>';
+
+  const dlPanel = downloadPanel(anime.downloads || [], anime.batchId);
+
+  const epPanel =
+    '<section class="panel rv" id="epPanel"><h3>' + svg('film', '', 2) + ' Daftar Episode <span style="font-size:11.5px;color:var(--dim);font-weight:500">· ' +
+    EP.length + ' entri</span></h3>' +
+    (EP.length
+      ? '<div class="ep-grid" style="max-height:520px;overflow:auto">' +
+        EP.map((e, i) => {
+          const seen = hist && String(hist.ep) === String(e.num);
+          const c = cont && String(cont.ep) === String(e.num);
+          return (
+            '<button class="ep rv-s' + (seen ? ' done' : '') + '" style="--d:' + ((i % 10) * 26) + 'ms" data-ep-idx="' + i +
+            '" aria-label="Putar episode ' + esc(e.num) + '">' +
+            '<span class="no">' + esc(e.num) + '</span><span class="tx"><b>Episode ' + esc(e.num) + '</b><span>' +
+            esc(e.date || '') + (c ? ' · lanjut' : '') + '</span></span><span class="go">' + svg('play', '', 2.2) + '</span></button>'
+          );
+        }).join('') +
+        '</div>'
+      : '<div class="ep-empty">Provider ini tidak menyediakan daftar episode.</div>') +
+    '</section>';
+
+  const tabs: { id: string; label: string; on?: boolean; disabled?: boolean }[] = [
+    { id: 'detail', label: 'Detail', on: true },
+    { id: 'episode', label: 'Episode' + (EP.length ? ' (' + EP.length + ')' : '') },
+    { id: 'download', label: 'Download', disabled: !dlPanel }
+  ];
+
   host().innerHTML =
     '<div class="detail-hero">' +
     (anime.poster ? '<div class="bd" style="background-image:url(\'' + esc(anime.poster) + '\')"></div>' : '') +
@@ -318,39 +388,37 @@ export function renderDetail(anime: Detail): void {
       '" id="bigFav" aria-pressed="' + fav + '">' + (fav ? svg('heart', '', 2.1) + ' Tersimpan' : svg('heart', '', 2.1) + ' Favorit') + '</button>' +
     '<button class="btn ghost" data-act="share-detail">' + svg('share', '', 2.1) + ' Bagikan</button>' +
     '</div></div></div></div></div>' +
-    '<div class="shell" style="padding-top:22px;display:grid;gap:16px">' +
+    '<div class="shell detail-tabs">' +
     '<div id="movieStream" style="display:none"></div>' +
-    '<section class="panel rv"><h3>' + svg('info', '', 2) + ' Sinopsis</h3><div class="syn clip" id="syn">' +
-      esc(anime.synopsis || 'Sinopsis tidak tersedia.') + '</div>' +
-      ((anime.synopsis || '').length > 340
-        ? '<button class="readmore" data-act="toggle-syn">Baca selengkapnya ' + svg('down', '', 2.4) + '</button>'
-        : '') +
-    '</section>' +
-    personalPanel(anime.id) +
-    downloadPanel(anime.downloads || [], anime.batchId) +
-    genreSec +
-    '<div id="metaSlot" data-busy=""></div>' +
-    '<section class="panel rv" id="epPanel"><h3>' + svg('film', '', 2) + ' Daftar Episode <span style="font-size:11.5px;color:var(--dim);font-weight:500">· ' +
-      EP.length + ' entri</span></h3>' +
-    (EP.length
-      ? '<div class="ep-grid" style="max-height:380px;overflow:auto">' +
-        EP.map((e, i) => {
-          const seen = hist && String(hist.ep) === String(e.num);
-          const c = cont && String(cont.ep) === String(e.num);
-          return (
-            '<button class="ep rv-s' + (seen ? ' done' : '') + '" style="--d:' + ((i % 10) * 26) + 'ms" data-ep-idx="' + i +
-            '" aria-label="Putar episode ' + esc(e.num) + '">' +
-            '<span class="no">' + esc(e.num) + '</span><span class="tx"><b>Episode ' + esc(e.num) + '</b><span>' +
-            esc(e.date || '') + (c ? ' · lanjut' : '') + '</span></span><span class="go">' + svg('play', '', 2.2) + '</span></button>'
-          );
-        }).join('') +
-        '</div>'
-      : '<div class="ep-empty">Provider ini tidak menyediakan daftar episode.</div>') +
-    '</section>' +
-    recSec +
+    '<div class="dtabs" role="tablist">' +
+    tabs.map(t =>
+      '<button class="dtab' + (t.on ? ' on' : '') + '" data-dtab="' + t.id + '" role="tab"' +
+      (t.on ? ' aria-selected="true"' : '') + (t.disabled ? ' disabled' : '') + '>' + esc(t.label) + '</button>'
+    ).join('') +
+    '</div>' +
+    '<div class="dpanel on" id="dtDetail" data-panel="detail">' +
+    synSec + personalPanel(anime.id) + genreSec + '<div id="metaSlot" data-busy=""></div>' + recSec +
+    '</div>' +
+    '<div class="dpanel" id="dtEpisode" data-panel="episode">' + epPanel + '</div>' +
+    '<div class="dpanel" id="dtDownload" data-panel="download">' + (dlPanel || '<section class="panel"><div class="ep-empty">Provider ini tidak menyediakan tautan unduhan.</div></section>') + '</div>' +
     footerHTML() + '</div>';
 
   initView(host());
+
+  host().querySelectorAll<HTMLElement>('.dtab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.hasAttribute('disabled')) return;
+      const id = btn.getAttribute('data-dtab') || 'detail';
+      host().querySelectorAll<HTMLElement>('.dtab').forEach(b => {
+        const on = b === btn;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', String(on));
+      });
+      host().querySelectorAll<HTMLElement>('.dpanel').forEach(p => {
+        p.classList.toggle('on', p.getAttribute('data-panel') === id);
+      });
+    });
+  });
 
   host().querySelectorAll<HTMLElement>('[data-ep-idx]').forEach(b => {
     b.addEventListener('click', () => {
@@ -361,6 +429,7 @@ export function renderDetail(anime: Detail): void {
   });
 
   void enrichDetail();
+  void enrichDownloads(anime);
 }
 
 export async function watchMovieFlow(): Promise<void> {

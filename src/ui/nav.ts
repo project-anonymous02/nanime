@@ -1,6 +1,5 @@
-import { NAV, PROVIDERS } from '../core/config';
+import { NAV } from '../core/config';
 import { Store } from '../core/store';
-import { esc } from '../core/utils';
 import { svg } from '../core/icons';
 import { newEpisodeCount } from '../features/notify';
 
@@ -50,14 +49,12 @@ export function renderNav(): void {
 }
 
 export function renderStatus(): void {
-  const provider = Store.getProvider();
-  const p = PROVIDERS[provider];
   const sb = document.getElementById('sbStatus');
   if (sb) {
     sb.innerHTML =
-      '<div class="row"><span class="dot on"></span><span>Provider: <b>' + esc(p.name) + '</b></span></div>' +
+      '<div class="row"><span class="dot on"></span><span>Sumber: <b>Otomatis</b></span></div>' +
       '<div style="margin-top:7px;font-size:10.5px;color:var(--dim)">Client-side · Tanpa backend</div>';
   }
   const tb = document.getElementById('tbStatus');
-  if (tb) tb.innerHTML = '<span class="dot on" title="' + esc(p.name) + ' Online"></span>';
+  if (tb) tb.innerHTML = '<span class="dot on" title="Multi-sumber otomatis Online"></span>';
 }

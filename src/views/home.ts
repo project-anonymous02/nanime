@@ -1,4 +1,3 @@
-import { PROVIDERS } from '../core/config';
 import { API } from '../core/api';
 import { progress } from '../core/client';
 import { detailHref, watchHref, type ParsedRoute } from '../core/router';
@@ -6,7 +5,7 @@ import { Store } from '../core/store';
 import { esc, relTime } from '../core/utils';
 import { svg } from '../core/icons';
 import { initView } from '../ui/dom';
-import { dropRailArrows, footerHTML, railItems, secHead, skCards, stateHTML } from '../ui/components';
+import { dropRailArrows, footerHTML, gridItems, railItems, secHead, skCards, stateHTML } from '../ui/components';
 import { toast } from '../ui/toast';
 import { trendingMeta } from '../metadata';
 
@@ -18,54 +17,7 @@ const HOME_COPY: Record<string, { a: string[]; b: string[]; c: string[] | null }
   kuramanime: { a: ['Sedang Tayang', 'Episode terbaru dari Kuramanime'], b: ['Anime Selesai', 'Koleksi anime yang telah tamat'], c: ['Film Anime', 'Daftar movie dari Kuramanime'] }
 };
 
-let dashVid: HTMLVideoElement | null = null;
-let dashBound = false;
 let POOL: string[] = [];
-
-function forceDash(): void {
-  const v = dashVid;
-  if (!v || !v.isConnected) {
-    dashVid = null;
-    return;
-  }
-  try {
-    v.muted = true;
-    v.loop = true;
-    v.removeAttribute('controls');
-    const p = v.play();
-    if (p && p.catch) p.catch(() => {});
-  } catch { /* noop */ }
-}
-
-export function initDashVideo(): void {
-  const v = document.getElementById('dashVideo') as HTMLVideoElement | null;
-  if (!v) return;
-  dashVid = v;
-  v.removeAttribute('controls');
-  v.setAttribute('controlslist', 'nodownload noplaybackrate noremoteplayback');
-  v.muted = true;
-  v.defaultMuted = true;
-  v.loop = true;
-  v.playsInline = true;
-  v.autoplay = true;
-  v.setAttribute('tabindex', '-1');
-  v.setAttribute('disablepictureinpicture', '');
-  v.style.pointerEvents = 'none';
-  v.style.userSelect = 'none';
-  v.addEventListener('pause', forceDash);
-  v.addEventListener('ended', forceDash);
-  v.addEventListener('contextmenu', e => e.preventDefault());
-  v.addEventListener('dragstart', e => e.preventDefault());
-  if (!dashBound) {
-    dashBound = true;
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) forceDash();
-    });
-    window.addEventListener('pageshow', forceDash);
-  }
-  forceDash();
-  setTimeout(forceDash, 500);
-}
 
 function continueHTML(): string {
   const list = Store.cont;
@@ -107,8 +59,7 @@ export async function ViewHome(_r: ParsedRoute): Promise<void> {
     '<div class="hero-in">' +
     '<div class="hero-row">' +
     '<div class="logo-wrap"><div class="logo-inner"><img src="logo.jpg" alt="Logo" width="62" height="62" draggable="false"></div></div>' +
-    '<div class="hero-tx"><h1 class="hero-title">NANIME</h1><p class="hero-tag">Streaming anime premium · Provider <b>' +
-      esc(PROVIDERS[provider].name) + '</b></p><p class="hero-cr">Made By Nata, using third-party public APIs — we host nothing, own nothing. Support the official releases.</p></div>' +
+    '<div class="hero-tx"><h1 class="hero-title">NANIME</h1><p class="hero-tag">Streaming anime premium · <b>Multi-sumber otomatis</b></p><p class="hero-cr">Made By Nata, using third-party public APIs — we host nothing, own nothing. Support the official releases.</p></div>' +
     '</div>' +
     '<a class="hero-search" href="#/search" aria-label="Cari anime">' +
     '<span class="sic">' + svg('search', '', 2) + '</span>' +
@@ -122,9 +73,10 @@ export async function ViewHome(_r: ParsedRoute): Promise<void> {
     '<a class="btn ghost sm" href="#/history">' + svg('clock', '', 2) + ' Riwayat</a>' +
     randomBtn() +
     '</div>' +
-    '<figure class="dash"><video id="dashVideo" src="dashboard.mp4" autoplay loop muted playsinline preload="auto" disablepictureinpicture disableremoteplayback tabindex="-1" aria-hidden="true" draggable="false"></video></figure>' +
     '</div></section>' +
     continueHTML() +
+    '<section class="sec" id="secNew">' + secHead('Baru Rilis', 'Episode terbaru dari sumber anime', undefined, '#/explore') +
+      '<div class="grid" id="gridNew">' + skCards(10, true) + '</div></section>' +
     '<section class="sec" id="secTrend">' + secHead('Trending Global', 'Anime populer minggu ini (AniList)', 'railTrend') +
       '<div class="rail" data-railwrap="wt"><div class="rail-track" id="railTrend">' + skCards(8) + '</div></div></section>' +
     '<section class="sec" id="secOngoing">' + secHead(cp.a[0], cp.a[1], 'railOngoing', '#/explore') +
@@ -140,8 +92,6 @@ export async function ViewHome(_r: ParsedRoute): Promise<void> {
     '<div id="homeNet"></div>' +
     footerHTML() + '</div>';
 
-  initDashVideo();
-
   loadTrendingRail();
 
   try {
@@ -156,6 +106,10 @@ export async function ViewHome(_r: ParsedRoute): Promise<void> {
     const rCmp = document.getElementById('railCompleted');
     if (rOng) rOng.innerHTML = ong.length ? railItems(ong) : '<div class="ep-empty">Belum ada data anime di bagian ini.</div>';
     if (!ong.length) dropRailArrows('#secOngoing');
+    const gNew = document.getElementById('gridNew');
+    const secNew = document.getElementById('secNew');
+    if (gNew && ong.length) gNew.innerHTML = gridItems(ong.slice(0, 10));
+    else if (secNew) secNew.remove();
     if (rCmp) rCmp.innerHTML = cmp.length ? railItems(cmp) : '<div class="ep-empty">Belum ada data anime di bagian ini.</div>';
     if (!cmp.length) dropRailArrows('#secCompleted');
 

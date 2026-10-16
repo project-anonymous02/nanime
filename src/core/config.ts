@@ -24,7 +24,7 @@ export const PROVIDERS: Record<string, ProviderDef> = (() => {
       search: p.searchable,
       priority: p.priority,
       desc: p.desc,
-      downloadOnly: p.movieOnly || undefined,
+      downloadOnly: p.movieOnly || p.downloadOnly || undefined,
       content: p.content,
       kind: p.movieOnly && p.id === 'kusonime' ? 'movie' : undefined,
       filterLabel: p.id === 'kusonime' ? 'Movie' : p.content === 'donghua' ? 'Donghua' : undefined

@@ -5,7 +5,7 @@ import { parseHash, go, back, type ParsedRoute } from './core/router';
 import { railScroll, initView } from './ui/dom';
 import { toast } from './ui/toast';
 import { renderNav } from './ui/nav';
-import { ViewHome, homeRandom, initDashVideo } from './views/home';
+import { ViewHome, homeRandom } from './views/home';
 import { ViewSearch, SearchActions } from './views/search';
 import { ViewExplore } from './views/explore';
 import { ViewFavorite, FavoriteActions } from './views/favorite';
@@ -252,9 +252,6 @@ async function handleAct(act: HTMLElement, e: MouseEvent): Promise<void> {
       renderNav();
       return;
     }
-    case 'set-provider':
-      SettingsActions.setProvider(act.getAttribute('data-id') || '');
-      return;
     case 'toggle':
       SettingsActions.toggle(act.getAttribute('data-k') as 'autoNext' | 'autoplay' | 'dataSaver' | 'keepHistory');
       return;
@@ -293,9 +290,6 @@ async function handleAct(act: HTMLElement, e: MouseEvent): Promise<void> {
       return;
     case 'use-q':
       SearchActions.useQ(act.getAttribute('data-q') || '');
-      return;
-    case 'sf':
-      SearchActions.setFilter(act.getAttribute('data-v') || 'all');
       return;
     case 'ss':
       SearchActions.setSort(act.getAttribute('data-v') || 'rel');
@@ -411,9 +405,6 @@ export function bindGlobal(): void {
   });
 
   window.addEventListener('popstate', () => render());
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && curRoute === '/home') initDashVideo();
-  });
 }
 
 export const ROUTES = {

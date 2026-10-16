@@ -1,5 +1,4 @@
 import './styles/index.css';
-import { PROVIDERS } from './core/config';
 import { Store } from './core/store';
 import { svg } from './core/icons';
 import { go } from './core/router';
@@ -152,7 +151,7 @@ function boot(): void {
   }
 
   window.addEventListener('online', () => {
-    toast('Menghubungkan ulang ke ' + PROVIDERS[Store.getProvider()].name + '…', 'info');
+    toast('Kembali online — menyambungkan ulang ke sumber otomatis…', 'info');
   });
   document.addEventListener('nanime:clear-new' as any, clearNewEpisodes);
 }

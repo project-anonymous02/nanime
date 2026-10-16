@@ -1,0 +1,63 @@
+/* ═══════ Wibuku skin: flat dark, aksen merah, tanpa glow/orb ═══════ */
+
+/* Latar rata, buang orb & gradien biru */
+#bg{background:var(--bg);}
+#bg .orb{display:none!important;}
+#topgrad{background:var(--acc);box-shadow:none;}
+
+/* Permukaan solid, bukan glassmorphism */
+#topbar,#sidebar,#tabbar{background:rgba(10,10,13,.96);backdrop-filter:none;-webkit-backdrop-filter:none;}
+#tabbar::before{display:none;}
+.sheet-bd{background:rgba(5,5,8,.72);backdrop-filter:none;-webkit-backdrop-filter:none;}
+.sheet{background:var(--panel);box-shadow:0 -12px 40px -20px rgba(0,0,0,.9);}
+.toast{background:var(--panel2);backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:var(--sh3);}
+
+/* Hero rata, tanpa glow/radial */
+.hero{background:var(--panel);border-color:var(--line);box-shadow:var(--sh1);padding:18px 16px;}
+.hero::before{display:none;}
+.logo-wrap{background:var(--panel3);box-shadow:none;}
+.logo-wrap::after{display:none;}
+.logo-inner{box-shadow:inset 0 0 0 1px var(--line2);}
+.hero-title{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:var(--txt);}
+.hero-search{background:var(--panel2);border-color:var(--line2);border-radius:8px;}
+.hero-search:hover{background:var(--panel3);border-color:var(--line2);transform:none;color:var(--mut);}
+.hero-search .go{background:var(--acc);color:#fff;border-radius:8px;}
+
+/* Kosongkan video dashboard lama (aset dihapus) */
+.dash{display:none!important;}
+
+/* Kartu: hover halus, tanpa glow */
+.card{box-shadow:none;background:var(--panel);}
+.card:hover{transform:translateY(-2px);border-color:var(--line2);box-shadow:var(--sh1);}
+.card:hover .poster img{transform:scale(1.03);}
+.card .play-ov .cir{background:var(--acc);box-shadow:none;border-color:transparent;}
+
+/* Tombol & chip rata */
+.btn{background:var(--panel2);border-color:var(--line2);border-radius:8px;box-shadow:none;}
+.btn:hover{transform:translateY(-1px);border-color:var(--line2);box-shadow:var(--sh1);}
+.btn.primary{box-shadow:none;background:var(--acc);border-color:var(--acc);}
+.btn.primary:hover{box-shadow:none;filter:brightness(1.06);}
+.chip{border-radius:8px;}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff;box-shadow:none;}
+
+/* Elemen dekoratif lama disembunyikan */
+.play-ov .cir,.state .ic{box-shadow:none;}
+
+/* Navigasi: indikator aktif merah lembut */
+.tab .ind{background:var(--acc-soft);border-radius:8px;}
+.tab.active svg{color:var(--acc);}
+.sb-link.active::before{background:var(--acc-soft);box-shadow:none;}
+.sb-link.active svg{color:var(--acc);}
+.sb-link{border-radius:8px;}
+.sw.on{background:var(--acc);}
+
+/* Tab halaman detail: Detail / Episode / Download */
+.detail-tabs{padding-top:18px;display:grid;gap:16px;}
+.dtabs{display:flex;gap:4px;border-bottom:1px solid var(--line);position:sticky;top:var(--tbH,56px);z-index:5;background:var(--bg);padding-top:2px;}
+.dtab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;color:var(--mut);font:inherit;font-weight:600;font-size:13.5px;padding:11px 14px;cursor:pointer;transition:color .15s ease-out,border-color .15s ease-out;}
+.dtab:hover:not([disabled]){color:var(--txt);}
+.dtab.on{color:var(--txt);border-bottom-color:var(--acc);}
+.dtab[disabled]{opacity:.4;cursor:not-allowed;}
+.dpanel{display:none;gap:16px;}
+.dpanel.on{display:grid;}
+

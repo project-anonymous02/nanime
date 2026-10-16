@@ -3,8 +3,12 @@ import { ApiError, apiGet, cached } from './client';
 import { Store } from './store';
 import { normalizeKusonimeCard } from './normalize';
 import { cleanVal, seriesSlug } from './utils';
-import { getProvider, markHealth, searchProviders, pickHealthy } from '../providers/registry';
+import { getProvider, markHealth, searchProviders, pickHealthy, downloadProviders, orderedProviders } from '../providers/registry';
 import { otakudesuBatchDownloads, otakudesuGenre, legacyResolveServer } from '../providers/legacy';
+import { SearchEngine, applyFilters, type SearchFilters, type SearchSort } from './services/SearchEngine';
+import { FallbackEngine, type StreamAttempt } from './services/FallbackEngine';
+import { DownloadAggregator } from './services/DownloadAggregator';
+import { ProviderAggregator } from './services/ProviderAggregator';
 import type { ScrapeTask } from './scraper';
 import type {
   Card,
@@ -76,38 +80,29 @@ export const API = {
   async search(query: string): Promise<SearchResult> {
     if (!query || query.trim().length < 2) return { items: [], sources: [] };
     const preferred = Store.getProvider();
-    const providers = searchProviders(preferred);
-
-    const sources = await Promise.all(
-      providers.map(async p => {
-        try {
-          const list = await cached('search:' + p.id + ':' + query, TTL.search, () => p.search(query));
-          markHealth(p.id, true);
-          return { id: p.id, ok: true, count: list.length, items: list };
-        } catch (e: any) {
-          if (e?.status === 404 || e?.code === 'notfound') return { id: p.id, ok: true, count: 0, items: [] };
-          console.warn('Search failed:', p.id, e);
-          markHealth(p.id, false, e?.message);
-          return { id: p.id, ok: false, count: 0, items: [], error: e?.message || 'Gagal' };
-        }
-      })
-    );
-
-    if (!sources.length || sources.every(s => !s.ok)) {
-      throw new Error(sources.map(s => s.error).filter(Boolean)[0] || 'Pencarian gagal.');
+    /* SearchEngine menjalankan semua provider paralel, memberi skor relevansi,
+       membuang duplikat lintas provider, dan mengurutkan berdasarkan kecocokan. */
+    const r = await SearchEngine.search(query, { sort: 'relevance' });
+    if (!r.sources.length || r.sources.every(s => !s.ok)) {
+      throw new Error(r.sources.map(s => s.error).filter(Boolean)[0] || 'Pencarian gagal.');
     }
+    /* Provider terpilih dinaikkan bila skornya seri, agar preferensi pengguna dihormati. */
+    const items = r.items.slice().sort((a, b) => {
+      const d = (b.match || 0) - (a.match || 0);
+      if (d !== 0) return d;
+      return (a.provider === preferred ? -1 : b.provider === preferred ? 1 : 0);
+    });
+    return { items, sources: r.sources };
+  },
 
-    const items: Card[] = [];
-    const seen = new Set<string>();
-    sources.forEach(s =>
-      s.items.forEach(a => {
-        const key = a.provider + ':' + a.id;
-        if (seen.has(key)) return;
-        seen.add(key);
-        items.push(a);
-      })
-    );
-    return { items, sources: sources.map(s => ({ id: s.id, ok: s.ok, count: s.count, items: s.items, error: s.error })) };
+  /** Pencarian lanjutan dengan saringan & saran judul (dipakai halaman Jelajah). */
+  async searchAdvanced(
+    query: string,
+    opts: { filters?: SearchFilters; sort?: SearchSort } = {}
+  ): Promise<SearchResult> {
+    if (!query || query.trim().length < 2) return { items: [], sources: [] };
+    const r = await SearchEngine.search(query, opts);
+    return { items: applyFilters(r.items, opts.filters || {}), sources: r.sources };
   },
 
   async movies(): Promise<{ items: Card[]; error: string }> {
@@ -165,6 +160,68 @@ export const API = {
       markHealth(provider, false, e?.message);
       throw wrapErr(e);
     }
+  },
+
+  /**
+   * Putar episode dengan fallback lintas provider: coba provider terpilih dulu,
+   * lalu provider lain sesuai prioritas sampai ada yang berhasil.
+   */
+  async streamWithFallback(
+    provider: string,
+    params: { episodeId: string; episodeSlug?: string; episode?: string; animeId?: string; animeSlug?: string }
+  ): Promise<(Stream & { downloads: DownloadLink[]; info: any }) & { resolvedProvider: string; fallbackNote: string; attempts: StreamAttempt[] }> {
+    const preferred = provider || Store.getProvider();
+    const res = await FallbackEngine.resolveStream(preferred, params);
+    if (!res.stream || !res.provider) {
+      const detail = res.attempts
+        .filter(a => a.error)
+        .map(a => a.provider + ': ' + a.error)
+        .join(' · ');
+      throw new ApiError('Tidak ada sumber yang bisa memutar episode ini. ' + detail);
+    }
+    return {
+      ...res.stream,
+      resolvedProvider: res.provider,
+      fallbackNote: FallbackEngine.summary(res.provider, res.attempts),
+      attempts: res.attempts
+    };
+  },
+
+  /** Gabungkan tautan unduh dari semua provider unduhan (tab Download detail & halaman episode). */
+  async aggregateDownloads(
+    provider: string,
+    params: { title?: string; episodeId?: string; episodeSlug?: string; episode?: string; animeId?: string; animeSlug?: string }
+  ): Promise<{ links: DownloadLink[]; byProvider: { provider: string; name: string; links: DownloadLink[]; error?: string }[] }> {
+    return DownloadAggregator.collect({
+      preferred: provider || Store.getProvider(),
+      title: params.title,
+      episode: params.episode,
+      episodeId: params.episodeId,
+      episodeSlug: params.episodeSlug,
+      animeId: params.animeId,
+      animeSlug: params.animeSlug
+    });
+  },
+
+  /** Beranda gabungan dari seluruh provider (dipakai untuk rail "Dari sumber lain"). */
+  async homeAggregate(): Promise<{ ongoing: Card[]; completed: Card[]; movie: Card[]; sources: { id: string; ok: boolean; count: number }[] }> {
+    const r = await ProviderAggregator.home();
+    return {
+      ongoing: r.ongoing,
+      completed: r.completed,
+      movie: r.movie,
+      sources: r.sources.map(s => ({ id: s.id, ok: s.ok, count: s.count }))
+    };
+  },
+
+  /** Sumber yang menyediakan tautan unduh (untuk tab Download & pengaturan provider). */
+  downloadSources(): { id: string; name: string; downloadOnly: boolean }[] {
+    return downloadProviders().map(p => ({ id: p.id, name: p.name, downloadOnly: !!p.downloadOnly }));
+  },
+
+  /** Semua provider aktif (untuk pemilih sumber di Pengaturan/Profil). */
+  streamingSources(): { id: string; name: string }[] {
+    return orderedProviders(Store.getProvider()).map(p => ({ id: p.id, name: p.name }));
   },
 
   /** Resolve server alternatif → URL embed; provider opsional agar hash baru (Anichin) terketahui asalnya. */

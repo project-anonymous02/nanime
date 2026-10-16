@@ -1,4 +1,5 @@
 import { PROVIDERS } from '../core/config';
+import { providerHealth } from '../providers/registry';
 import { Store, DEFAULT_CFG, storageSize } from '../core/store';
 import { clearCache, cacheStats } from '../core/client';
 import { esc } from '../core/utils';
@@ -15,24 +16,19 @@ function fmtBytes(n: number): string {
   return (n / 1024 / 1024).toFixed(1) + ' MB';
 }
 
-const ACCENTS = ['#3E7BFA', '#8B5CF6', '#22C55E', '#F5A524', '#FF4D6D', '#06B6D4'];
+/* Palet aksen Wibuku: merah utama + warna datar (tanpa ungu/neon). */
+const ACCENTS = ['#E50914', '#EF4444', '#F59E0B', '#10B981', '#1E88E5', '#9CA3AF'];
 
 function hexRgb(hex: string): [number, number, number] {
   const h = String(hex || '').replace('#', '');
   const s = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
-  const n = parseInt(s || '3E7BFA', 16);
+  const n = parseInt(s || 'E50914', 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
 function rgba(hex: string, a: number): string {
   const [r, g, b] = hexRgb(hex);
   return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
-}
-
-function lighten(hex: string, amt: number): string {
-  const [r, g, b] = hexRgb(hex);
-  const f = (c: number) => Math.round(c + (255 - c) * amt);
-  return '#' + [f(r), f(g), f(b)].map(c => c.toString(16).padStart(2, '0')).join('');
 }
 
 export function applyTheme(): void {
@@ -42,41 +38,40 @@ export function applyTheme(): void {
   const root = document.documentElement;
   root.setAttribute('data-theme', theme);
   root.setAttribute('data-saver', cfg.dataSaver ? '1' : '0');
-  const accent = cfg.accent || DEFAULT_CFG.accent;
+  /* Kunci ke palet Wibuku: nilai lama (mis. biru #3E7BFA) otomatis kembali ke merah. */
+  const accent = ACCENTS.indexOf(cfg.accent) > -1 ? cfg.accent : DEFAULT_CFG.accent;
   root.style.setProperty('--acc', accent);
-  root.style.setProperty('--acc2', lighten(accent, 0.35));
+  root.style.setProperty('--acc2', '#1E88E5');
   root.style.setProperty('--acc-soft', rgba(accent, 0.14));
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', theme === 'light' ? '#F5F7FB' : '#05060A');
+  if (meta) meta.setAttribute('content', theme === 'light' ? '#F5F7FB' : '#0A0A0D');
 }
 
 export function settingsHTML(): string {
   let h = '';
 
-  h += '<div class="set-grp"><h4>Provider Utama</h4>';
-  Object.entries(PROVIDERS)
-    .filter(([, p]) => !p.kind)
-    .forEach(([id, p]) => {
-      const active = Store.getProvider() === id;
-      h +=
-        '<div class="adp ' + (p.active ? 'live' : 'dead') + '">' +
-        '<div class="top"><span class="dot ' + (p.active ? 'on' : 'off') + '"></span><b>' + esc(p.name) + '</b>' +
-        '<span style="font-size:11px;color:var(--dim)">' + (p.active ? (active ? '● Aktif' : 'Tersedia') : 'OFF') + '</span>' +
-        (p.active ? '<button class="sw' + (active ? ' on' : '') + '" data-act="set-provider" data-id="' + id + '" role="switch" aria-pressed="' + active + '"><i></i></button>' : '') +
-        '</div><p class="desc">' + esc(p.desc) + '</p></div>';
-    });
-  const movieSrcs = Object.entries(PROVIDERS).filter(([, p]) => p.kind);
-  if (movieSrcs.length) {
-    h += '<div class="set-grp" style="margin-top:16px"><h4>Sumber Movie</h4>';
-    movieSrcs.forEach(([id, p]) => {
-      h +=
-        '<div class="adp ' + (p.active ? 'live' : 'dead') + '"><div class="top"><span class="dot ' + (p.active ? 'on' : 'off') + '"></span>' +
-        '<b>' + esc(p.name) + '</b><span style="font-size:11px;color:var(--dim)">' + (p.active ? 'Aktif' : 'OFF') + '</span></div>' +
-        '<p class="desc">' + esc(p.desc) + '</p></div>';
-    });
-    h += '</div>';
-  }
-  h += '</div>';
+  h +=
+    '<div class="set-grp"><h4>Sumber Otomatis</h4>' +
+    '<div class="note">Tidak ada pilihan manual. Sistem mencoba setiap sumber menurut urutan prioritas — bila satu gagal (error/timeout), otomatis lanjut ke sumber berikutnya hingga berhasil. Pencarian digabung dari semua sumber, unduhan dikumpulkan dari semua portal unduhan.</div>' +
+    '<div style="margin-top:12px">' +
+    Object.entries(PROVIDERS)
+      .sort((a, b) => a[1].priority - b[1].priority)
+      .map(([id, p], i) => {
+        const hp = providerHealth(id);
+        const dot = hp ? (hp.ok ? 'on' : 'off') : '';
+        const title = hp ? (hp.ok ? 'Respons terakhir berhasil' : hp.message || 'Respons terakhir gagal') : 'Belum diuji sesi ini';
+        return (
+          '<div class="kv" style="gap:10px">' +
+          '<span style="flex:none;color:var(--dim);font-size:11px;width:16px;text-align:right">' + (i + 1) + '</span>' +
+          '<span class="dot ' + dot + '" title="' + esc(title) + '" style="flex:none"></span>' +
+          '<span style="flex:1;min-width:0"><b style="display:block;font-size:13px">' + esc(p.name) +
+          (p.downloadOnly ? ' <span style="font-size:10px;color:var(--dim);font-weight:700">· UNDUHAN</span>' : '') + '</b>' +
+          '<span style="font-size:11.4px;color:var(--mut);line-height:1.5">' + esc(p.desc) + '</span></span>' +
+          '</div>'
+        );
+      })
+      .join('') +
+    '</div></div>';
 
   h +=
     '<div class="set-grp"><h4>Pemutaran</h4>' +
@@ -136,8 +131,8 @@ export function settingsHTML(): string {
 
   h +=
     '<div class="set-grp"><h4>Tentang</h4>' +
-    '<div class="note"><b>Nanime v' + '2.0' + '</b> — streaming anime subtitle Indonesia sepenuhnya di sisi klien tanpa backend milik sendiri. Provider aktif: <b>' +
-    esc(PROVIDERS[Store.getProvider()].name) + '</b>.</div>' +
+    '<div class="note"><b>Nanime v' + '2.0' + '</b> — streaming anime subtitle Indonesia sepenuhnya di sisi klien tanpa backend milik sendiri. Sumber dipilih otomatis dari <b>' +
+    Object.keys(PROVIDERS).length + ' API</b> dengan fallback berurutan.</div>' +
     '</div>';
 
   return h;
@@ -173,15 +168,6 @@ function bindFileInput(): void {
 }
 
 export const SettingsActions = {
-  setProvider(id: string) {
-    if (!PROVIDERS[id] || !PROVIDERS[id].active) return;
-    Store.setCfg('provider', id);
-    toast('Provider diubah ke ' + PROVIDERS[id].name, 'ok');
-    renderNav();
-    renderStatus();
-    refreshSettings();
-    setTimeout(() => location.reload(), 500);
-  },
   toggle(key: 'autoNext' | 'autoplay' | 'dataSaver' | 'keepHistory') {
     Store.setCfg(key, !Store.cfg[key] as any);
     applyTheme();

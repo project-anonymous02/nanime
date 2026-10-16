@@ -31,7 +31,7 @@
 .chip svg{width:14px;height:14px;flex:none}
 .srv button svg{width:14px;height:14px;flex:none}
 .pw .empty svg{width:34px;height:34px;display:block;margin:0 auto 10px;color:var(--dim)}
-.card .poster .perr{position:absolute;inset:0;display:grid;place-items:center;color:#3a4350;pointer-events:none}
+.card .poster .perr{position:absolute;inset:0;display:grid;place-items:center;color:#3A4048;pointer-events:none}
 .card .poster .perr svg{width:30px;height:30px}
 .sbar-wrap{position:sticky;top:0;z-index:45;padding:8px 0 14px;box-shadow:0 0 0 100vmax rgba(5,6,10,.96);clip-path:inset(0 -100vmax);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 .filters.sfil{padding:8px 2px 12px}

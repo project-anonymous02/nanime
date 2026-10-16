@@ -1,4 +1,3 @@
-import { PROVIDERS } from '../core/config';
 import { API } from '../core/api';
 import { progress } from '../core/client';
 import { Store } from '../core/store';
@@ -22,7 +21,7 @@ function renderList(hostId: string, res: ListResult, opt: { catalog?: boolean; s
   if (!el) return;
   const list = res.list || [];
   if (!list.length) {
-    el.innerHTML = stateHTML('empty', 'Tidak ada data', 'Daftar ini tidak tersedia untuk provider ' + PROVIDERS[Store.getProvider()].name + ' saat ini.', '');
+    el.innerHTML = stateHTML('empty', 'Tidak ada data', 'Daftar ini tidak tersedia untuk sumber saat ini.', '');
     dropRailArrows(opt.sec);
     return;
   }
@@ -68,8 +67,7 @@ export async function ViewExplore(_r: ParsedRoute): Promise<void> {
   host().innerHTML =
     '<div class="shell" style="padding-top:18px">' +
     '<div class="rv in" style="margin-bottom:18px"><h1 style="font-size:clamp(24px,5vw,32px);font-weight:760">Jelajah</h1>' +
-    '<p style="margin:6px 0 0;color:var(--mut);font-size:13.4px">Temukan anime berdasarkan genre dan kategori · Provider <b>' +
-      esc(PROVIDERS[provider].name) + '</b></p></div>' +
+    '<p style="margin:6px 0 0;color:var(--mut);font-size:13.4px">Temukan anime berdasarkan genre dan kategori · <b>Multi-sumber otomatis</b></p></div>' +
     '<section class="sec" id="expGenre"><div class="sk" style="height:34px;border-radius:99px;margin-bottom:8px"></div><div class="sk" style="height:34px;border-radius:99px;width:80%"></div></section>' +
     '<section class="sec" id="expOngoing">' + secHead(cp.a[0], cp.a[1], 'railExpOngoing') +
       '<div id="expOngoingBody"><div class="rail" data-railwrap="we1"><div class="rail-track" id="railExpOngoing">' + skCards(10) + '</div></div></div></section>' +

@@ -26,3 +26,7 @@ google-services.json
 .env
 .env.*
 !.env.example
+
+# Harness screenshot lokal (dev-only, bukan bagian aplikasi)
+src/__shot__/
+vite.config.shot.ts

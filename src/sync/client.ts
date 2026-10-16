@@ -13,13 +13,26 @@ export interface SupabaseConfig {
   publishableKey: string;
 }
 
+/**
+ * Konfigurasi publik bawaan (publishable key dirancang untuk klien — BUKAN secret;
+ * perlindungan database sepenuhnya oleh RLS). Dipakai bila env tidak diset,
+ * mis. pada build CI yang tidak membawa berkas .env. Env (VITE_*) tetap
+ * menimpa nilai ini bila ada.
+ */
+const PUBLIC_DEFAULT: SupabaseConfig = {
+  url: 'https://zueplyqfvjtnpvhaivkx.supabase.co',
+  publishableKey: 'sb_publishable_Lb0-HfyDESrSpdZ3m5CzuQ_mlVkM8P1'
+};
+
 let cached: SupabaseClient | null = null;
 let cachedCfg: SupabaseConfig | null = null;
 
-/** Validasi konfigurasi environment. Pesan error tidak membocorkan nilai rahasia. */
+/** Validasi konfigurasi (env menimpa default publik). Pesan error tidak membocorkan rahasia. */
 export function readConfig(): SupabaseConfig | null {
-  const url = (env.VITE_SUPABASE_URL || '').trim();
-  const key = (env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || '').trim();
+  const envUrl = (env.VITE_SUPABASE_URL || '').trim();
+  const envKey = (env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || '').trim();
+  const url = envUrl || PUBLIC_DEFAULT.url;
+  const key = envKey || PUBLIC_DEFAULT.publishableKey;
   if (!url || !key) return null;
   if (!/^https?:\/\//.test(url)) return null;
   // Publishable/anon key selalu diawali sb_publishable_ / eyJ (JWT anon lama)

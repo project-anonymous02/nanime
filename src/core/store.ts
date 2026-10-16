@@ -1,4 +1,5 @@
 import type { Config, ContinueItem, FavItem, HistItem } from './types';
+import { autoProviderId } from '../providers/registry';
 
 const P = 'nanime.v2.';
 
@@ -55,7 +56,7 @@ export const DEFAULT_CFG: Config = {
   autoNext: true,
   autoplay: true,
   theme: 'dark',
-  accent: '#3E7BFA',
+  accent: '#E50914',
   dataSaver: false,
   notify: false,
   notifyInterval: 15,
@@ -206,9 +207,12 @@ class StoreImpl {
     this.emit('cfg');
   }
 
+  /**
+   * Sumber aktif DIPILIH OTOMATIS oleh sistem (prioritas registry), bukan oleh
+   * pengguna. Tidak ada UI pemilih API; fallback antar-API ditangani engine.
+   */
   getProvider(): string {
-    const p = this.cfg.provider;
-    return p && p !== 'kusonime' ? p : 'otakudesu';
+    return autoProviderId();
   }
 
   clearAll(): void {

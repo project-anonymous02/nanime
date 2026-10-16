@@ -1,0 +1,127 @@
+import type { AnimeProvider } from '../../providers/types';
+import { downloadProviders, getProvider } from '../../providers/registry';
+import type { Card, DownloadLink } from '../types';
+import { cached } from '../client';
+import { matchScore } from '../utils/fuzzyMatch';
+import { findByEpisode, mergeDownloads } from './EpisodeMatcher';
+
+/**
+ * DownloadAggregator — "gabung-gabung provider dengan sistem yang tepat".
+ *
+ * Untuk satu judul + episode, setiap provider unduhan diselesaikan lewat jalur
+ * yang paling andal:
+ *   1. Provider sumber saat ini → pakai episodeId langsung (paling akurat).
+ *   2. Provider lain → cari judul di provider itu, pilih kartu paling cocok,
+ *      buka detail, cocokkan nomor episode, lalu ambil tautan unduhnya.
+ * Semua tautan digabung & diduplikasi berdasarkan URL.
+ */
+
+export interface DownloadQuery {
+  /** Judul anime untuk resolusi lintas-provider. */
+  title?: string;
+  /** Nomor/label episode (mis. "5"). */
+  episode?: string;
+  /** ID episode pada provider sumber saat ini. */
+  episodeId?: string;
+  episodeSlug?: string;
+  animeId?: string;
+  animeSlug?: string;
+  /** Provider sumber saat ini (dipakai lebih dulu). */
+  preferred?: string;
+}
+
+export interface ProviderDownloads {
+  provider: string;
+  name: string;
+  links: DownloadLink[];
+  error?: string;
+}
+
+export interface DownloadCollection {
+  links: DownloadLink[];
+  byProvider: ProviderDownloads[];
+}
+
+/** Ambang kemiripan judul agar tidak salah ambil series lain. */
+const MATCH_MIN = 52;
+
+/** Pilih kartu hasil pencarian yang paling cocok dengan judul target. */
+export function pickBestCard(cards: Card[], title: string): Card | null {
+  let best: Card | null = null;
+  let bestScore = -1;
+  for (const c of cards) {
+    const s = matchScore(title, c.title || '');
+    if (s > bestScore) {
+      bestScore = s;
+      best = c;
+    }
+  }
+  return bestScore >= MATCH_MIN ? best : null;
+}
+
+/** Resolusi episode pada provider lain lewat judul: search → detail → episode. */
+async function resolveByTitle(p: AnimeProvider, q: DownloadQuery): Promise<DownloadLink[]> {
+  if (!p.search || !q.title || typeof p.downloads !== 'function') return [];
+  const cards = await p.search(q.title);
+  const card = pickBestCard(cards || [], q.title);
+  if (!card) return [];
+  const det = await p.detail(card.id, card.slug || '');
+  const list = det.episodeList || [];
+  const key = q.episode || '';
+  const ep = key ? findByEpisode(list, key) : undefined;
+  return p.downloads({
+    animeId: card.id,
+    animeSlug: card.slug || card.id,
+    episodeId: ep ? ep.id : undefined,
+    episodeSlug: ep ? ep.slug : undefined,
+    episode: q.episode
+  });
+}
+
+/** Ambil unduhan dari satu provider sesuai jalur terbaik yang tersedia. */
+async function collectOne(p: AnimeProvider, q: DownloadQuery): Promise<DownloadLink[]> {
+  if (typeof p.downloads !== 'function') return [];
+  const isSource = q.preferred === p.id && !!q.episodeId;
+  const key = q.title + ':' + (q.episode || q.episodeId || q.animeSlug || '');
+  return cached('dlagg:' + p.id + ':' + key, 30 * 60 * 1000, () => {
+    if (isSource) {
+      return p.downloads!({
+        animeId: q.animeId,
+        animeSlug: q.animeSlug,
+        episodeId: q.episodeId,
+        episodeSlug: q.episodeSlug,
+        episode: q.episode
+      });
+    }
+    return resolveByTitle(p, q);
+  });
+}
+
+export const DownloadAggregator = {
+  async collect(q: DownloadQuery): Promise<DownloadCollection> {
+    const providers = downloadProviders();
+    const byProvider: ProviderDownloads[] = [];
+
+    await Promise.all(
+      providers.map(async p => {
+        try {
+          const links = await collectOne(p, q);
+          if (links && links.length) byProvider.push({ provider: p.id, name: p.name, links });
+        } catch (e: any) {
+          byProvider.push({ provider: p.id, name: p.name, links: [], error: String(e?.message || e) });
+        }
+      })
+    );
+
+    /* Sumber saat ini lebih dulu, sisanya urut prioritas. */
+    byProvider.sort((a, b) => {
+      const pa = getProvider(a.provider)?.priority ?? 999;
+      const pb = getProvider(b.provider)?.priority ?? 999;
+      if (a.provider === q.preferred) return -1;
+      if (b.provider === q.preferred) return 1;
+      return pa - pb;
+    });
+
+    return { links: mergeDownloads(byProvider.map(b => b.links)), byProvider };
+  }
+};

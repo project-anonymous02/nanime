@@ -3,6 +3,7 @@ import { PROVIDERS } from '../core/config';
 import { progress } from '../core/client';
 import { Store } from '../core/store';
 import { esc, formatTime, isVideoUrl } from '../core/utils';
+import { groupByQuality } from '../core/utils/qualitySorter';
 import { svg } from '../core/icons';
 import { initView } from '../ui/dom';
 import { downloadGroupsHTML, footerHTML, stateHTML } from '../ui/components';
@@ -18,6 +19,7 @@ let saveTimer: ReturnType<typeof setInterval> | null = null;
 let cur: { anime: Detail; epNum: string; eid: string; eslug: string; provider: string } | null = null;
 let playerEl: HTMLVideoElement | null = null;
 let lastDownloads: DownloadLink[] = [];
+let lastByProvider: { provider: string; name: string; links: DownloadLink[]; error?: string }[] = [];
 let lastNextHref = '';
 let hls: Hls | null = null;
 
@@ -115,6 +117,44 @@ function saveNow(): void {
     dur: Math.round(dur),
     last: Date.now()
   });
+}
+
+function downloadSectionHTML(
+  links: DownloadLink[],
+  byProvider: { provider: string; name: string; links: DownloadLink[]; error?: string }[]
+): string {
+  const src = byProvider.filter(b => b.links.length);
+  const srcChips = src.length
+    ? '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">' +
+      src.map(b => '<span class="chip">' + esc(b.name) + ' · ' + b.links.length + '</span>').join('') +
+      '</div>'
+    : '';
+  if (!links.length) {
+    return (
+      '<section class="panel rv" id="wDl"><h3>' + svg('download', '', 2) + ' Unduhan</h3>' +
+      '<div class="ep-empty">Belum ada tautan unduhan gabungan untuk episode ini.</div></section>'
+    );
+  }
+  const groups = groupByQuality(links)
+    .map(
+      g =>
+        '<div class="dl-grp"><b>' + esc(g.quality) + '</b><div class="dl-links">' +
+        g.items
+          .map(
+            l =>
+              '<a class="chip" href="' + esc(l.url) + '" target="_blank" rel="noopener noreferrer">' +
+              svg('download', '', 2) + esc(l.name) + '</a>'
+          )
+          .join('') +
+        '</div></div>'
+    )
+    .join('');
+  return (
+    '<section class="panel rv" id="wDl"><h3>' + svg('download', '', 2) + ' Unduhan ' +
+    '<span style="font-size:11.5px;color:var(--dim);font-weight:500">· ' + links.length + ' tautan dari ' + src.length + ' sumber</span></h3>' +
+    '<p style="font-size:12.2px;color:var(--mut);line-height:1.6;margin:2px 0 10px">Digabung otomatis dari semua portal unduhan, dirapikan per kualitas. Tautan berasal dari pihak ketiga.</p>' +
+    groups + srcChips + '</section>'
+  );
 }
 
 function playerControlsHTML(): string {
@@ -289,7 +329,8 @@ export async function ViewWatch(r: ParsedRoute): Promise<void> {
 
   host().innerHTML =
     '<div class="shell" style="padding-top:16px"><div id="wHost"><div class="sk" style="aspect-ratio:16/9;border-radius:var(--r3);width:100%"></div></div>' +
-    '<div id="wInfo" style="margin-top:16px"></div></div>';
+    '<div id="wInfo" style="margin-top:16px"></div>' +
+    '<div id="wDlWrap" style="margin-top:16px"></div></div>';
 
   let anime: Detail;
   try {
@@ -353,23 +394,61 @@ export async function ViewWatch(r: ParsedRoute): Promise<void> {
 
   try {
     progress(true, 45);
-    const stream: Stream & { downloads: DownloadLink[]; info: any } = await API.episode(provider, {
+    /* Fallback otomatis: coba sumber berurutan sampai ada yang bisa memutar. */
+    const resolved = await API.streamWithFallback(provider, {
       episodeId: eidUse,
       episodeSlug: eslugUse || epNum,
       episode: epNum,
       animeId: anime.id,
       animeSlug: anime.slug || ''
     });
+    const stream = resolved as Stream & { downloads: DownloadLink[]; info: any; note?: string };
     progress(true, 100);
     setTimeout(() => progress(false), 240);
 
-    const downloads = stream.downloads || [];
+    const resolvedProvider = resolved.resolvedProvider || provider;
+
+    /* Unduhan digabung dari semua portal unduhan dengan resolusi judul+episode. */
+    let downloads: DownloadLink[] = stream.downloads || [];
+    let byProvider: { provider: string; name: string; links: DownloadLink[]; error?: string }[] = [];
+    try {
+      const agg = await API.aggregateDownloads(resolvedProvider, {
+        title: anime.title,
+        episode: epNum,
+        episodeId: eidUse,
+        episodeSlug: eslugUse,
+        animeId: anime.id,
+        animeSlug: anime.slug || ''
+      });
+      byProvider = agg.byProvider;
+      if (agg.links.length) downloads = agg.links;
+    } catch {
+      /* biarkan unduhan dari provider tunggal bila agregasi gagal */
+    }
+
     lastDownloads = downloads;
+    lastByProvider = byProvider;
     lastNextHref = nextHref;
     const playerUrl = stream.playerUrl || '';
     (cur as any).embedUrl = playerUrl;
+    cur.provider = resolvedProvider;
     const native = isVideoUrl(playerUrl);
     const box = document.getElementById('wHost');
+    const dlWrap = document.getElementById('wDlWrap');
+    if (dlWrap) {
+      dlWrap.innerHTML = downloadSectionHTML(downloads, byProvider);
+      initView(dlWrap);
+    }
+    if (resolved.fallbackNote) {
+      const infoEl = document.getElementById('wInfo');
+      if (infoEl) {
+        infoEl.insertAdjacentHTML(
+          'afterbegin',
+          '<div class="banner" style="margin-bottom:12px">' + svg('info', '', 2) +
+          '<span class="sp">' + esc(resolved.fallbackNote) + '</span></div>'
+        );
+      }
+    }
 
     if (box) {
       if (native) {

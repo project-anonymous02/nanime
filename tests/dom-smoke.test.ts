@@ -42,7 +42,7 @@ describe('smoke test DOM', () => {
     expect(view.innerHTML).toContain('hero');
     expect(document.getElementById('tabbar')!.children.length).toBeGreaterThan(3);
     expect(document.getElementById('sbNav')!.children.length).toBeGreaterThan(3);
-    expect(document.getElementById('sbStatus')!.textContent).toContain('Otakudesu');
+    expect(document.getElementById('sbStatus')!.textContent).toContain('Otomatis');
   });
 
   it('menampilkan state gagal saat API tidak terjangkau', async () => {
@@ -81,7 +81,7 @@ describe('smoke test DOM', () => {
     const root = document.getElementById('sheet-root')!;
     expect(root.classList.contains('open')).toBe(true);
     expect(root.textContent).toContain('Pengaturan');
-    expect(root.textContent).toContain('Provider Utama');
+    expect(root.textContent).toContain('Sumber Otomatis');
     expect(root.textContent).toContain('Hemat data');
   });
 

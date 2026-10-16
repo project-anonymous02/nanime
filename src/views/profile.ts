@@ -125,19 +125,19 @@ function accountSectionHTML(auth: AuthState, st: SyncStatus): string {
 }
 
 function providerRows(): string {
-  const cur = Store.getProvider();
   return Object.keys(PROVIDERS)
     .sort((a, b) => PROVIDERS[a].priority - PROVIDERS[b].priority)
-    .map(id => {
+    .map((id, i) => {
       const p = PROVIDERS[id];
       const hp = providerHealth(id);
       const dot = hp ? (hp.ok ? 'on' : 'off') : '';
       const dotTitle = hp ? (hp.ok ? 'Respons terakhir berhasil' : hp.message || 'Respons terakhir gagal') : 'Belum diuji sesi ini';
       return (
         '<div class="kv" style="gap:10px">' +
+        '<span style="flex:none;color:var(--dim);font-size:11px;width:16px;text-align:right">' + (i + 1) + '</span>' +
         '<span class="dot ' + dot + '" title="' + esc(dotTitle) + '" style="flex:none"></span>' +
         '<span style="flex:1;min-width:0"><b style="display:block;font-size:13.2px">' + esc(p.name) +
-        (id === cur ? ' <span style="font-size:10px;color:var(--acc);font-weight:700">· AKTIF</span>' : '') + '</b>' +
+        (p.downloadOnly ? ' <span style="font-size:10px;color:var(--dim);font-weight:700">· UNDUHAN</span>' : '') + '</b>' +
         '<span style="font-size:11.6px;color:var(--mut);line-height:1.5">' + esc(p.desc) + '</span></span>' +
         '</div>'
       );
@@ -215,8 +215,10 @@ function refreshAccount(): void {
   tmp.innerHTML = accountSectionHTML(auth, st);
   const fresh = tmp.firstElementChild;
   if (fresh) {
-    panels[0].replaceWith(fresh as HTMLElement);
-    initView(fresh as HTMLElement);
+    const el = fresh as HTMLElement;
+    panels[0].replaceWith(el);
+    el.classList.add('in');
+    initView(el);
     bindAccountActions();
   }
   // Perbarui subjudul

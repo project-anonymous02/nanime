@@ -50,7 +50,10 @@
 .cover-box{width:132px;box-shadow:var(--sh1);animation:none;}
 .cover-box{padding:0;background:var(--panel2);border:1px solid var(--line);}
 .detail-meta h1{font-size:clamp(19px,4.6vw,30px);}
-.detail-meta .stats,.detail-actions{justify-content:flex-start;}
+.detail-meta .stats{justify-content:flex-start;}
+.detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.detail-actions .btn{justify-content:center;}
+.detail-actions .btn.primary{grid-column:1 / -1;}
 .panel{background:var(--panel);backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;}
 .ep,.srv button,.stat{background:var(--panel2);}
 

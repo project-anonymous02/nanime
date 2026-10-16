@@ -76,6 +76,14 @@ jobs:
           npx cap add android || true
           npx cap sync android
 
+      - name: Setup Firebase config (google-services.json)
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
+        run: bash scripts/setup-firebase-android.sh
+
+      - name: Setup deep-link OAuth (nanime://)
+        run: bash scripts/setup-android-deeplink.sh
+
       - name: Gradle assembleDebug
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon

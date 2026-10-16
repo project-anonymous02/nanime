@@ -7,7 +7,9 @@ import { newEpisodeCount } from '../features/notify';
 function isActive(id: string, cur: string, path: string): boolean {
   if (cur === path) return true;
   if (id === 'search' && cur.indexOf('#/search') === 0) return true;
-  if (id === 'explore' && cur.indexOf('#/explore') === 0) return true;
+  if (id === 'explore' && (cur.indexOf('#/explore') === 0 || cur.indexOf('#/genre') === 0 || cur.indexOf('#/schedule') === 0)) return true;
+  if (id === 'library' && ['#/favorite', '#/history', '#/stats'].some(p => cur.indexOf(p) === 0)) return true;
+  if (id === 'profile' && cur.indexOf('#/settings') === 0) return true;
   return false;
 }
 
@@ -20,7 +22,7 @@ export function renderNav(): void {
     tabbar.innerHTML = NAV.map(n => {
       const act = isActive(n.id, cur, n.path);
       let badge = '';
-      if (n.id === 'favorite' && Store.favs.length) badge = '<span class="badge">' + Store.favs.length + '</span>';
+      if (n.id === 'library' && Store.favs.length) badge = '<span class="badge">' + Store.favs.length + '</span>';
       if (n.id === 'home' && news > 0) badge = '<span class="badge">' + news + '</span>';
       return (
         '<a class="tab' + (act ? ' active' : '') + '" href="' + n.path + '" aria-label="' + n.label + '"' +
@@ -35,7 +37,7 @@ export function renderNav(): void {
     sbNav.innerHTML = NAV.map(n => {
       const act = isActive(n.id, cur, n.path);
       let pill = '';
-      if (n.id === 'favorite' && Store.favs.length) pill = '<span class="pill">' + Store.favs.length + '</span>';
+      if (n.id === 'library' && Store.favs.length) pill = '<span class="pill">' + Store.favs.length + '</span>';
       if (n.id === 'home' && news > 0) pill = '<span class="pill">' + news + '</span>';
       return (
         '<a class="sb-link' + (act ? ' active' : '') + '" href="' + n.path + '"' + (act ? ' aria-current="page"' : '') +

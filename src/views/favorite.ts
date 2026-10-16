@@ -66,6 +66,19 @@ function paint(): void {
   initView(box);
 }
 
+/** Ikat pencarian favorit pada input #favQ (dipakai halaman Favorite & tab Library). */
+export function bindFavSearch(): void {
+  const q = document.getElementById('favQ') as HTMLInputElement | null;
+  if (!q) return;
+  q.addEventListener(
+    'input',
+    debounce(() => {
+      favQuery = q.value.trim();
+      paint();
+    }, 200)
+  );
+}
+
 export async function ViewFavorite(_r?: ParsedRoute): Promise<void> {
   const favs = Store.favs;
   host().innerHTML =
@@ -91,23 +104,21 @@ export async function ViewFavorite(_r?: ParsedRoute): Promise<void> {
     footerHTML() + '</div>';
 
   paint();
-
-  const q = document.getElementById('favQ') as HTMLInputElement | null;
-  if (q) {
-    q.addEventListener(
-      'input',
-      debounce(() => {
-        favQuery = q.value.trim();
-        paint();
-      }, 200)
-    );
-  }
+  bindFavSearch();
 }
 
 export const FavoriteActions = {
   setSort(v: string) {
     favSort = (v === 'az' || v === 'score' ? v : 'recent') as SortMode;
-    ViewFavorite();
+    /* Perbarui chip aktif di tempat (halaman Favorite maupun tab Library). */
+    document.querySelectorAll<HTMLElement>('#favSort [data-act="fav-sort"]').forEach(b => {
+      b.classList.toggle('on', b.getAttribute('data-v') === favSort);
+    });
+    paint();
+  },
+  setQuery(v: string) {
+    favQuery = v;
+    paint();
   },
   repaint: paint
 };

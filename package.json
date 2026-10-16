@@ -17,7 +17,7 @@
     "test:watch": "vitest",
     "android:add": "cap add android",
     "android:sync": "npm run build && cap sync android",
-    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug"
+    "android:apk": "npm run android:sync && bash scripts/setup-firebase-android.sh && bash scripts/setup-android-deeplink.sh && cd android && ./gradlew assembleDebug"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",
@@ -28,6 +28,10 @@
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",
-    "@capacitor/core": "^6.2.0"
+    "@capacitor/app": "^6.0.3",
+    "@capacitor/browser": "^6.0.6",
+    "@capacitor/core": "^6.2.0",
+    "@supabase/supabase-js": "^2.118.0",
+    "hls.js": "^1.7.3"
   }
 }

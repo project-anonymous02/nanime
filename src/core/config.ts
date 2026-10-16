@@ -1,3 +1,5 @@
+import { allProviders } from '../providers/registry';
+
 export interface ProviderDef {
   name: string;
   active: boolean;
@@ -6,24 +8,30 @@ export interface ProviderDef {
   kind?: 'movie';
   filterLabel?: string;
   desc: string;
+  /** true bila provider unduhan tanpa server streaming. */
+  downloadOnly?: boolean;
+  /** Kategori konten bila tersedia. */
+  content?: 'anime' | 'donghua';
 }
 
-/** Provider HTML yang diakses langsung dari aplikasi Android. */
-export const PROVIDERS: Record<string, ProviderDef> = {
-  otakudesu: { name: 'Otakudesu', active: true, search: true, priority: 1, desc: 'Provider utama. Home, search, detail, episode, server, genre, schedule.' },
-  oploverz: { name: 'Oploverz', active: true, search: true, priority: 2, desc: 'Provider alternatif. Home, search, detail, episode dengan streamingUrl langsung.' },
-  kuramanime: { name: 'Kuramanime', active: true, search: false, priority: 3, desc: 'Provider alternatif. Home, detail, episode, properties (genre/season/studio).' },
-  samehadaku: { name: 'Samehadaku', active: false, search: false, priority: 4, desc: 'Status: OFF. Tidak tersedia saat ini.' },
-  kusonime: {
-    name: 'Kusonime',
-    active: true,
-    search: true,
-    priority: 5,
-    kind: 'movie',
-    filterLabel: 'Movie',
-    desc: 'Sumber anime movie. Home, search, detail dan tautan unduh; pemutaran memakai provider streaming lain.'
+/** Metadata provider HTML yang diakses langsung dari aplikasi Android (sumber kebenaran: registry). */
+export const PROVIDERS: Record<string, ProviderDef> = (() => {
+  const out: Record<string, ProviderDef> = {};
+  for (const p of allProviders()) {
+    out[p.id] = {
+      name: p.name,
+      active: p.active,
+      search: p.searchable,
+      priority: p.priority,
+      desc: p.desc,
+      downloadOnly: p.movieOnly || undefined,
+      content: p.content,
+      kind: p.movieOnly && p.id === 'kusonime' ? 'movie' : undefined,
+      filterLabel: p.id === 'kusonime' ? 'Movie' : p.content === 'donghua' ? 'Donghua' : undefined
+    };
   }
-};
+  return out;
+})();
 
 export const isMovieSource = (id: string) => !!(PROVIDERS[id] && PROVIDERS[id].kind === 'movie');
 export const searchLabel = (id: string) => (PROVIDERS[id] && (PROVIDERS[id].filterLabel || PROVIDERS[id].name)) || id;
@@ -44,14 +52,13 @@ export interface NavItem {
   icon: string;
 }
 
+/** Navigasi bawah: 5 tab utama. */
 export const NAV: NavItem[] = [
-  { id: 'home', label: 'Home', path: '#/home', icon: 'home' },
-  { id: 'search', label: 'Search', path: '#/search', icon: 'search' },
-  { id: 'explore', label: 'Explore', path: '#/explore', icon: 'explore' },
-  { id: 'schedule', label: 'Jadwal', path: '#/schedule', icon: 'cal' },
-  { id: 'favorite', label: 'Favorite', path: '#/favorite', icon: 'heart' },
-  { id: 'history', label: 'History', path: '#/history', icon: 'clock' },
-  { id: 'stats', label: 'Statistik', path: '#/stats', icon: 'chart' }
+  { id: 'home', label: 'Beranda', path: '#/home', icon: 'home' },
+  { id: 'explore', label: 'Jelajahi', path: '#/explore', icon: 'explore' },
+  { id: 'search', label: 'Cari', path: '#/search', icon: 'search' },
+  { id: 'library', label: 'Library', path: '#/library', icon: 'heart' },
+  { id: 'profile', label: 'Profil', path: '#/profile', icon: 'user' }
 ];
 
 export const WEEKDAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];

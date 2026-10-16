@@ -1,4 +1,5 @@
 import { API } from '../core/api';
+import { PROVIDERS } from '../core/config';
 import { progress } from '../core/client';
 import { Store } from '../core/store';
 import { esc, formatTime, isVideoUrl } from '../core/utils';
@@ -8,6 +9,7 @@ import { downloadGroupsHTML, footerHTML, stateHTML } from '../ui/components';
 import { toast } from '../ui/toast';
 import { openSheet } from '../ui/sheet';
 import { go, detailHref, watchHref, type ParsedRoute } from '../core/router';
+import Hls from 'hls.js';
 import type { Detail, DownloadLink, Stream } from '../core/types';
 
 const host = () => document.getElementById('view') as HTMLElement;
@@ -17,12 +19,79 @@ let cur: { anime: Detail; epNum: string; eid: string; eslug: string; provider: s
 let playerEl: HTMLVideoElement | null = null;
 let lastDownloads: DownloadLink[] = [];
 let lastNextHref = '';
+let hls: Hls | null = null;
+
+function destroyHls(): void {
+  if (hls) {
+    try { hls.destroy(); } catch { /* noop */ }
+    hls = null;
+  }
+}
+
+function fillHlsQuality(v: HTMLVideoElement, inst: Hls): void {
+  const qsel = document.querySelector<HTMLSelectElement>('#pqsel');
+  if (!qsel || !qsel.isConnected) return;
+  const levels = inst.levels || [];
+  if (!levels.length) return;
+  const current = inst.currentLevel >= 0 ? inst.currentLevel : (inst.autoLevelEnabled && levels[inst.loadLevel] ? inst.loadLevel : -1);
+  qsel.innerHTML =
+    '<option value="-1">Otomatis</option>' +
+    levels.map((l, i) =>
+      '<option value="' + i + '"' + (i === current ? ' selected' : '') + '>' +
+      (l.height ? l.height + 'p' : 'Level ' + (i + 1)) + '</option>'
+    ).join('');
+  const onChange = () => {
+    const idx = Number(qsel.value);
+    inst.currentLevel = idx;
+    if (idx >= 0) v.currentTime = v.currentTime; // pertahankan posisi
+    toast(idx < 0 ? 'Kualitas otomatis.' : 'Kualitas ' + (levels[idx]?.height || idx) + 'p', 'ok');
+  };
+  qsel.removeEventListener('change', (qsel as any).__hlsHandler || (() => {}));
+  (qsel as any).__hlsHandler = onChange;
+  qsel.addEventListener('change', onChange);
+}
+
+/** Pasang stream ke video: MP4 langsung, m3u8 lewat hls.js (Android WebView tak punya native HLS). */
+function setupStream(v: HTMLVideoElement, url: string): void {
+  destroyHls();
+  if (!isVideoUrl(url)) return;
+  const nativeHls = !!v.canPlayType('application/vnd.apple.mpegurl');
+  if (!/\.m3u8(\?|$)/i.test(url) || nativeHls) {
+    v.src = url;
+    return;
+  }
+  if (!Hls.isSupported()) {
+    v.src = url; // biarkan error handler native yang memberi pilihan embed
+    return;
+  }
+  const inst = new Hls({
+    enableWorker: true,
+    manifestLoadingMaxRetry: 2,
+    fragLoadingMaxRetry: 4,
+    backBufferLength: 60
+  });
+  hls = inst;
+  inst.loadSource(url);
+  inst.attachMedia(v);
+  inst.on(Hls.Events.MANIFEST_PARSED, () => fillHlsQuality(v, inst));
+  inst.on(Hls.Events.LEVEL_SWITCHED, () => fillHlsQuality(v, inst));
+  inst.on(Hls.Events.ERROR, (_ev, data) => {
+    if (!data.fatal) return;
+    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) inst.startLoad();
+    else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) inst.recoverMediaError();
+    else {
+      destroyHls();
+      v.dispatchEvent(new Event('error'));
+    }
+  });
+}
 
 function stopSaving(): void {
   if (saveTimer) {
     clearInterval(saveTimer);
     saveTimer = null;
   }
+  destroyHls();
   playerEl = null;
   cur = null;
 }
@@ -76,8 +145,11 @@ function bindControls(v: HTMLVideoElement, downloads: DownloadLink[], nextHref: 
   const qsel = q<HTMLSelectElement>('#pqsel');
 
   const playable = downloads.filter(d => isVideoUrl(d.url));
+  const hlsActive = !!hls;
   if (qsel) {
-    if (playable.length) {
+    if (hlsActive) {
+      /* diisi oleh fillHlsQuality() setelah manifest HLS terbaca */
+    } else if (playable.length) {
       qsel.innerHTML =
         '<option value="">Server</option>' +
         playable.map(d => '<option value="' + esc(d.url) + '">' + esc(d.quality + ' · ' + d.name) + '</option>').join('');
@@ -85,6 +157,7 @@ function bindControls(v: HTMLVideoElement, downloads: DownloadLink[], nextHref: 
         const u = qsel.value;
         if (!u) return;
         const t = v.currentTime;
+        destroyHls();
         v.src = u;
         v.currentTime = t;
         v.play().catch(() => {});
@@ -164,10 +237,35 @@ function bindControls(v: HTMLVideoElement, downloads: DownloadLink[], nextHref: 
   });
   syncPlay();
   syncTime();
+  attachMediaSession(v);
   if (Store.cfg.autoplay) {
     const p = v.play();
     if (p && p.catch) p.catch(() => toast('Ketuk tombol putar untuk memulai.', 'info'));
   }
+}
+
+/** Kontrol pemutar dari layar kunci/notifikasi Android (MediaSession API). */
+function attachMediaSession(v: HTMLVideoElement): void {
+  const nav = navigator as any;
+  const ms = nav.mediaSession;
+  if (!ms || typeof MediaMetadata === 'undefined') return;
+  try {
+    ms.metadata = new MediaMetadata({
+      title: 'Episode ' + (cur?.epNum || '') + ' · ' + (cur?.anime.title || ''),
+      artist: (cur && PROVIDERS[cur.provider]?.name) || '',
+      album: cur?.anime.title || '',
+      artwork: cur?.anime.poster ? [{ src: cur.anime.poster, sizes: '512x512', type: 'image/jpeg' }] : []
+    });
+    ms.setActionHandler('play', () => v.play().catch(() => {}));
+    ms.setActionHandler('pause', () => v.pause());
+    ms.setActionHandler('seekbackward', () => { v.currentTime = Math.max(0, (v.currentTime || 0) - 10); });
+    ms.setActionHandler('seekforward', () => { v.currentTime = Math.min(v.duration || 0, (v.currentTime || 0) + 10); });
+    const syncState = () => { try { ms.playbackState = v.paused ? 'paused' : 'playing'; } catch { /* noop */ } };
+    v.addEventListener('play', syncState);
+    v.addEventListener('pause', syncState);
+    v.addEventListener('ended', () => { try { ms.playbackState = 'none'; } catch { /* noop */ } });
+    syncState();
+  } catch { /* noop — perangkat tanpa dukungan MediaSession */ }
 }
 
 export function useEmbedFallback(): void {
@@ -175,6 +273,7 @@ export function useEmbedFallback(): void {
   if (!box || !cur) return;
   const url = (cur as any).embedUrl || '';
   if (!url) return;
+  destroyHls();
   box.innerHTML =
     '<div class="pw"><iframe id="playerFrame" src="' + esc(url) +
     '" allowfullscreen allow="autoplay; fullscreen; picture-in-picture" loading="eager" referrerpolicy="no-referrer"></iframe></div>';
@@ -276,8 +375,9 @@ export async function ViewWatch(r: ParsedRoute): Promise<void> {
       if (native) {
         box.innerHTML =
           '<div class="pw native"><video id="player" playsinline preload="metadata" crossorigin="anonymous" ' +
-          'poster="' + esc(anime.poster) + '" src="' + esc(playerUrl) + '"></video>' + playerControlsHTML() + '</div>';
+          'poster="' + esc(anime.poster) + '"></video>' + playerControlsHTML() + '</div>';
         const v = document.getElementById('player') as HTMLVideoElement;
+        setupStream(v, playerUrl);
         bindControls(v, downloads, nextHref);
       } else if (playerUrl) {
         box.innerHTML =
@@ -334,15 +434,11 @@ export async function ViewWatch(r: ParsedRoute): Promise<void> {
             toast('Server ID kosong.', 'err');
             return;
           }
-          if (!['otakudesu', 'oploverz'].includes(provider)) {
-            toast('Pemilihan server tidak tersedia untuk provider ini.', 'err');
-            return;
-          }
           const label = b.innerHTML;
           b.textContent = 'Memuat…';
           (b as HTMLButtonElement).disabled = true;
           try {
-            const url = await API.resolveServer(serverId);
+            const url = await API.resolveServer(serverId, provider);
             if (!url) throw new Error('URL kosong.');
             (cur as any).embedUrl = url;
             const iframe = document.getElementById('playerFrame') as HTMLIFrameElement | null;
@@ -410,13 +506,19 @@ function useNativeUrl(url: string): void {
   const downloads: DownloadLink[] = lastDownloads;
   const v0 = document.getElementById('player') as HTMLVideoElement | null;
   const t = v0 ? v0.currentTime : 0;
+  destroyHls();
   box.innerHTML =
-    '<div class="pw native"><video id="player" playsinline preload="metadata" src="' + esc(url) + '"></video>' +
+    '<div class="pw native"><video id="player" playsinline preload="metadata"></video>' +
     playerControlsHTML() + '</div>';
   const v = document.getElementById('player') as HTMLVideoElement;
+  setupStream(v, url);
   bindControls(v, downloads, lastNextHref);
-  v.currentTime = t;
-  v.play().catch(() => {});
+  const resume = () => {
+    if (t > 0) v.currentTime = t;
+    v.play().catch(() => {});
+  };
+  if (v.readyState >= 1) resume();
+  else v.addEventListener('loadedmetadata', resume, { once: true });
 }
 
 export function openQueue(): void {

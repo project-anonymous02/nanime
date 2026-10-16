@@ -15,6 +15,8 @@ import { ViewDetail, DetailState, watchMovieFlow, loadBatchDownloads } from './v
 import { ViewWatch, WatchActions } from './views/watch';
 import { ViewSchedule, ScheduleActions } from './views/schedule';
 import { ViewStats } from './views/stats';
+import { ViewLibrary, refreshLibTab } from './views/library';
+import { ViewProfile } from './views/profile';
 import { closeSheet } from './ui/sheet';
 import { openSettings, SettingsActions } from './features/settings';
 import { openPalette } from './features/shortcuts';
@@ -64,6 +66,8 @@ export async function render(r?: ParsedRoute): Promise<void> {
     else if (first === 'watch') await ViewWatch(route);
     else if (first === 'schedule') await ViewSchedule(route);
     else if (first === 'stats') await ViewStats(route);
+    else if (first === 'library') await ViewLibrary(route);
+    else if (first === 'profile') await ViewProfile(route);
     else if (first === 'settings') {
       await ViewHome(route);
       setTimeout(openSettings, 120);
@@ -118,6 +122,7 @@ function toggleFav(btn: HTMLElement): void {
   toast(added ? 'Ditambahkan ke favorit.' : 'Dihapus dari favorit.', added ? 'ok' : 'info');
   renderNav();
   if (curRoute === '/favorite') ViewFavorite();
+  refreshLibTab();
 }
 
 function shareCurrent(title: string): void {
@@ -181,8 +186,9 @@ async function handleAct(act: HTMLElement, e: MouseEvent): Promise<void> {
       go(to.replace(/^#/, ''));
       return;
     }
-    case 'toggle-syn': {
-      const s = document.getElementById('syn');
+    case 'toggle-syn':
+    case 'toggle-metasyn': {
+      const s = document.getElementById(act.dataset.act === 'toggle-metasyn' ? 'metaSyn' : 'syn');
       if (!s) return;
       const open = s.classList.toggle('clip') === false;
       act.classList.toggle('open', open);
@@ -212,6 +218,7 @@ async function handleAct(act: HTMLElement, e: MouseEvent): Promise<void> {
         localStorage.setItem('nanime.v2.favs', '[]');
         renderNav();
         if (curRoute === '/favorite') ViewFavorite();
+        refreshLibTab();
         toast('Favorit dikosongkan.', 'ok');
       }
       return;
@@ -223,6 +230,7 @@ async function handleAct(act: HTMLElement, e: MouseEvent): Promise<void> {
         localStorage.setItem('nanime.v2.cont', '[]');
         if (curRoute === '/history') ViewHistory();
         if (curRoute === '/stats') ViewStats();
+        refreshLibTab();
         toast('Riwayat dihapus.', 'ok');
       }
       return;
@@ -418,7 +426,9 @@ export const ROUTES = {
   anime: ViewDetail,
   watch: ViewWatch,
   schedule: ViewSchedule,
-  stats: ViewStats
+  stats: ViewStats,
+  library: ViewLibrary,
+  profile: ViewProfile
 };
 
 export type RouteName = keyof typeof ROUTES;

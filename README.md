@@ -1234,6 +1234,21 @@ Gunakan:
 
 untuk mendokumentasikan variable yang dibutuhkan.
 
+Firebase / google-services.json (Android)
+
+Config Firebase tidak boleh di-commit. Simpan sebagai:
+
+1. GitHub Secret `ANDROID_GOOGLE_SERVICES_JSON` (isi base64 dari file `google-services.json`) untuk CI.
+2. File lokal `secrets/google-services.json` (folder sudah di-gitignore) untuk build lokal.
+
+Script `scripts/setup-firebase-android.sh` otomatis menempelkan file tersebut ke project Android hasil `npx cap add android` dan memasang plugin `com.google.gms.google-services`. Workflow `ci.yml` dan `android.yml` sudah memanggil script ini. Jika secret belum di-set, build tetap jalan tanpa Firebase.
+
+Untuk memperbarui nilai base64 setelah isi google-services.json berubah:
+
+base64 -w0 secrets/google-services.json
+
+Lalu tempel hasilnya ke GitHub → Settings → Secrets and variables → Actions → `ANDROID_GOOGLE_SERVICES_JSON`.
+
 ---
 
 Local Development

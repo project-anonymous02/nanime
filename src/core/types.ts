@@ -1,3 +1,5 @@
+/** Tipe domain bersama untuk seluruh lapisan aplikasi. */
+
 export interface Card {
   id: string;
   provider: string;
@@ -13,13 +15,17 @@ export interface Card {
   match?: number;
 }
 
-export interface Genre { t: string; id: string }
+export interface Genre {
+  t: string;
+  id: string;
+}
 
 export interface EpisodeItem {
   num: string;
   id: string;
   slug: string;
   date: string;
+  title?: string;
 }
 
 export interface DownloadLink {
@@ -66,6 +72,11 @@ export interface Stream {
   note?: string;
 }
 
+export interface EpisodeStream extends Stream {
+  downloads: DownloadLink[];
+  info: unknown;
+}
+
 export interface SourceResult {
   id: string;
   ok: boolean;
@@ -91,6 +102,88 @@ export interface ListResult {
   pagination: Pagination | null;
   catalog?: boolean;
 }
+
+export interface ScheduleItem {
+  time: string;
+  episode?: string;
+  title: string;
+  id: string;
+  provider: string;
+  slug?: string;
+  poster?: string;
+}
+
+export interface ScheduleGroup {
+  day: string;
+  items: ScheduleItem[];
+}
+
+/* ── Tipe metadata (AniList/Kitsu) ── */
+
+export interface MetaRelation {
+  id: number;
+  source: 'anilist' | 'kitsu';
+  type: string;
+  format?: string;
+  title: string;
+  cover?: string;
+  relationType: string;
+  status?: string;
+}
+
+export interface MetaCharacter {
+  id: number;
+  name: string;
+  role: string;
+  image?: string;
+}
+
+export interface MetaStudio {
+  id: number;
+  name: string;
+}
+
+/** Metadata katalog dari penyedia publik (AniList primer, Kitsu fallback). */
+export interface AnimeMeta {
+  id: number;
+  source: 'anilist' | 'kitsu';
+  title: string;
+  titleRomaji?: string;
+  titleNative?: string;
+  synonyms: string[];
+  cover?: string;
+  banner?: string;
+  score?: number;
+  popularity?: number;
+  format?: string;
+  status?: string;
+  episodes?: number;
+  duration?: number;
+  season?: string;
+  seasonYear?: number;
+  studios: MetaStudio[];
+  genres: string[];
+  synopsis?: string;
+  startDate?: string;
+  relations: MetaRelation[];
+  recommendations: MetaAnimeBrief[];
+  characters: MetaCharacter[];
+}
+
+export interface MetaAnimeBrief {
+  id: number;
+  source: 'anilist' | 'kitsu';
+  title: string;
+  cover?: string;
+  score?: number;
+  format?: string;
+  episodes?: number;
+  year?: number;
+}
+
+/* ── Data pengguna (repository lokal, siap sinkron) ── */
+
+export type WatchStatus = 'ptw' | 'watching' | 'completed' | 'dropped';
 
 export interface FavItem {
   id: string;
@@ -123,16 +216,7 @@ export interface ContinueItem extends HistItem {
   last?: number;
 }
 
-export interface ScheduleItem {
-  time: string;
-  episode?: string;
-  title: string;
-  id: string;
-  provider: string;
-  slug?: string;
-  poster?: string;
-}
-
+/** Preferensi pengguna (localStorage, siap disinkronkan bila backend tersedia). */
 export interface Config {
   provider: string;
   autoNext: boolean;
@@ -145,3 +229,72 @@ export interface Config {
   defaultQuality: string;
   keepHistory: boolean;
 }
+
+export interface UserEntry {
+  /** ID stabil: provider:id */
+  key: string;
+  provider: string;
+  animeId: string;
+  slug: string;
+  title: string;
+  poster: string;
+  status?: WatchStatus;
+  rating?: number;
+  favorite: boolean;
+  listIds: string[];
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProgressEntry {
+  key: string;
+  provider: string;
+  animeId: string;
+  slug: string;
+  title: string;
+  poster: string;
+  episode: string;
+  episodeId: string;
+  episodeSlug: string;
+  positionSec: number;
+  durationSec: number;
+  percent: number;
+  completed: boolean;
+  updatedAt: number;
+}
+
+export interface HistoryEntry {
+  key: string;
+  provider: string;
+  animeId: string;
+  slug: string;
+  title: string;
+  poster: string;
+  episode: string;
+  episodeId: string;
+  episodeSlug: string;
+  watchedAt: number;
+}
+
+export interface CustomList {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ExportBundle {
+  app: 'nanime';
+  schema: number;
+  at: number;
+  entries: UserEntry[];
+  progress: ProgressEntry[];
+  history: HistoryEntry[];
+  lists: CustomList[];
+  searchHistory: string[];
+  seen: Record<string, number>;
+  settings: Partial<Config>;
+}
+
+export const EXPORT_SCHEMA_VERSION = 3;

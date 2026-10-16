@@ -11,6 +11,7 @@ import { setNotifier, startNotifyLoop, checkNewEpisodes, clearNewEpisodes } from
 import { initPWA } from './features/pwa';
 import { exportData } from './features/exportImport';
 import { homeRandom } from './views/home';
+import { isConfigured, initAuth, startSync, exchangeCode } from './sync';
 
 function buildCommands(): void {
   setCommands([
@@ -30,6 +31,79 @@ function buildCommands(): void {
 }
 
 let deferredInstall: any = null;
+
+/** Tangani kembali-redirect OAuth (?code=... atau #code=...) → tukar jadi sesi. */
+async function handleOAuthRedirect(): Promise<void> {
+  if (!isConfigured()) return;
+  let code: string | null = null;
+  try {
+    const u = new URL(location.href);
+    code = u.searchParams.get('code');
+    if (!code && u.hash) {
+      const hp = new URLSearchParams(u.hash.replace(/^#\/?/, ''));
+      code = hp.get('code');
+    }
+  } catch {
+    /* noop */
+  }
+  if (!code) return;
+  try {
+    history.replaceState(null, '', location.pathname + '#/home');
+  } catch {
+    /* noop */
+  }
+  const res = await exchangeCode(code);
+  if (res.ok) {
+    toast(res.message, 'ok', 'Masuk akun');
+    setTimeout(() => location.reload(), 800);
+  } else {
+    toast(res.message, 'err', 'Masuk gagal');
+  }
+}
+
+/** Pasang listener deep-link native (nanime://) untuk alur OAuth Android. */
+function bindNativeDeepLink(): void {
+  try {
+    const cap = (globalThis as any).Capacitor;
+    const App = (globalThis as any).NanimeAppPlugin || null;
+    // @capacitor/app diimpor dinamis agar build web tetap ringan & tanpa error.
+    void import('@capacitor/app')
+      .then(mod => {
+        const AppPlugin = mod.App;
+        void AppPlugin.addListener('appUrlOpen', async ({ url }: { url: string }) => {
+          let code: string | null = null;
+          try {
+            const u = new URL(url);
+            code = u.searchParams.get('code') || u.searchParams.get('code');
+            if (!code && u.hash) code = new URLSearchParams(u.hash.slice(1)).get('code');
+          } catch {
+            /* noop */
+          }
+          if (!code) return;
+          const res = await exchangeCode(code);
+          if (res.ok) {
+            toast(res.message, 'ok', 'Masuk akun');
+            try {
+              const Browser = await import('@capacitor/browser');
+              void Browser.Browser.close();
+            } catch {
+              /* noop */
+            }
+            setTimeout(() => location.reload(), 800);
+          } else {
+            toast(res.message, 'err', 'Masuk gagal');
+          }
+        });
+        void cap;
+        void App;
+      })
+      .catch(() => {
+        /* plugin tidak tersedia di web — abaikan */
+      });
+  } catch {
+    /* noop */
+  }
+}
 
 function captureInstallPrompt(): void {
   window.addEventListener('beforeinstallprompt', (e: any) => {
@@ -62,6 +136,13 @@ function boot(): void {
   captureInstallPrompt();
   initPWA();
   startNotifyLoop();
+
+  // Supabase: inisialisasi sesi, engine sinkronisasi, dan tangani redirect OAuth.
+  if (isConfigured()) {
+    void initAuth().then(() => startSync());
+    void handleOAuthRedirect();
+    bindNativeDeepLink();
+  }
 
   if (!location.hash) location.replace('#/home');
   render();

@@ -1,32 +1,29 @@
-import { PROVIDERS, TTL, isMovieSource } from './config';
-import { apiGet, ApiError } from './client';
-import type { ScrapeTask, Source } from './scraper';
-import {
-  normalizeCard,
-  normalizeKusonimeCard,
-  parseKusonimeDownloads
-} from './normalize';
+import { TTL } from './config';
+import { ApiError, apiGet, cached } from './client';
 import { Store } from './store';
+import { normalizeKusonimeCard } from './normalize';
 import { cleanVal, seriesSlug } from './utils';
+import { getProvider, markHealth, searchProviders, pickHealthy } from '../providers/registry';
+import { otakudesuBatchDownloads, otakudesuGenre, legacyResolveServer } from '../providers/legacy';
+import type { ScrapeTask } from './scraper';
 import type {
   Card,
   Detail,
   DownloadLink,
   ListResult,
+  ScheduleGroup,
   ScheduleItem,
   SearchResult,
   Stream
 } from './types';
 
-const j = encodeURIComponent;
-const task = (provider: string, action: ScrapeTask['action'], extra: Partial<ScrapeTask> = {}): ScrapeTask => ({
-  provider: provider as Source, action, ...extra
-});
+export type { ScheduleGroup } from './types';
 
-export interface ScheduleGroup {
-  day: string;
-  items: ScheduleItem[];
-}
+const task = (provider: string, action: ScrapeTask['action'], extra: Partial<ScrapeTask> = {}): ScrapeTask => ({
+  provider: provider as ScrapeTask['provider'],
+  action,
+  ...extra
+});
 
 const DAY_KEYS = [
   ['minggu', 'sunday', 'sun'],
@@ -46,53 +43,31 @@ export function dayIndex(raw: string): number {
   return -1;
 }
 
-function toDownloads(formatList: any): DownloadLink[] {
-  const out: DownloadLink[] = [];
-  const pushGroup = (quality: string, list: any) => {
-    if (!Array.isArray(list)) return;
-    list.forEach((q: any) => {
-      const urls = Array.isArray(q?.urlList) ? q.urlList : [];
-      urls.forEach((u: any) => {
-        const url = cleanVal(u?.url);
-        if (!/^https?:\/\//i.test(url)) return;
-        out.push({
-          quality: cleanVal(quality) || cleanVal(q?.title) || 'Unknown',
-          name: cleanVal(u?.title) || cleanVal(q?.title) || 'Link',
-          url
-        });
-      });
-    });
-  };
-  if (Array.isArray(formatList)) {
-    formatList.forEach((f: any) => pushGroup(f?.title, f?.qualityList));
-  }
-  return out;
+/** Samakan galat provider menjadi ApiError yang dipahami view (pertahankan code/status). */
+function wrapErr(e: any): any {
+  if (e instanceof ApiError) return e;
+  const status = e?.code === 'notfound' ? 404 : e?.status;
+  const err = new ApiError(e?.message || 'Gagal mengambil data provider.', status);
+  if (e?.code) (err as any).code = e.code;
+  return err;
 }
 
 export const API = {
   async home(): Promise<{ ongoing: Card[]; completed: Card[]; movie: Card[] }> {
     const preferred = Store.getProvider();
-    const order = [preferred, ...['otakudesu', 'oploverz', 'kuramanime'].filter(id => id !== preferred)];
     const failures: string[] = [];
-    for (const provider of order) {
+    for (const p of pickHealthy(preferred)) {
       try {
-        const r = await apiGet(task(provider, 'home'), 20000, 'home:' + provider, TTL.home);
-        let ongoing: Card[] = [], completed: Card[] = [], movie: Card[] = [];
-        if (provider === 'otakudesu') {
-          ongoing = (r?.data?.ongoing?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
-          completed = (r?.data?.completed?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
-        } else if (provider === 'oploverz') {
-          ongoing = (r?.data?.popularToday?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
-          completed = (r?.data?.latestRelease?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
-        } else {
-          ongoing = (r?.data?.ongoing?.episodeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
-          completed = (r?.data?.completed?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
-          movie = (r?.data?.movie?.animeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean);
+        const r = await cached('home:' + p.id, TTL.home, () => p.home());
+        if (r.ongoing.length || r.completed.length || r.movie.length) {
+          markHealth(p.id, true);
+          return r;
         }
-        if (ongoing.length || completed.length || movie.length) return { ongoing, completed, movie };
-        failures.push(provider + ': halaman tidak berisi daftar anime');
+        failures.push(p.id + ': halaman tidak berisi daftar anime');
+        markHealth(p.id, false, 'halaman tidak berisi daftar anime');
       } catch (e: any) {
-        failures.push(provider + ': ' + (e?.message || 'gagal'));
+        failures.push(p.id + ': ' + (e?.message || 'gagal'));
+        markHealth(p.id, false, e?.message || 'gagal');
       }
     }
     throw new ApiError('Semua sumber gagal dimuat. ' + failures.join(' · '));
@@ -101,39 +76,19 @@ export const API = {
   async search(query: string): Promise<SearchResult> {
     if (!query || query.trim().length < 2) return { items: [], sources: [] };
     const preferred = Store.getProvider();
-    const ids = Object.keys(PROVIDERS).filter(
-      id => PROVIDERS[id].active && PROVIDERS[id].search && !isMovieSource(id)
-    );
-    ids.sort((a, b) => (a === preferred ? -1 : b === preferred ? 1 : 0));
-
-    const jobs: { id: string; run: () => Promise<Card[]> }[] = ids.map(id => ({
-      id,
-      run: async () => {
-        const r = await apiGet(task(id, 'search', { query }), 20000, 'search:' + id + ':' + query, TTL.search);
-        return (r?.data?.animeList || []).map((i: any) => normalizeCard(i, id)).filter(Boolean);
-      }
-    }));
-
-    const movieSrc = PROVIDERS.kusonime;
-    if (movieSrc && movieSrc.active && movieSrc.search) {
-      jobs.push({
-        id: 'kusonime',
-        run: async () => {
-          const r = await apiGet(task('kusonime', 'search', { query }), 20000, 'search:kusonime:' + query, TTL.search);
-          return (r?.data?.listAnime || []).map((i: any) => normalizeKusonimeCard(i)).filter(Boolean);
-        }
-      });
-    }
+    const providers = searchProviders(preferred);
 
     const sources = await Promise.all(
-      jobs.map(async job => {
+      providers.map(async p => {
         try {
-          const list = await job.run();
-          return { id: job.id, ok: true, count: list.length, items: list };
+          const list = await cached('search:' + p.id + ':' + query, TTL.search, () => p.search(query));
+          markHealth(p.id, true);
+          return { id: p.id, ok: true, count: list.length, items: list };
         } catch (e: any) {
-          if (e?.status === 404) return { id: job.id, ok: true, count: 0, items: [] };
-          console.warn('Search failed:', job.id, e);
-          return { id: job.id, ok: false, count: 0, items: [], error: e?.message || 'Gagal' };
+          if (e?.status === 404 || e?.code === 'notfound') return { id: p.id, ok: true, count: 0, items: [] };
+          console.warn('Search failed:', p.id, e);
+          markHealth(p.id, false, e?.message);
+          return { id: p.id, ok: false, count: 0, items: [], error: e?.message || 'Gagal' };
         }
       })
     );
@@ -158,12 +113,7 @@ export const API = {
   async movies(): Promise<{ items: Card[]; error: string }> {
     try {
       const page = (n: number) =>
-        apiGet(
-          task('kusonime', 'movies', { page: n }),
-          20000,
-          'movie:season:' + n,
-          TTL.home
-        );
+        apiGet(task('kusonime', 'movies', { page: n }), 20000, 'movie:season:' + n, TTL.home);
       const results = await Promise.all(
         [1, 2].map(n => page(n).catch(e => { console.warn('Movie page failed:', n, e); return null; }))
       );
@@ -189,199 +139,53 @@ export const API = {
   },
 
   async detail(provider: string, id: string, slug = ''): Promise<Detail> {
-    if (provider === 'kusonime') {
-      const s = String(slug || id || '').replace(/^\/+|\/+$/g, '');
-      if (!s) throw new ApiError('Film tidak ditemukan.', 404);
-      const r = await apiGet(task('kusonime', 'detail', { id: s, slug: s }), 20000, 'detail:kusonime:' + s, TTL.detail);
-      const d = r?.data;
-      if (!d || !cleanVal(d.title)) throw new ApiError('Film tidak ditemukan.', 404);
-      const isMovie = /^movie$/i.test(cleanVal(d.type));
-      return {
-        id: s,
-        slug: '',
-        provider,
-        title: cleanVal(d.title) || 'Unknown',
-        alt: cleanVal(d.japanese),
-        poster: d.thumbnail || '',
-        score: cleanVal(d.score),
-        type: cleanVal(d.type),
-        status: cleanVal(d.status),
-        year: cleanVal(d.released_on),
-        episodes: isMovie ? '' : cleanVal(d.total_episode),
-        duration: cleanVal(d.duration),
-        studio: cleanVal(d.producers),
-        genres: String(d.genre || '').split(',').map(x => ({ t: cleanVal(x), id: '' })).filter(g => g.t),
-        synopsis: cleanVal(d.sinopsis) || 'Sinopsis tidak tersedia.',
-        downloads: parseKusonimeDownloads(d.list_download),
-        episodeList: [],
-        recommendations: []
-      };
+    const p = getProvider(provider);
+    if (!p) throw new ApiError('Provider tidak tersedia.');
+    try {
+      const d = await cached('detail:' + provider + ':' + id, TTL.detail, () => p.detail(id, slug));
+      markHealth(provider, true);
+      return d;
+    } catch (e: any) {
+      markHealth(provider, false, e?.message);
+      throw wrapErr(e);
     }
-
-    if (!['otakudesu', 'oploverz', 'kuramanime'].includes(provider)) throw new ApiError('Provider tidak tersedia.');
-    const r = await apiGet(task(provider, 'detail', { id, slug }), 20000, 'detail:' + provider + ':' + id, TTL.detail);
-    const data = r?.data?.details;
-    if (!data) throw new ApiError('Detail anime tidak ditemukan.', 404);
-
-    if (provider === 'otakudesu') {
-      const epList = (data.episodeList || []).map((i: any) => ({ num: cleanVal(i.num) || cleanVal(i.title), id: i.episodeId, slug: '', date: cleanVal(i.date) }));
-      /* Di series ongoing, "Total Episode" berisi "?" — ganti dengan jumlah episode yang terdaftar. */
-      const epsRaw = cleanVal(data.episodes);
-      return {
-        id, slug: '', provider,
-        title: cleanVal(data.title) || 'Unknown',
-        alt: cleanVal(data.japanese),
-        poster: data.poster || '',
-        score: cleanVal(data.score),
-        type: cleanVal(data.type),
-        status: cleanVal(data.status),
-        year: cleanVal(data.aired),
-        episodes: /^\d+$/.test(epsRaw) ? epsRaw : epList.length ? String(epList.length) : '',
-        duration: cleanVal(data.duration),
-        studio: cleanVal(data.studios),
-        genres: (data.genreList || []).map((i: any) => ({ t: cleanVal(i.title), id: i.genreId || '' })).filter((g: any) => g.t),
-        synopsis: (data.synopsis?.paragraphList || []).join('\n\n') || 'Sinopsis tidak tersedia.',
-        downloads: [],
-        batchId: cleanVal(data.batch?.batchId) || '',
-        episodeList: (data.episodeList || []).map((i: any) => ({ num: cleanVal(i.num) || cleanVal(i.title), id: i.episodeId, slug: '', date: cleanVal(i.date) })),
-        recommendations: (data.recommendedAnimeList || []).map((i: any) => normalizeCard(i, provider)).filter(Boolean)
-      };
-    }
-
-    if (provider === 'oploverz') {
-      return {
-        id, slug: id, provider,
-        title: cleanVal(data.title) || 'Unknown',
-        alt: '',
-        poster: data.poster || '',
-        score: cleanVal(data.rating),
-        type: cleanVal(data.type),
-        status: cleanVal(data.status),
-        year: cleanVal(data.releasedOn),
-        episodes: (data.episodeList || []).length ? String((data.episodeList || []).length) : '',
-        duration: cleanVal(data.duration),
-        studio: cleanVal(data.studio),
-        genres: (Array.isArray(data.genres) ? data.genres : []).map((g: any) => ({ t: cleanVal(g), id: '' })).filter((g: any) => g.t),
-        synopsis: (data.synopsis?.paragraphList || []).join('\n\n') || 'Sinopsis tidak tersedia.',
-        downloads: [],
-        episodeList: (data.episodeList || []).map((i: any) => {
-          const href = i.href || '';
-          const s = href.split('/').filter(Boolean).pop() || '';
-          return { num: i.episode, id: href, slug: s, date: i.date || '' };
-        }),
-        recommendations: []
-      };
-    }
-
-    const first = parseInt(data.episode && data.episode.first, 10);
-    const last = parseInt(data.episode && data.episode.last, 10);
-    const epList: { num: string; id: string; slug: string; date: string }[] = [];
-    if (first > 0 && last >= first) {
-      for (let n = first; n <= last; n++) epList.push({ num: String(n), id: String(n), slug: '', date: '' });
-    }
-    return {
-      id: data.animeId || id,
-      slug: data.animeSlug || slug,
-      provider,
-      title: cleanVal(data.title) || 'Unknown',
-      alt: cleanVal(data.alternativeTitle),
-      poster: data.poster || '',
-      score: cleanVal(data.score),
-      type: cleanVal(data.type && data.type.title),
-      status: cleanVal(data.status && data.status.title),
-      year: cleanVal(data.aired),
-      episodes: cleanVal(data.episodes) || (epList.length ? String(last) : ''),
-      duration: cleanVal(data.duration),
-      studio: cleanVal(Array.isArray(data.studioList) ? data.studioList.map((x: any) => x.title).join(', ') : ''),
-      genres: (data.genreList || []).map((x: any) => ({ t: cleanVal(x.title), id: '' })).filter((g: any) => g.t),
-      synopsis: (data.synopsis?.paragraphList || []).join('\n\n') || 'Sinopsis tidak tersedia.',
-      downloads: [],
-      episodeList: epList,
-      recommendations: (data.similarAnimeList || []).map((i: any) => normalizeCard(i, 'kuramanime')).filter(Boolean)
-    };
   },
 
   async episode(
     provider: string,
     params: { episodeId: string; episodeSlug?: string; episode?: string; animeId?: string; animeSlug?: string }
   ): Promise<Stream & { downloads: DownloadLink[]; info: any }> {
-    if (provider === 'kusonime') {
-      const err = new ApiError(
-        'Sumber film ini (Kusonime) tidak memiliki endpoint streaming — hanya link download file hosting. Gunakan tombol "Tonton Film" di halaman detail untuk memeriksa sumber lain.'
-      );
-      (err as any).code = 'no-stream';
-      throw err;
-    } else if (!['otakudesu', 'oploverz', 'kuramanime'].includes(provider)) throw new ApiError('Provider tidak tersedia.');
-    const r = await apiGet(task(provider, 'episode', { id: params.episodeId, slug: params.episodeSlug, animeId: params.animeId, animeSlug: params.animeSlug, episodeId: params.episodeId }), 20000, 'episode:' + provider + ':' + params.episodeId, TTL.episode);
-    const details = r?.data?.details;
-    if (!details) throw new ApiError('Data episode tidak ditemukan.', 404);
-
-    const downloads = toDownloads(details.download?.qualityList);
-    const info = details.info || {};
-
-    if (provider === 'otakudesu' || provider === 'oploverz') {
-      const qualities: { title: string; servers: { name: string; id: string; def: boolean }[] }[] = (details.server?.qualityList || []).map((q: any) => ({
-        title: String(q.title || '').trim(),
-        servers: (q.serverList || []).map((s: any) => ({ name: String(s.title || '').trim(), id: s.serverId, def: !!s.default }))
-      }));
-      const allServers: { name: string; id: string; quality: string; def: boolean }[] = [];
-      qualities.forEach(q => q.servers.forEach(s => allServers.push({ ...s, quality: q.title })));
-      return {
-        provider,
-        title: details.title || 'Episode ' + (params.episode || ''),
-        playerUrl: provider === 'otakudesu' ? details.defaultStreamingUrl || '' : details.streamingUrl || '',
-        qualities,
-        servers: allServers,
-        downloads,
-        info
-      };
+    const p = getProvider(provider);
+    if (!p) throw new ApiError('Provider tidak tersedia.');
+    try {
+      const s = await cached('episode:' + provider + ':' + params.episodeId, TTL.episode, () => p.stream(params));
+      markHealth(provider, true);
+      return s;
+    } catch (e: any) {
+      markHealth(provider, false, e?.message);
+      throw wrapErr(e);
     }
-
-    const qlist: any[] = Array.isArray(details.server?.qualityList) ? details.server.qualityList : [];
-    const qualities: { title: string; servers: { name: string; id: string }[] }[] = qlist.map((q: any) => ({
-      title: String(q.title || '').trim(),
-      servers: (q.serverList || []).map((s: any) => ({ name: s.title, id: s.serverId }))
-    }));
-    const allServers: { name: string; id: string; quality: string }[] = [];
-    qualities.forEach(q => q.servers.forEach(s => allServers.push({ ...s, quality: q.title })));
-    return {
-      provider,
-      title: details.episodeTitle || details.title || 'Episode ' + (params.episode || ''),
-      playerUrl: '',
-      qualities,
-      servers: allServers,
-      note: allServers.length
-        ? ''
-        : 'Provider ini tidak mengembalikan URL player maupun server streaming dari API.',
-      downloads,
-      info
-    };
   },
 
-  async resolveServer(serverId: string): Promise<string> {
+  /** Resolve server alternatif → URL embed; provider opsional agar hash baru (Anichin) terketahui asalnya. */
+  async resolveServer(serverId: string, provider?: string): Promise<string> {
     if (/^https?:\/\//i.test(serverId)) return serverId;
-    if (serverId.startsWith('oplz:')) {
-      try {
-        const decoded = atob(serverId.slice(5).replace(/-/g, '+').replace(/_/g, '/'));
-        const doc = new DOMParser().parseFromString(decoded, 'text/html');
-        return doc.querySelector('iframe')?.getAttribute('src') || '';
-      } catch {
-        throw new Error('Token server Oploverz tidak valid.');
-      }
-    }
-    const r = await apiGet(task('otakudesu', 'server', { id: serverId }), 20000, 'server:' + serverId, TTL.episode);
-    return r?.data?.details?.url || '';
+    if (serverId.startsWith('oplz:')) return legacyResolveServer(serverId);
+    const p = provider ? getProvider(provider) : null;
+    if (p && p.resolveServer) return p.resolveServer(serverId);
+    if (!provider || provider === 'otakudesu' || provider === 'oploverz') return legacyResolveServer(serverId);
+    throw new ApiError('Provider tidak mendukung pemilihan server.');
   },
 
   async batchDownloads(batchId: string): Promise<DownloadLink[]> {
-    const r = await apiGet(task('otakudesu', 'batch', { id: batchId }), 20000, 'batch:' + batchId, TTL.detail);
-    return toDownloads(r?.data?.details?.download?.formatList);
+    return otakudesuBatchDownloads(batchId);
   },
 
   async genres(): Promise<{ genreId: string; title: string }[]> {
+    const p = getProvider('otakudesu');
+    if (!p || !p.genres) return [];
     try {
-      const r = await apiGet(task('otakudesu', 'genres'), 20000, 'genres', TTL.genre);
-      return r?.data?.genreList || [];
+      return await p.genres();
     } catch {
       return [];
     }
@@ -389,98 +193,38 @@ export const API = {
 
   async ongoing(page = 1): Promise<ListResult> {
     const provider = Store.getProvider();
+    const p = getProvider(provider);
+    if (!p || !p.ongoing) return { list: [], pagination: null };
     try {
-      if (provider === 'otakudesu') {
-        const r = await apiGet(task('otakudesu', 'ongoing', { page }), 20000, 'ongoing:otakudesu:' + page, TTL.home);
-        return {
-          list: (r?.data?.animeList || []).map((i: any) => normalizeCard(i, 'otakudesu')).filter(Boolean),
-          pagination: r?.pagination || null
-        };
-      }
-      if (provider === 'oploverz') {
-        const r = await apiGet(task('oploverz', 'ongoing', { page }), 20000, 'ongoing:oploverz:' + page, TTL.home);
-        const sections = r?.data?.sectionList || [];
-        const list: Card[] = [];
-        sections.forEach((s: any) =>
-          (s.animeList || []).forEach((i: any) => {
-            const c = normalizeCard(i, 'oploverz');
-            if (c) list.push(c);
-          })
-        );
-        return { list, pagination: r?.pagination || null, catalog: true };
-      }
-      if (provider === 'kuramanime') {
-        const r = await apiGet(
-          task('kuramanime', 'ongoing', { page }),
-          20000,
-          'ongoing:kuramanime:' + page,
-          TTL.home
-        );
-        return {
-          list: (r?.data?.episodeList || []).map((i: any) => normalizeCard(i, 'kuramanime')).filter(Boolean),
-          pagination: r?.pagination || null
-        };
-      }
+      const r = await cached('ongoing:' + provider + ':' + page, TTL.home, () => p.ongoing!(page));
+      return r;
     } catch (e) {
       console.warn('ongoing failed', e);
+      return { list: [], pagination: null };
     }
-    return { list: [], pagination: null };
   },
 
   async completed(page = 1): Promise<ListResult> {
     const provider = Store.getProvider();
+    const p = getProvider(provider);
+    if (!p || !p.completed) return { list: [], pagination: null };
     try {
-      if (provider === 'otakudesu') {
-        const r = await apiGet(task('otakudesu', 'completed', { page }), 20000, 'completed:otakudesu:' + page, TTL.home);
-        return {
-          list: (r?.data?.animeList || []).map((i: any) => normalizeCard(i, 'otakudesu')).filter(Boolean),
-          pagination: r?.pagination || null
-        };
-      }
-      if (provider === 'oploverz') {
-        const r = await apiGet(
-          task('oploverz', 'completed', { page }),
-          20000,
-          'completed:oploverz:' + page,
-          TTL.home
-        );
-        return {
-          list: (r?.data?.animeList || []).map((i: any) => normalizeCard(i, 'oploverz')).filter(Boolean),
-          pagination: r?.pagination || null
-        };
-      }
-      if (provider === 'kuramanime') {
-        const r = await apiGet(
-          task('kuramanime', 'completed', { page }),
-          20000,
-          'completed:kuramanime:' + page,
-          TTL.home
-        );
-        return {
-          list: (r?.data?.animeList || []).map((i: any) => normalizeCard(i, 'kuramanime')).filter(Boolean),
-          pagination: r?.pagination || null
-        };
-      }
+      return await cached('completed:' + provider + ':' + page, TTL.home, () => p.completed!(page));
     } catch (e) {
       console.warn('completed failed', e);
+      return { list: [], pagination: null };
     }
-    return { list: [], pagination: null };
   },
 
   async genre(genreId: string, page = 1): Promise<ListResult> {
-    const r = await apiGet(
-      task('otakudesu', 'genre', { id: genreId, page }),
-      20000,
-      'genre:' + genreId + ':' + page,
-      TTL.genre
-    );
-    return {
-      list: (r?.data?.animeList || []).map((i: any) => normalizeCard(i, 'otakudesu')).filter(Boolean),
-      pagination: r?.pagination || null
-    };
+    try {
+      return await cached('genre:' + genreId + ':' + page, TTL.genre, () => otakudesuGenre(genreId, page));
+    } catch (e: any) {
+      throw wrapErr(e);
+    }
   },
 
-  /** Jadwal rilis gabungan (Otakudesu + Oploverz + Kuramanime). */
+  /** Jadwal rilis gabungan dari seluruh provider yang mendukung. */
   async schedule(): Promise<ScheduleGroup[]> {
     const groups: Record<number, ScheduleItem[]> = {};
     const push = (idx: number, item: ScheduleItem) => {
@@ -488,64 +232,15 @@ export const API = {
       (groups[idx] = groups[idx] || []).push(item);
     };
 
-    const provider = Store.getProvider();
-
     const jobs: Promise<void>[] = [];
-
-    jobs.push(
-      apiGet(task('otakudesu', 'schedule'), 25000, 'sched:otakudesu', TTL.schedule)
-        .then((r: any) => {
-          (r?.data?.scheduleList || []).forEach((day: any) => {
-            const idx = dayIndex(day?.title);
-            (day?.animeList || []).forEach((a: any) =>
-              push(idx, {
-                time: '',
-                title: cleanVal(a?.title),
-                id: String(a?.animeId || ''),
-                provider: 'otakudesu'
-              })
-            );
-          });
-        })
-        .catch((e: any) => console.warn('schedule otakudesu', e))
-    );
-
-    jobs.push(
-      apiGet(task('oploverz', 'schedule'), 25000, 'sched:oploverz', TTL.schedule)
-        .then((r: any) => {
-          (r?.data?.scheduleList || []).forEach((day: any) => {
-            const idx = dayIndex(day?.day || day?.title);
-            (day?.animeList || []).forEach((a: any) =>
-              push(idx, {
-                time: '',
-                episode: cleanVal(a?.episode),
-                title: cleanVal(a?.title),
-                id: cleanVal(a?.slug) || seriesSlug(a?.title),
-                provider: 'oploverz',
-                poster: a?.poster || ''
-              })
-            );
-          });
-        })
-        .catch((e: any) => console.warn('schedule oploverz', e))
-    );
-
-    if (provider === 'kuramanime') {
+    for (const p of [getProvider('otakudesu'), getProvider('oploverz')]) {
+      if (!p || !p.schedule) continue;
       jobs.push(
-        apiGet(task('kuramanime', 'schedule', { day: 'all' }), 25000, 'sched:kuramanime', TTL.schedule)
-          .then((r: any) => {
-            (r?.data?.animeList || []).forEach((a: any) =>
-              push(dayIndex(a?.day), {
-                time: cleanVal(a?.releaseTime),
-                title: cleanVal(a?.title),
-                id: String(a?.animeId || ''),
-                slug: cleanVal(a?.animeSlug),
-                provider: 'kuramanime',
-                poster: a?.poster || ''
-              })
-            );
-          })
-          .catch((e: any) => console.warn('schedule kuramanime', e))
+        cached('sched:' + p.id, TTL.schedule, () => p.schedule!())
+          .then(days =>
+            days.forEach(d => d.items.forEach(item => push(dayIndex(d.day), item)))
+          )
+          .catch((e: any) => console.warn('schedule ' + p.id, e))
       );
     }
 
@@ -560,3 +255,6 @@ export const API = {
     return out;
   }
 };
+
+/* Re-export util lama yang dipakai view. */
+export { cleanVal, seriesSlug };

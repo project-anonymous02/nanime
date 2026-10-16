@@ -73,6 +73,28 @@ export async function apiGet(
   return job;
 }
 
+/**
+ * Cache + in-flight dedup untuk fungsi provider baru (tanpa ScrapeTask).
+ * Galat tidak pernah di-cache; hanya hasil sukses yang disimpan.
+ */
+export async function cached<T>(cacheKey: string, ttl: number, fn: () => Promise<T>): Promise<T> {
+  const c = CACHE.get(cacheKey);
+  if (c && Date.now() - c.ts < ttl) return c.data as T;
+  const infl = INFLIGHT.get(cacheKey);
+  if (infl) return infl as Promise<T>;
+  const job = (async () => {
+    const data = await fn();
+    CACHE.set(cacheKey, { data, ts: Date.now() });
+    return data;
+  })();
+  INFLIGHT.set(cacheKey, job);
+  job.then(
+    () => INFLIGHT.delete(cacheKey),
+    () => INFLIGHT.delete(cacheKey)
+  );
+  return job;
+}
+
 export function progress(onOff: boolean, pct?: number): void {
   const g = document.getElementById('topgrad');
   if (!g) return;

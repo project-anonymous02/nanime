@@ -13,6 +13,11 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false
   },
+  server: {
+    // Skema khusus untuk deep-link OAuth (nanime://auth-callback).
+    // Disuntik ke AndroidManifest oleh scripts/setup-android-deeplink.sh saat CI.
+    androidScheme: 'nanime'
+  },
   plugins: {
     CapacitorHttp: {
       enabled: true

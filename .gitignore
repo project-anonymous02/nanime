@@ -12,3 +12,17 @@ release/
 
 # Clone referensi API (bukan bagian build)
 apis/
+
+# Firebase config — JANGAN di-commit, JANGAN di-push.
+# Isi asli disimpan lokal di secrets/google-services.json (di-gitignore).
+# Di CI diambil dari GitHub Secret ANDROID_GOOGLE_SERVICES_JSON (base64).
+secrets/
+google-services.json
+*.keystore
+*.jks
+
+# Environment lokal (berisi URL & publishable key Supabase — bukan secret
+# global, tetapi tetap jangan di-commit agar konfigurasi tidak bocor).
+.env
+.env.*
+!.env.example

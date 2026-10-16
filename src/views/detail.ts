@@ -9,7 +9,9 @@ import { cardHTML, downloadGroupsHTML, footerHTML, stateHTML } from '../ui/compo
 import { toast } from '../ui/toast';
 import { go, watchHref, type ParsedRoute } from '../core/router';
 import { resolveMovieSource } from '../core/movies';
-import type { Detail, DownloadLink, EpisodeItem } from '../core/types';
+import { fetchMeta, resolveMeta } from '../metadata';
+import type { MatchResult } from '../metadata';
+import type { AnimeMeta, Detail, DownloadLink, EpisodeItem } from '../core/types';
 
 const host = () => document.getElementById('view') as HTMLElement;
 
@@ -121,6 +123,130 @@ export async function ViewDetail(r: ParsedRoute): Promise<void> {
   }
 }
 
+function searchHref(title: string): string {
+  return '#/search?q=' + encodeURIComponent(title);
+}
+
+function metaPanelHTML(meta: AnimeMeta, score: number): string {
+  const src = meta.source === 'kitsu' ? 'Kitsu' : 'AniList';
+  const pct = Math.round(score * 100);
+  const badge = score >= 0.999 ? 'Tautan cocok' : 'Cocok ' + pct + '%';
+  const stats =
+    (meta.score ? '<span class="stat">' + svg('star', '', 1.8) + ' <b>' + esc(String(meta.score)) + '</b></span>' : '') +
+    (meta.format ? '<span class="stat">' + svg('film', '', 1.9) + ' <b>' + esc(meta.format) + '</b></span>' : '') +
+    (meta.episodes ? '<span class="stat">' + svg('film', '', 1.9) + ' <b>' + esc(String(meta.episodes)) + '</b> Eps</span>' : '') +
+    (meta.seasonYear ? '<span class="stat">' + svg('cal', '', 1.9) + ' <b>' + esc(String(meta.seasonYear)) + '</b></span>' : '') +
+    (meta.duration ? '<span class="stat">' + svg('clock', '', 1.9) + ' <b>' + esc(String(meta.duration)) + 'm</b></span>' : '') +
+    (meta.studios.length ? '<span class="stat">' + svg('compass', '', 1.9) + ' <b>' + esc(meta.studios.map(s => s.name).join(', ')) + '</b></span>' : '');
+  const genres = meta.genres.length
+    ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' +
+      meta.genres.map(g => '<span class="chip">' + esc(g) + '</span>').join('') + '</div>'
+    : '';
+  const synopsis =
+    meta.synopsis && !(DetailState.det && DetailState.det.synopsis)
+      ? '<div class="syn clip" id="metaSyn" style="margin-top:12px">' + esc(meta.synopsis) + '</div>' +
+        (meta.synopsis.length > 340 ? '<button class="readmore" data-act="toggle-metasyn">Baca selengkapnya ' + svg('down', '', 2.4) + '</button>' : '')
+      : '';
+  const relations = meta.relations.length
+    ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' +
+      meta.relations.map(r =>
+        '<a class="chip" href="' + searchHref(r.title) + '" title="' + esc(r.relationType) + '">' +
+        esc(r.title) + (r.relationType && r.relationType !== 'SEQUEL' && r.relationType !== 'PREQUEL' ? '' : ' · ' + esc(r.relationType === 'SEQUEL' ? 'sequel' : 'prequel')) +
+        '</a>'
+      ).join('') + '</div>'
+    : '';
+  const chars = meta.characters.length
+    ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+      meta.characters.slice(0, 8).map(c =>
+        '<span class="chip">' + esc(c.name) + (c.role && c.role !== 'MAIN' ? ' <i style="opacity:.6;font-style:normal">· ' + esc(c.role.toLowerCase()) + '</i>' : '') + '</span>'
+      ).join('') + '</div>'
+    : '';
+  const recs = meta.recommendations.length
+    ? '<div class="grid wide" style="margin-top:14px">' +
+      meta.recommendations.slice(0, 8).map((r, i) =>
+        '<div class="rv-s" style="--d:' + ((i % 8) * 30) + 'ms"><a class="card g" href="' + searchHref(r.title) + '" aria-label="' + esc(r.title) + '">' +
+        '<div class="poster"><span class="perr">' + svg('film', '', 1.7) + '</span>' +
+        '<img data-src="' + esc(r.cover || '') + '" alt="' + esc(r.title) + '" loading="lazy" onload="this.classList.add(\'ld\')" onerror="this.style.display=\'none\'">' +
+        '<div class="veil"></div><span class="badge">Katalog</span>' +
+        (r.score ? '<span class="badge score">' + svg('star', '', 1.8) + ' ' + esc(String(r.score)) + '</span>' : '') + '</div>' +
+        '<div class="body"><div class="nm">' + esc(r.title) + '</div>' +
+        '<div class="meta">' + [r.format, r.year ? String(r.year) : ''].filter(Boolean).map(esc).join('<i></i>') + '</div></div></a></div>'
+      ).join('') + '</div>'
+    : '';
+
+  return (
+    '<section class="panel rv" id="metaPanel"><h3>' + svg('info', '', 2) + ' Info Katalog ' +
+    '<span class="badge" style="position:static;vertical-align:middle;margin-left:6px">' + esc(src) + ' · ' + esc(badge) + '</span></h3>' +
+    '<div class="stats">' + (stats || '') + '</div>' +
+    genres + synopsis + (relations
+      ? '<div style="margin-top:14px;font-size:12.4px;color:var(--dim)">Terkait</div>' + relations
+      : '') +
+    (chars
+      ? '<div style="margin-top:12px;font-size:12.4px;color:var(--dim)">Karakter utama</div>' + chars
+      : '') +
+    (recs
+      ? '<div style="margin-top:14px;font-size:12.4px;color:var(--dim)">Rekomendasi serupa</div>' + recs
+      : '') +
+    '</section>'
+  );
+}
+
+function metaSuggestHTML(res: MatchResult): string {
+  return (
+    '<section class="panel rv" id="metaPanel"><h3>' + svg('info', '', 2) + ' Info Katalog</h3>' +
+    '<p style="font-size:13px;line-height:1.6;color:var(--mut);margin:4px 0 12px">Kecocokan judul dengan katalog ' +
+    '<b>' + esc(res.meta.title) + '</b> terbatas (skor ' + Math.round(res.score * 100) + '%), jadi tidak digabung otomatis. ' +
+    'Kamu boleh menggabungkannya secara manual.</p>' +
+    '<button class="btn ghost sm" data-act="meta-confirm" data-id="' + esc(String(res.meta.id)) +
+    '" data-source="' + esc(res.meta.source) + '">' + svg('layers', '', 2) + ' Gabungkan info katalog</button>' +
+    '</section>'
+  );
+}
+
+/** Isi slot #metaSlot dengan metadata AniList/Kitsu (tanpa memperlambat render detail). */
+async function enrichDetail(): Promise<void> {
+  const slot = document.getElementById('metaSlot');
+  const det = DetailState.det;
+  if (!slot || !det || !det.title || slot.dataset.busy === '1') return;
+  slot.dataset.busy = '1';
+  const confirmed = slot.dataset.confirmed === '1';
+  try {
+    const res = await resolveMeta(det.title);
+    if (!slot.isConnected) return;
+    if (!res) {
+      slot.innerHTML = '';
+      slot.dataset.busy = '';
+      return;
+    }
+    if (!res.auto && !confirmed) {
+      slot.innerHTML = metaSuggestHTML(res);
+      slot.dataset.busy = '';
+      initView(slot);
+      const btn = slot.querySelector<HTMLButtonElement>('[data-act="meta-confirm"]');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          slot.dataset.confirmed = '1';
+          slot.innerHTML = '<section class="panel"><div style="display:flex;gap:10px;align-items:center;color:var(--mut);font-size:13px">' +
+            svg('refresh', '', 2) + ' Mengambil info katalog…</div></section>';
+          void enrichDetail();
+        });
+      }
+      return;
+    }
+    const meta = await fetchMeta(res.meta.id, res.meta.source);
+    if (!slot.isConnected) return;
+    slot.innerHTML = metaPanelHTML(meta, res.score);
+    slot.dataset.busy = '';
+    initView(slot);
+  } catch (e) {
+    console.warn('Metadata katalog gagal dimuat:', e);
+    if (slot.isConnected) {
+      slot.innerHTML = '';
+      slot.dataset.busy = '';
+    }
+  }
+}
+
 export function renderDetail(anime: Detail): void {
   DetailState.det = anime;
   const EP = anime.episodeList || [];
@@ -203,6 +329,7 @@ export function renderDetail(anime: Detail): void {
     personalPanel(anime.id) +
     downloadPanel(anime.downloads || [], anime.batchId) +
     genreSec +
+    '<div id="metaSlot" data-busy=""></div>' +
     '<section class="panel rv" id="epPanel"><h3>' + svg('film', '', 2) + ' Daftar Episode <span style="font-size:11.5px;color:var(--dim);font-weight:500">· ' +
       EP.length + ' entri</span></h3>' +
     (EP.length
@@ -232,6 +359,8 @@ export function renderDetail(anime: Detail): void {
       if (ep) go('/watch/' + encodeURIComponent(anime.id) + '/' + encodeURIComponent(ep.num) + '?provider=' + encodeURIComponent(anime.provider) + '&eid=' + encodeURIComponent(ep.id) + '&eslug=' + encodeURIComponent(ep.slug || ''));
     });
   });
+
+  void enrichDetail();
 }
 
 export async function watchMovieFlow(): Promise<void> {

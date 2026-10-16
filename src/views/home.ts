@@ -8,6 +8,7 @@ import { svg } from '../core/icons';
 import { initView } from '../ui/dom';
 import { dropRailArrows, footerHTML, railItems, secHead, skCards, stateHTML } from '../ui/components';
 import { toast } from '../ui/toast';
+import { trendingMeta } from '../metadata';
 
 export const view = () => document.getElementById('view') as HTMLElement;
 
@@ -124,6 +125,8 @@ export async function ViewHome(_r: ParsedRoute): Promise<void> {
     '<figure class="dash"><video id="dashVideo" src="dashboard.mp4" autoplay loop muted playsinline preload="auto" disablepictureinpicture disableremoteplayback tabindex="-1" aria-hidden="true" draggable="false"></video></figure>' +
     '</div></section>' +
     continueHTML() +
+    '<section class="sec" id="secTrend">' + secHead('Trending Global', 'Anime populer minggu ini (AniList)', 'railTrend') +
+      '<div class="rail" data-railwrap="wt"><div class="rail-track" id="railTrend">' + skCards(8) + '</div></div></section>' +
     '<section class="sec" id="secOngoing">' + secHead(cp.a[0], cp.a[1], 'railOngoing', '#/explore') +
       '<div class="rail" data-railwrap="w1"><div class="rail-track" id="railOngoing">' + skCards(10) + '</div></div></section>' +
     '<section class="sec" id="secGenre">' + secHead('Jelajah Genre', 'Ketuk untuk menyaring katalog') +
@@ -138,6 +141,8 @@ export async function ViewHome(_r: ParsedRoute): Promise<void> {
     footerHTML() + '</div>';
 
   initDashVideo();
+
+  loadTrendingRail();
 
   try {
     progress(true, 20);
@@ -199,6 +204,44 @@ export async function ViewHome(_r: ParsedRoute): Promise<void> {
       );
     }
     dropRailArrows('#secOngoing');
+  }
+}
+
+async function loadTrendingRail(): Promise<void> {
+  try {
+    const list = await trendingMeta(12);
+    const sec = document.getElementById('secTrend');
+    const rail = document.getElementById('railTrend');
+    if (!sec || !rail) return;
+    if (!list.length) {
+      sec.remove();
+      return;
+    }
+    rail.innerHTML = list
+      .map((m, i) => {
+        const search = '#/search?q=' + encodeURIComponent(m.title);
+        const metaBits = [m.format, m.year ? String(m.year) : ''].filter(Boolean);
+        return (
+          '<div class="rv-s" style="--d:' + ((i % 8) * 36) + 'ms"><a class="card" href="' + search + '" aria-label="' + esc(m.title) + '">' +
+          '<div class="poster">' +
+          '<span class="perr" aria-hidden="true">' + svg('film', '', 1.7) + '</span>' +
+          '<img data-src="' + esc(m.cover || '') + '" alt="' + esc(m.title) + '" loading="lazy" onload="this.classList.add(\'ld\')" onerror="this.style.display=\'none\'">' +
+          '<div class="veil"></div>' +
+          '<span class="badge">AniList</span>' +
+          (m.score ? '<span class="badge score">' + svg('star', '', 1.8) + ' ' + esc(String(m.score)) + '</span>' : '') +
+          '<div class="play-ov"><span class="cir">' + svg('play') + '</span></div>' +
+          '</div>' +
+          '<div class="body"><div class="nm">' + esc(m.title) + '</div>' +
+          '<div class="meta">' + metaBits.map(esc).join('<i></i>') + '</div></div></a></div>'
+        );
+      })
+      .join('');
+    dropRailArrows('#secTrend');
+    initView(sec);
+  } catch (e) {
+    console.warn('Trending metadata gagal:', e);
+    const sec = document.getElementById('secTrend');
+    if (sec) sec.remove();
   }
 }
 

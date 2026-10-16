@@ -67,6 +67,11 @@ export interface UserStatusMap {
   [id: string]: { status: 'ptw' | 'watching' | 'completed' | 'dropped'; rating: number; t: number };
 }
 
+/** Jenis koleksi data yang dapat berubah pada Store. */
+export type StoreCollection = 'favs' | 'hist' | 'cont' | 'meta' | 'cfg' | 'seen' | 'shist' | 'lists' | 'clear';
+
+type StoreListener = (c: StoreCollection) => void;
+
 class StoreImpl {
   favs: FavItem[] = LS.get<FavItem[]>('favs', []);
   hist: HistItem[] = LS.get<HistItem[]>('hist', []);
@@ -75,6 +80,24 @@ class StoreImpl {
   meta: UserStatusMap = LS.get<UserStatusMap>('meta', {});
   cfg: Config = this.readConfig();
   seen: Record<string, number> = LS.get<Record<string, number>>('seen', {});
+
+  private listeners = new Set<StoreListener>();
+
+  /** Daftarkan listener perubahan koleksi (dipakai SyncEngine untuk sinkronisasi). */
+  onChange(cb: StoreListener): () => void {
+    this.listeners.add(cb);
+    return () => this.listeners.delete(cb);
+  }
+
+  private emit(c: StoreCollection): void {
+    for (const cb of this.listeners) {
+      try {
+        cb(c);
+      } catch {
+        /* listener error tidak boleh merusak alur simpan */
+      }
+    }
+  }
 
   private readConfig(): Config {
     const saved = LS.get<Partial<Config> & { apiBase?: unknown }>('cfg', {});
@@ -96,11 +119,13 @@ class StoreImpl {
     if (i > -1) {
       this.favs.splice(i, 1);
       LS.set('favs', this.favs);
+      this.emit('favs');
       return false;
     }
     this.favs.unshift(Object.assign({ t: Date.now() }, a));
     if (this.favs.length > 220) this.favs.length = 220;
     LS.set('favs', this.favs);
+    this.emit('favs');
     return true;
   }
 
@@ -110,11 +135,13 @@ class StoreImpl {
     this.hist.unshift(Object.assign({ t: Date.now() }, o));
     if (this.hist.length > 60) this.hist.length = 60;
     LS.set('hist', this.hist);
+    this.emit('hist');
   }
 
   removeHist(id: string, provider?: string): void {
     this.hist = this.hist.filter(h => !(h.id === id && (h.provider || '') === (provider || '')));
     LS.set('hist', this.hist);
+    this.emit('hist');
   }
 
   addQ(q: string): void {
@@ -124,11 +151,13 @@ class StoreImpl {
     this.shist.unshift(q);
     if (this.shist.length > 10) this.shist.length = 10;
     LS.set('shist', this.shist);
+    this.emit('shist');
   }
 
   clearQ(): void {
     this.shist = [];
     LS.set('shist', []);
+    this.emit('shist');
   }
 
   /* ── lanjutkan menonton ── */
@@ -138,11 +167,13 @@ class StoreImpl {
     this.cont.unshift(Object.assign({ last: Date.now() }, o));
     if (this.cont.length > 30) this.cont.length = 30;
     LS.set('cont', this.cont);
+    this.emit('cont');
   }
 
   removeProgress(id: string, provider?: string): void {
     this.cont = this.cont.filter(c => !(c.id === id && (c.provider || '') === (provider || '')));
     LS.set('cont', this.cont);
+    this.emit('cont');
   }
 
   /* ── meta personal (status + rating) ── */
@@ -154,6 +185,7 @@ class StoreImpl {
       delete this.meta[keys[0]];
     }
     LS.set('meta', this.meta);
+    this.emit('meta');
   }
 
   /* ── penanda episode baru ── */
@@ -165,11 +197,13 @@ class StoreImpl {
   setSeen(key: string, n: number): void {
     this.seen[key] = n;
     LS.set('seen', this.seen);
+    this.emit('seen');
   }
 
   setCfg<K extends keyof Config>(k: K, v: Config[K]): void {
     (this.cfg as any)[k] = v;
     LS.set('cfg', this.cfg);
+    this.emit('cfg');
   }
 
   getProvider(): string {
@@ -185,6 +219,7 @@ class StoreImpl {
     this.cont = [];
     this.meta = {};
     this.seen = {};
+    this.emit('clear');
   }
 }
 

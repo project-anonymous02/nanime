@@ -64,7 +64,8 @@ function statusRows(): { n: string; v: number }[] {
   return Object.keys(labels).map(k => ({ n: labels[k], v: c[k] || 0 }));
 }
 
-export async function ViewStats(_r?: ParsedRoute): Promise<void> {
+/** Body statistik (tanpa header/footer) — dipakai juga oleh tab Library. */
+export function statsBodyHTML(): string {
   const hist = Store.hist;
   const cont = Store.cont;
   const totalSec = hist.reduce((a, h) => a + (h.dur || 1440), 0);
@@ -73,10 +74,7 @@ export async function ViewStats(_r?: ParsedRoute): Promise<void> {
     ? (rated.reduce((a, k) => a + Store.meta[k].rating, 0) / rated.length).toFixed(1)
     : '—';
 
-  host().innerHTML =
-    '<div class="shell" style="padding-top:22px">' +
-    '<div class="rv in" style="margin-bottom:18px"><h1 style="font-size:clamp(24px,5vw,32px);font-weight:760">Statistik</h1>' +
-    '<p style="margin:6px 0 0;color:var(--mut);font-size:13.4px">Ringkasan aktivitas menontonmu — semuanya tersimpan lokal di perangkat ini.</p></div>' +
+  return (
     (!hist.length && !Store.favs.length
       ? stateHTML('empty', 'Belum ada data', 'Mulai menonton atau menambah favorit, lalu kembali ke sini untuk melihat statistiknya.', '<a class="btn primary" href="#/home" style="margin-top:6px">' + svg('play', '', 2) + ' Mulai Menonton</a>')
       : '') +
@@ -124,7 +122,16 @@ export async function ViewStats(_r?: ParsedRoute): Promise<void> {
         '<button class="btn ghost sm" data-act="export-data">' + svg('download', '', 2) + ' Ekspor data</button>' +
         '<a class="btn ghost sm" href="#/history">' + svg('clock', '', 2) + ' Semua riwayat</a>' +
         '</div></section>'
-      : '') +
+      : '')
+  );
+}
+
+export async function ViewStats(_r?: ParsedRoute): Promise<void> {
+  host().innerHTML =
+    '<div class="shell" style="padding-top:22px">' +
+    '<div class="rv in" style="margin-bottom:18px"><h1 style="font-size:clamp(24px,5vw,32px);font-weight:760">Statistik</h1>' +
+    '<p style="margin:6px 0 0;color:var(--mut);font-size:13.4px">Ringkasan aktivitas menontonmu — semuanya tersimpan lokal di perangkat ini.</p></div>' +
+    statsBodyHTML() +
     footerHTML() + '</div>';
 
   initView(host());

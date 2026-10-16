@@ -1,5 +1,5 @@
 import { TTL } from './config';
-import { ApiError, apiGet, cached } from './client';
+import { ApiError, apiGet, cached, saveSnapshot, loadSnapshot } from './client';
 import { Store } from './store';
 import { normalizeKusonimeCard } from './normalize';
 import { cleanVal, seriesSlug } from './utils';
@@ -65,6 +65,7 @@ export const API = {
         const r = await cached('home:' + p.id, TTL.home, () => p.home());
         if (r.ongoing.length || r.completed.length || r.movie.length) {
           markHealth(p.id, true);
+          saveSnapshot('home', r);
           return r;
         }
         failures.push(p.id + ': halaman tidak berisi daftar anime');
@@ -74,9 +75,14 @@ export const API = {
         markHealth(p.id, false, e?.message || 'gagal');
       }
     }
-    throw new ApiError('Semua sumber gagal dimuat. ' + failures.join(' · '));
+    const snap = loadSnapshot<{ ongoing: Card[]; completed: Card[]; movie: Card[] }>('home');
+    if (snap) {
+      console.warn('Beranda memakai snapshot terakhir:', failures.join(' · '));
+      return snap;
+    }
+    console.warn('Beranda gagal dari semua sumber:', failures.join(' · '));
+    throw new ApiError('Gagal memuat beranda. Periksa koneksi lalu coba lagi.');
   },
-
   async search(query: string): Promise<SearchResult> {
     if (!query || query.trim().length < 2) return { items: [], sources: [] };
     const preferred = Store.getProvider();
@@ -135,7 +141,7 @@ export const API = {
 
   async detail(provider: string, id: string, slug = ''): Promise<Detail> {
     const p = getProvider(provider);
-    if (!p) throw new ApiError('Provider tidak tersedia.');
+    if (!p) throw new ApiError('Sumber tidak tersedia saat ini.', 404);
     try {
       const d = await cached('detail:' + provider + ':' + id, TTL.detail, () => p.detail(id, slug));
       markHealth(provider, true);
@@ -146,12 +152,35 @@ export const API = {
     }
   },
 
+  /**
+   * Detail dengan penyelesaian lintas sumber: bila detail pada sumber yang diminta
+   * gagal (mis. ID/slug berbeda antar sumber), cari judul lalu pakai detail paling cocok.
+   * Menghindari "judul tidak ditemukan" palsu akibat ketidakcocokan ID antar sumber.
+   */
+  async detailSmart(provider: string, id: string, slug = '', title = ''): Promise<Detail> {
+    try {
+      return await this.detail(provider, id, slug);
+    } catch (e: any) {
+      const q = String(title || '').trim();
+      if (q.length < 2) throw e;
+      try {
+        const r = await SearchEngine.search(q, { sort: 'relevance' });
+        const best = r.items.slice().sort((a, b) => (b.match || 0) - (a.match || 0))[0];
+        if (!best) throw e;
+        if (best.provider === provider && best.id === id) throw e;
+        return await this.detail(best.provider, best.id, best.slug || '');
+      } catch {
+        throw e;
+      }
+    }
+  },
+
   async episode(
     provider: string,
     params: { episodeId: string; episodeSlug?: string; episode?: string; animeId?: string; animeSlug?: string }
   ): Promise<Stream & { downloads: DownloadLink[]; info: any }> {
     const p = getProvider(provider);
-    if (!p) throw new ApiError('Provider tidak tersedia.');
+    if (!p) throw new ApiError('Sumber tidak tersedia saat ini.', 404);
     try {
       const s = await cached('episode:' + provider + ':' + params.episodeId, TTL.episode, () => p.stream(params));
       markHealth(provider, true);
@@ -177,7 +206,8 @@ export const API = {
         .filter(a => a.error)
         .map(a => a.provider + ': ' + a.error)
         .join(' · ');
-      throw new ApiError('Tidak ada sumber yang bisa memutar episode ini. ' + detail);
+      console.warn('Putar gagal di semua sumber:', detail);
+      throw new ApiError('Tidak ada sumber yang bisa memutar episode ini. Coba episode lain atau muat ulang.');
     }
     return {
       ...res.stream,
@@ -231,7 +261,7 @@ export const API = {
     const p = provider ? getProvider(provider) : null;
     if (p && p.resolveServer) return p.resolveServer(serverId);
     if (!provider || provider === 'otakudesu' || provider === 'oploverz') return legacyResolveServer(serverId);
-    throw new ApiError('Provider tidak mendukung pemilihan server.');
+    throw new ApiError('Server alternatif ini tidak didukung untuk judul ini.');
   },
 
   async batchDownloads(batchId: string): Promise<DownloadLink[]> {
@@ -308,7 +338,12 @@ export const API = {
     for (let i = 0; i < 7; i++) {
       if (groups[i] && groups[i].length) out.push({ day: order[i], items: groups[i] });
     }
-    if (!out.length) throw new ApiError('Jadwal tidak tersedia untuk provider ini.', 404);
+    if (!out.length) {
+      const snap = loadSnapshot<ScheduleGroup[]>('schedule');
+      if (snap && snap.length) return snap;
+      throw new ApiError('Jadwal rilis tidak tersedia saat ini.', 404);
+    }
+    saveSnapshot('schedule', out);
     return out;
   }
 };

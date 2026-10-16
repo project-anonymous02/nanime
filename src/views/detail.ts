@@ -1,4 +1,3 @@
-import { PROVIDERS } from '../core/config';
 import { API } from '../core/api';
 import { progress } from '../core/client';
 import { Store } from '../core/store';
@@ -86,16 +85,8 @@ async function enrichDownloads(anime: Detail): Promise<void> {
       return true;
     });
     if (merged.length) renderDownloadBody(merged);
-    const src = agg.byProvider.filter(b => b.links.length);
     const count = document.getElementById('dlCount');
     if (count) count.textContent = merged.length ? '· ' + merged.length + ' tautan' : '';
-    const srcEl = document.getElementById('dlSrc');
-    if (srcEl && src.length) {
-      srcEl.innerHTML =
-        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">' +
-        src.map(b => '<span class="chip">' + esc(b.name) + ' · ' + b.links.length + '</span>').join('') +
-        '</div>';
-    }
   } catch {
     /* biarkan unduhan provider tunggal bila agregasi gagal */
   }
@@ -128,6 +119,7 @@ export async function loadBatchDownloads(batchId: string): Promise<void> {
 export async function ViewDetail(r: ParsedRoute): Promise<void> {
   const param = r.parts[1] || '';
   const provider = r.q.provider || Store.getProvider();
+  const title = r.q.title || '';
   DetailState.det = null;
   DetailState.ep = [];
 
@@ -135,7 +127,7 @@ export async function ViewDetail(r: ParsedRoute): Promise<void> {
 
   try {
     progress(true, 30);
-    const anime = await API.detail(provider, param, r.q.slug || '');
+    const anime = await API.detailSmart(provider, param, r.q.slug || '', title);
     progress(true, 100);
     setTimeout(() => progress(false), 260);
     renderDetail(anime);
@@ -143,7 +135,7 @@ export async function ViewDetail(r: ParsedRoute): Promise<void> {
     progress(false);
     const notFound = e && e.status === 404;
     const msg = notFound
-      ? 'Anime tidak ditemukan pada provider ini. Judul mungkin sudah dipindah atau salah eja.'
+      ? 'Judul ini belum tersedia. Coba cari ulang dari beranda atau gunakan pencarian.'
       : e.message || 'Terjadi kesalahan.';
     host().innerHTML =
       '<div class="shell" style="padding-top:40px">' +
@@ -346,7 +338,7 @@ export function renderDetail(anime: Detail): void {
           );
         }).join('') +
         '</div>'
-      : '<div class="ep-empty">Provider ini tidak menyediakan daftar episode.</div>') +
+      : '<div class="ep-empty">Daftar episode tidak tersedia untuk judul ini.</div>') +
     '</section>';
 
   const tabs: { id: string; label: string; on?: boolean; disabled?: boolean }[] = [
@@ -362,7 +354,6 @@ export function renderDetail(anime: Detail): void {
     '<div class="cover-box"><div class="in"><img src="' + esc(anime.poster) + '" alt="Poster ' + esc(anime.title) + '" loading="eager"></div></div>' +
     '<div class="detail-meta">' +
     '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px">' +
-    '<span class="badge" style="position:static">' + esc((PROVIDERS[anime.provider] && PROVIDERS[anime.provider].name) || anime.provider) + '</span>' +
     (anime.status ? '<span class="badge" style="position:static">' + esc(anime.status) + '</span>' : '') +
     (anime.year ? '<span class="badge" style="position:static">' + esc(anime.year) + '</span>' : '') +
     '</div>' +
@@ -400,7 +391,7 @@ export function renderDetail(anime: Detail): void {
     synSec + personalPanel(anime.id) + genreSec + '<div id="metaSlot" data-busy=""></div>' + recSec +
     '</div>' +
     '<div class="dpanel" id="dtEpisode" data-panel="episode">' + epPanel + '</div>' +
-    '<div class="dpanel" id="dtDownload" data-panel="download">' + (dlPanel || '<section class="panel"><div class="ep-empty">Provider ini tidak menyediakan tautan unduhan.</div></section>') + '</div>' +
+    '<div class="dpanel" id="dtDownload" data-panel="download">' + (dlPanel || '<section class="panel"><div class="ep-empty">Tautan unduhan tidak tersedia untuk judul ini.</div></section>') + '</div>' +
     footerHTML() + '</div>';
 
   initView(host());
@@ -455,7 +446,7 @@ export async function watchMovieFlow(): Promise<void> {
     actEl.innerHTML = label;
   }
   if (res) {
-    toast('Sumber ditemukan di ' + PROVIDERS[res.provider].name + '.', 'ok');
+    toast('Sumber video ditemukan.', 'ok');
     go('/watch/' + encodeURIComponent(res.id) + '/' + encodeURIComponent(res.epNum) + '?provider=' + encodeURIComponent(res.provider) + '&eid=' + encodeURIComponent(res.eid || res.epNum) + '&eslug=' + encodeURIComponent(res.eslug || ''));
     return;
   }
@@ -463,7 +454,7 @@ export async function watchMovieFlow(): Promise<void> {
     const mirrors = Array.isArray(DET.downloads) ? DET.downloads : [];
     hostEl.innerHTML =
       '<div class="panel"><h3>' + svg('alert', '', 2) + ' Tidak ada sumber video yang dapat diputar</h3>' +
-      '<p style="color:var(--mut);font-size:13px;line-height:1.65;margin:8px 0 0">Sumber film ini hanya menyediakan file unduhan dari hosting pihak ketiga (umumnya arsip RAR), bukan stream yang bisa diputar langsung di pemutar. Judul ini juga tidak ditemukan pada provider lain yang mendukung streaming.</p>' +
+      '<p style="color:var(--mut);font-size:13px;line-height:1.65;margin:8px 0 0">Judul film ini hanya menyediakan berkas unduhan dari hosting pihak ketiga (umumnya arsip RAR), bukan stream yang bisa diputar langsung di pemutar. Tidak ada sumber streaming lain yang cocok untuk judul ini.</p>' +
       downloadGroupsHTML(mirrors) + '</div>';
     hostEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }

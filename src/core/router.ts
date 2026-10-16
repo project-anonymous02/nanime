@@ -48,9 +48,10 @@ export function watchHref(id: string, provider: string, ep: string, eid: string,
   );
 }
 
-export function detailHref(id: string, provider: string, slug?: string): string {
+export function detailHref(id: string, provider: string, slug?: string, title?: string): string {
   return (
     '#/anime/' + encodeURIComponent(id) + '?provider=' + encodeURIComponent(provider) +
-    (slug ? '&slug=' + encodeURIComponent(slug) : '')
+    (slug ? '&slug=' + encodeURIComponent(slug) : '') +
+    (title ? '&title=' + encodeURIComponent(title) : '')
   );
 }

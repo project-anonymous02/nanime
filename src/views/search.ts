@@ -1,4 +1,3 @@
-import { searchLabel } from '../core/config';
 import { API } from '../core/api';
 import { Store } from '../core/store';
 import { debounce, esc } from '../core/utils';
@@ -77,13 +76,7 @@ function paintSearch(): void {
   paintFilterRow();
 
   const items = visibleItems();
-  const srcTxt = (lastRes.sources || [])
-    .map(
-      s =>
-        esc(searchLabel(s.id)) + ' <b style="color:var(--txt)">' + (s.ok ? s.count : '—') + '</b>' +
-        (s.ok ? '' : ' <span class="bad">gagal</span>')
-    )
-    .join(' · ');
+  const srcCount = (lastRes.sources || []).filter(s => s.ok).length;
 
   if (!items.length) {
     if (ri) ri.innerHTML = '0 hasil untuk <b style="color:var(--acc2)">' + esc(lastQuery) + '</b>';
@@ -99,7 +92,7 @@ function paintSearch(): void {
   if (ri) {
     ri.innerHTML =
       '<b style="color:var(--txt)">' + items.length + '</b> hasil untuk <b style="color:var(--acc2)">' +
-      esc(lastQuery) + '</b><span class="src"> · ' + srcTxt + '</span>' +
+      esc(lastQuery) + '</b>' + (srcCount ? '<span class="src"> · dari ' + srcCount + ' sumber</span>' : '') +
       (lastRes.items.length !== items.length ? ' · difilter' : '');
   }
   box.innerHTML =
@@ -132,7 +125,7 @@ export async function runSearch(query: string): Promise<void> {
     box.innerHTML = stateHTML(
       'err',
       'Pencarian Gagal',
-      e?.message || 'Terjadi kesalahan saat menghubungi provider.',
+      e?.message || 'Terjadi kesalahan saat mencari. Coba lagi.',
       '<button class="btn primary" data-act="retry-search">' + svg('refresh', '', 2.1) + ' Coba lagi</button>'
     );
   }
@@ -145,7 +138,7 @@ function randomResult(): void {
     return;
   }
   const a = items[Math.floor(Math.random() * items.length)];
-  location.hash = detailHref(a.id, a.provider, a.slug);
+  location.hash = detailHref(a.id, a.provider, a.slug, a.title);
 }
 
 export async function ViewSearch(r: ParsedRoute): Promise<void> {

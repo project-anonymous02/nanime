@@ -11,13 +11,13 @@ import { trendingMeta } from '../metadata';
 
 export const view = () => document.getElementById('view') as HTMLElement;
 
-const HOME_COPY: Record<string, { a: string[]; b: string[]; c: string[] | null }> = {
-  otakudesu: { a: ['Sedang Tayang', 'Anime yang sedang rilis saat ini'], b: ['Anime Selesai', 'Koleksi anime yang telah tamat'], c: null },
-  oploverz: { a: ['Populer Hari Ini', 'Paling banyak ditonton hari ini'], b: ['Rilis Terbaru', 'Episode terbaru yang baru saja rilis'], c: null },
-  kuramanime: { a: ['Sedang Tayang', 'Episode terbaru dari Kuramanime'], b: ['Anime Selesai', 'Koleksi anime yang telah tamat'], c: ['Film Anime', 'Daftar movie dari Kuramanime'] }
+const HOME_COPY: { a: [string, string]; b: [string, string]; c: [string, string] } = {
+  a: ['Sedang Tayang', 'Anime yang sedang rilis saat ini'],
+  b: ['Anime Selesai', 'Koleksi anime yang telah tamat'],
+  c: ['Film Anime', 'Anime movie terbaru']
 };
 
-let POOL: string[] = [];
+let POOL: { id: string; provider: string; title: string }[] = [];
 
 function continueHTML(): string {
   const list = Store.cont;
@@ -51,7 +51,7 @@ function randomBtn(): string {
 export async function ViewHome(_r: ParsedRoute): Promise<void> {
   const host = view();
   const provider = Store.getProvider();
-  const cp = HOME_COPY[provider] || HOME_COPY.otakudesu;
+  const cp = HOME_COPY;
 
   host.innerHTML =
     '<div class="shell">' +
@@ -77,18 +77,18 @@ export async function ViewHome(_r: ParsedRoute): Promise<void> {
     continueHTML() +
     '<section class="sec" id="secNew">' + secHead('Baru Rilis', 'Episode terbaru dari sumber anime', undefined, '#/explore') +
       '<div class="grid" id="gridNew">' + skCards(10, true) + '</div></section>' +
-    '<section class="sec" id="secTrend">' + secHead('Trending Global', 'Anime populer minggu ini (AniList)', 'railTrend') +
-      '<div class="rail" data-railwrap="wt"><div class="rail-track" id="railTrend">' + skCards(8) + '</div></div></section>' +
     '<section class="sec" id="secOngoing">' + secHead(cp.a[0], cp.a[1], 'railOngoing', '#/explore') +
       '<div class="rail" data-railwrap="w1"><div class="rail-track" id="railOngoing">' + skCards(10) + '</div></div></section>' +
-    '<section class="sec" id="secGenre">' + secHead('Jelajah Genre', 'Ketuk untuk menyaring katalog') +
-      '<div class="filters" id="genreRow" style="padding:2px"><div class="sk" style="width:80px;height:34px;border-radius:99px"></div><div class="sk" style="width:100px;height:34px;border-radius:99px"></div><div class="sk" style="width:90px;height:34px;border-radius:99px"></div></div></section>' +
+    '<section class="sec" id="secTrend">' + secHead('Populer', 'Paling banyak dicari minggu ini', 'railTrend') +
+      '<div class="rail" data-railwrap="wt"><div class="rail-track" id="railTrend">' + skCards(8) + '</div></div></section>' +
     '<section class="sec" id="secSched" style="display:none">' + secHead('Jadwal Hari Ini', 'Rilis episode hari ini', 'railSched', '#/schedule') +
       '<div class="rail" data-railwrap="ws"><div class="rail-track" id="railSched">' + skCards(8) + '</div></div></section>' +
     '<section class="sec" id="secCompleted">' + secHead(cp.b[0], cp.b[1], 'railCompleted', '#/explore') +
       '<div class="rail" data-railwrap="w2"><div class="rail-track" id="railCompleted">' + skCards(10) + '</div></div></section>' +
-    '<section class="sec" id="secMovie" style="display:none">' + secHead((cp.c && cp.c[0]) || 'Film Anime', 'Anime movie terbaru', 'railMovie') +
+    '<section class="sec" id="secMovie" style="display:none">' + secHead(cp.c[0], cp.c[1], 'railMovie') +
       '<div class="rail" data-railwrap="w3"><div class="rail-track" id="railMovie">' + skCards(10) + '</div></div></section>' +
+    '<section class="sec" id="secGenre">' + secHead('Jelajahi Genre', 'Ketuk untuk menyaring katalog') +
+      '<div class="filters" id="genreRow" style="padding:2px"><div class="sk" style="width:80px;height:34px;border-radius:99px"></div><div class="sk" style="width:100px;height:34px;border-radius:99px"></div><div class="sk" style="width:90px;height:34px;border-radius:99px"></div></div></section>' +
     '<div id="homeNet"></div>' +
     footerHTML() + '</div>';
 
@@ -101,7 +101,7 @@ export async function ViewHome(_r: ParsedRoute): Promise<void> {
 
     const ong = homeResult.ongoing;
     const cmp = homeResult.completed;
-    POOL = [...ong, ...cmp].map(a => a.id).filter(Boolean);
+    POOL = [...ong, ...cmp].filter(a => a.id).map(a => ({ id: a.id, provider: a.provider, title: a.title }));
     const rOng = document.getElementById('railOngoing');
     const rCmp = document.getElementById('railCompleted');
     if (rOng) rOng.innerHTML = ong.length ? railItems(ong) : '<div class="ep-empty">Belum ada data anime di bagian ini.</div>';
@@ -181,7 +181,6 @@ async function loadTrendingRail(): Promise<void> {
           '<span class="perr" aria-hidden="true">' + svg('film', '', 1.7) + '</span>' +
           '<img data-src="' + esc(m.cover || '') + '" alt="' + esc(m.title) + '" loading="lazy" onload="this.classList.add(\'ld\')" onerror="this.style.display=\'none\'">' +
           '<div class="veil"></div>' +
-          '<span class="badge">AniList</span>' +
           (m.score ? '<span class="badge score">' + svg('star', '', 1.8) + ' ' + esc(String(m.score)) + '</span>' : '') +
           '<div class="play-ov"><span class="cir">' + svg('play') + '</span></div>' +
           '</div>' +
@@ -215,7 +214,7 @@ async function loadTodaySchedule(): Promise<void> {
     sec.style.display = '';
     rail.innerHTML = g.items.slice(0, 12).map((it, i) =>
       '<div class="rv-s" style="--d:' + (i * 30) + 'ms"><a class="sched-row" style="width:250px" href="' +
-      detailHref(it.id, it.provider, it.slug) + '">' +
+      detailHref(it.id, it.provider, it.slug, it.title) + '">' +
       (it.time ? '<span class="tm">' + esc(it.time) + '</span>' : '') +
       '<span class="tx"><b>' + esc(it.title) + '</b><span>' + esc(g.day) + '</span></span></a></div>'
     ).join('');
@@ -233,13 +232,13 @@ export function homeRandom(): void {
       toast('Belum ada data untuk diacak.', 'err');
       return;
     }
-    const id = POOL[Math.floor(Math.random() * POOL.length)];
-    location.hash = '#/anime/' + encodeURIComponent(id) + '?provider=' + encodeURIComponent(Store.getProvider());
+    const it = POOL[Math.floor(Math.random() * POOL.length)];
+    location.hash = detailHref(it.id, it.provider, undefined, it.title);
   };
   if (POOL.length) return pick();
   API.ongoing(1)
     .then(r => {
-      POOL = r.list.map(a => a.id).filter(Boolean);
+      POOL = r.list.filter(a => a.id).map(a => ({ id: a.id, provider: a.provider, title: a.title }));
       pick();
     })
     .catch(() => toast('Gagal memuat daftar untuk diacak.', 'err'));

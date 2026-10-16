@@ -163,7 +163,7 @@ export async function ViewProfile(_r?: ParsedRoute): Promise<void> {
 
     '<section class="panel rv" style="margin-bottom:14px"><h3>' + svg('settings', '', 2) + ' Menu</h3>' +
     '<div style="margin-top:6px">' +
-    row('open-settings', 'settings', 'Pengaturan', 'Provider, pemutaran, tema, notifikasi, cadangan') +
+    row('open-settings', 'settings', 'Pengaturan', 'Sumber, pemutaran, tema, notifikasi, cadangan') +
     '<a class="kv" style="width:100%;text-align:left;gap:12px;border:0;background:none;padding:12px 4px;cursor:pointer;text-decoration:none;color:inherit" href="#/schedule">' +
     '<span style="width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:rgba(255,255,255,.05);color:var(--acc);flex:none">' + svg('cal', '', 2) + '</span>' +
     '<span style="flex:1;min-width:0"><b style="display:block;font-size:13.6px">Jadwal Rilis</b>' +
@@ -176,8 +176,8 @@ export async function ViewProfile(_r?: ParsedRoute): Promise<void> {
     row('reset-all', 'alert', 'Reset Semua Data', 'Hapus favorit, riwayat, progres, dan pengaturan') +
     '</div></section>' +
 
-    '<section class="panel rv" style="margin-bottom:14px"><h3>' + svg('server', '', 2) + ' Status Provider</h3>' +
-    '<p style="font-size:11.8px;color:var(--mut);margin:2px 0 8px;line-height:1.55">Titik hijau = respons terakhir berhasil, merah = gagal, kosong = belum diuji sesi ini. Kegagalan otomatis dialihkan ke provider berikutnya.</p>' +
+    '<section class="panel rv" style="margin-bottom:14px"><h3>' + svg('server', '', 2) + ' Status Sumber</h3>' +
+    '<p style="font-size:11.8px;color:var(--mut);margin:2px 0 8px;line-height:1.55">Titik hijau = respons terakhir berhasil, merah = gagal, kosong = belum diuji sesi ini. Kegagalan otomatis dialihkan ke sumber berikutnya.</p>' +
     providerRows() +
     '</section>' +
 

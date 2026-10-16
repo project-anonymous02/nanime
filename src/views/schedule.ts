@@ -1,5 +1,5 @@
 import { API, dayIndex } from '../core/api';
-import { PROVIDERS, WEEKDAYS_SHORT } from '../core/config';
+import { WEEKDAYS_SHORT } from '../core/config';
 import { esc } from '../core/utils';
 import { svg } from '../core/icons';
 import { progress } from '../core/client';
@@ -34,12 +34,11 @@ function paint(): void {
   list.innerHTML = g.items
     .map(
       (it, i) =>
-        '<div class="rv-s" style="--d:' + (i * 24) + 'ms"><a class="sched-row" href="' + detailHref(it.id, it.provider, it.slug) + '">' +
+        '<div class="rv-s" style="--d:' + (i * 24) + 'ms"><a class="sched-row" href="' + detailHref(it.id, it.provider, it.slug, it.title) + '">' +
         (it.time ? '<span class="tm">' + esc(it.time) + '<small>' + esc(g.day.slice(0, 3)) + '</small></span>' : '') +
         (it.poster ? '<span class="th" style="width:44px;height:60px;flex:none;border-radius:9px;overflow:hidden;border:1px solid var(--line)"><img src="' + esc(it.poster) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"></span>' : '') +
         '<span class="tx"><b>' + esc(it.title) + '</b><span>' +
-        esc((PROVIDERS[it.provider] && PROVIDERS[it.provider].name) || it.provider) +
-        (it.episode ? ' · ' + esc(it.episode) : it.time ? ' · ' + esc(it.time) : '') + '</span></span>' +
+        (it.episode ? esc(it.episode) : it.time ? esc(it.time) : 'Segera') + '</span></span>' +
         '<span class="go" style="width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--dim)">' + svg('right', '', 2.2) + '</span>' +
         '</a></div>'
     )
@@ -72,7 +71,7 @@ export async function ViewSchedule(_r?: ParsedRoute): Promise<void> {
       list.innerHTML = stateHTML(
         'err',
         'Jadwal tidak tersedia',
-        e?.message || 'Provider ini tidak menyediakan jadwal rilis.',
+        e?.message || 'Jadwal rilis tidak tersedia saat ini.',
         '<button class="btn primary" data-act="reload">' + svg('refresh', '', 2.1) + ' Muat ulang</button>'
       );
     }

@@ -180,7 +180,7 @@ function legacyStream(provider: string, params: { episodeId: string; episodeSlug
     playerUrl: '',
     qualities,
     servers: allServers,
-    note: allServers.length ? '' : 'Provider ini tidak mengembalikan URL player maupun server streaming dari API.',
+    note: allServers.length ? '' : 'Sumber ini tidak menyediakan URL pemutar maupun server streaming.',
     downloads,
     info
   };

@@ -94,12 +94,11 @@ export const FallbackEngine = {
     return { links: mergeDownloads(byProvider.map(b => b.links)), byProvider };
   },
 
-  /** Nama provider yang berhasil, untuk dikirim ke UI sebagai catatan fallback. */
+  /** Catatan fallback netral untuk UI — tanpa menyebut nama sumber apa pun. */
   summary(provider: string | null, attempts: StreamAttempt[]): string {
     if (!provider) return 'Semua sumber gagal memutar episode ini.';
     const idx = attempts.findIndex(a => a.provider === provider);
     if (idx <= 0) return '';
-    const skipped = attempts.slice(0, idx).map(a => a.provider).join(', ');
-    return 'Beralih dari ' + skipped + ' ke ' + provider + '.';
+    return 'Sumber utama sedang sibuk — otomatis dialihkan ke sumber cadangan.';
   }
 };

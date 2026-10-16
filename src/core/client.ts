@@ -103,4 +103,27 @@ export function progress(onOff: boolean, pct?: number): void {
   if (!onOff) setTimeout(() => ((g as HTMLElement).style.width = '0'), 340);
 }
 
+/**
+ * Snapshot persisten (localStorage) untuk data katalog. Dipakai agar muat ulang
+ * halaman tidak mengosongkan daftar ketika sumber sedang galat/lambat.
+ */
+export function saveSnapshot<T>(key: string, data: T): void {
+  try {
+    localStorage.setItem('nanime.snap.' + key, JSON.stringify({ t: Date.now(), data }));
+  } catch {
+    /* kuota penuh / privat — abaikan */
+  }
+}
+
+export function loadSnapshot<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem('nanime.snap.' + key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && 'data' in parsed ? (parsed.data as T) : null;
+  } catch {
+    return null;
+  }
+}
+
 

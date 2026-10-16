@@ -27,10 +27,18 @@
 .dash{display:none!important;}
 
 /* Kartu: hover halus, tanpa glow */
-.card{box-shadow:none;background:var(--panel);}
+.card{box-shadow:none;background:var(--panel);will-change:auto;}
 .card:hover{transform:translateY(-2px);border-color:var(--line2);box-shadow:var(--sh1);}
 .card:hover .poster img{transform:scale(1.03);}
 .card .play-ov .cir{background:var(--acc);box-shadow:none;border-color:transparent;}
+
+/* Performa gulir: matikan layer berat per-kartu (blur/blur komposit mahal di WebView) */
+.badge,.fav-btn,.play-ov .cir,.hero-search,.sheet,.toast{backdrop-filter:none;-webkit-backdrop-filter:none;}
+.card{contain:layout paint;}
+.card .play-ov{opacity:0;}
+.card:hover .play-ov,.card:focus-visible .play-ov{opacity:1;}
+.card .poster img{transition:opacity .3s var(--ease);}
+.card:hover .poster img{transform:none;}
 
 /* Tombol & chip rata */
 .btn{background:var(--panel2);border-color:var(--line2);border-radius:8px;box-shadow:none;}

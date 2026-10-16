@@ -14,9 +14,12 @@ const config: CapacitorConfig = {
     allowMixedContent: false
   },
   server: {
-    // Skema khusus untuk deep-link OAuth (nanime://auth-callback).
-    // Disuntik ke AndroidManifest oleh scripts/setup-android-deeplink.sh saat CI.
-    androidScheme: 'nanime'
+    // Skema origin WebView normal ('https' = default Capacitor → https://localhost).
+    // JANGAN gunakan skema kustom di sini: WebView akan menelan navigasi
+    // nanime://auth-callback sehingga deep-link OAuth tidak sampai ke
+    // intent-filter Android. Deep-link tetap memakai skema 'nanime' (lihat
+    // scripts/setup-android-deeplink.sh yang menyuntikkannya ke AndroidManifest).
+    androidScheme: 'https'
   },
   plugins: {
     CapacitorHttp: {

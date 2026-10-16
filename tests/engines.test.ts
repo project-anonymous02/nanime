@@ -167,12 +167,15 @@ describe('registry ordering', () => {
 });
 
 describe('FallbackEngine.summary', () => {
-  it('menjelaskan perpindahan provider', () => {
+  it('memberi catatan fallback netral tanpa nama sumber', () => {
     const attempts = [
       { provider: 'doronime', ok: false, error: 'x', ms: 1 },
       { provider: 'ylnime', ok: true, ms: 2 }
     ];
-    expect(FallbackEngine.summary('ylnime', attempts)).toContain('ylnime');
+    const moved = FallbackEngine.summary('ylnime', attempts);
+    expect(moved.length).toBeGreaterThan(0);
+    expect(moved).not.toContain('ylnime');
+    expect(moved).not.toContain('doronime');
     expect(FallbackEngine.summary('doronime', attempts)).toBe('');
     expect(FallbackEngine.summary(null, attempts)).toContain('gagal');
   });

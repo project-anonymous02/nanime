@@ -1,5 +1,4 @@
 import { API } from '../core/api';
-import { PROVIDERS } from '../core/config';
 import { progress } from '../core/client';
 import { Store } from '../core/store';
 import { esc, formatTime, isVideoUrl } from '../core/utils';
@@ -123,12 +122,7 @@ function downloadSectionHTML(
   links: DownloadLink[],
   byProvider: { provider: string; name: string; links: DownloadLink[]; error?: string }[]
 ): string {
-  const src = byProvider.filter(b => b.links.length);
-  const srcChips = src.length
-    ? '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">' +
-      src.map(b => '<span class="chip">' + esc(b.name) + ' · ' + b.links.length + '</span>').join('') +
-      '</div>'
-    : '';
+  const srcCount = byProvider.filter(b => b.links.length).length;
   if (!links.length) {
     return (
       '<section class="panel rv" id="wDl"><h3>' + svg('download', '', 2) + ' Unduhan</h3>' +
@@ -151,9 +145,9 @@ function downloadSectionHTML(
     .join('');
   return (
     '<section class="panel rv" id="wDl"><h3>' + svg('download', '', 2) + ' Unduhan ' +
-    '<span style="font-size:11.5px;color:var(--dim);font-weight:500">· ' + links.length + ' tautan dari ' + src.length + ' sumber</span></h3>' +
+    '<span style="font-size:11.5px;color:var(--dim);font-weight:500">· ' + links.length + ' tautan dari ' + srcCount + ' sumber</span></h3>' +
     '<p style="font-size:12.2px;color:var(--mut);line-height:1.6;margin:2px 0 10px">Digabung otomatis dari semua portal unduhan, dirapikan per kualitas. Tautan berasal dari pihak ketiga.</p>' +
-    groups + srcChips + '</section>'
+    groups + '</section>'
   );
 }
 
@@ -247,7 +241,7 @@ function bindControls(v: HTMLVideoElement, downloads: DownloadLink[], nextHref: 
     const all = downloads.length
       ? downloadGroupsHTML(downloads)
       : '<div class="ep-empty">Tidak ada link unduhan untuk episode ini.</div>';
-    openSheet('Unduhan Episode', all + (cur ? '<div class="note" style="margin-top:10px">Tautan unduhan berasal dari provider pihak ketiga.</div>' : ''));
+    openSheet('Unduhan Episode', all + (cur ? '<div class="note" style="margin-top:10px">Tautan unduhan berasal dari pihak ketiga.</div>' : ''));
   });
 
   v.addEventListener('play', syncPlay);
@@ -292,7 +286,7 @@ function attachMediaSession(v: HTMLVideoElement): void {
   try {
     ms.metadata = new MediaMetadata({
       title: 'Episode ' + (cur?.epNum || '') + ' · ' + (cur?.anime.title || ''),
-      artist: (cur && PROVIDERS[cur.provider]?.name) || '',
+      artist: 'Nanime',
       album: cur?.anime.title || '',
       artwork: cur?.anime.poster ? [{ src: cur.anime.poster, sizes: '512x512', type: 'image/jpeg' }] : []
     });
@@ -342,7 +336,7 @@ export async function ViewWatch(r: ParsedRoute): Promise<void> {
       stateHTML(
         notFound ? 'empty' : 'err',
         notFound ? 'Anime Tidak Ditemukan' : 'Gagal memuat anime',
-        notFound ? 'Judul ini tidak tersedia pada provider ini.' : e.message || '',
+        notFound ? 'Judul ini belum tersedia. Coba cari ulang dari beranda.' : e.message || '',
         '<div style="display:flex;gap:9px;flex-wrap:wrap;justify-content:center">' +
         '<button class="btn primary" data-act="reload">' + svg('refresh', '', 2.1) + ' Coba lagi</button>' +
         '<a class="btn ghost" href="#/home">Beranda</a></div>'
@@ -473,8 +467,8 @@ export async function ViewWatch(r: ParsedRoute): Promise<void> {
           '<strong>Stream tidak tersedia</strong><p style="font-size:12.8px;max-width:44ch;line-height:1.62">' +
           esc(
             stream.servers && stream.servers.length
-              ? 'Provider tidak memberikan URL player untuk episode ini. Coba pilih server alternatif di bawah.'
-              : stream.note || 'Provider tidak memberikan URL player untuk episode ini.'
+              ? 'Sumber ini tidak menyediakan URL pemutar untuk episode ini. Coba pilih server alternatif di bawah.'
+              : stream.note || 'Sumber ini tidak menyediakan URL pemutar untuk episode ini.'
           ) + '</p></div></div></div>';
       }
     }
@@ -544,7 +538,7 @@ export async function ViewWatch(r: ParsedRoute): Promise<void> {
       infoEl.insertAdjacentHTML(
         'beforeend',
         '<div class="banner err" style="margin-top:14px">' + svg('alert', '', 2) +
-        '<span class="sp"><b>Tidak ada stream untuk episode ini.</b> ' + esc(stream.note || 'Provider tidak memberikan URL player maupun server alternatif.') +
+        '<span class="sp"><b>Tidak ada stream untuk episode ini.</b> ' + esc(stream.note || 'Sumber ini tidak menyediakan URL pemutar maupun server alternatif.') +
         ' Coba episode lain dari daftar di halaman detail.</span>' +
         '<a class="btn ghost sm" href="' + detLink + '">' + svg('film', '', 2) + ' Daftar EP</a></div>'
       );
@@ -604,7 +598,7 @@ export function openQueue(): void {
   if (!cur) return;
   const list = cur.anime.episodeList || [];
   if (!list.length) {
-    toast('Provider ini tidak menyediakan daftar episode.', 'err');
+    toast('Daftar episode tidak tersedia untuk judul ini.', 'err');
     return;
   }
   openSheet(

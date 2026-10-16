@@ -54,6 +54,9 @@ export function getClient(): SupabaseClient | null {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
+      // PKCE diperlukan agar exchangeCodeForSession() dapat menukar ?code= dari
+      // redirect OAuth (web & deep-link nanime://auth-callback di APK).
+      flowType: 'pkce',
       detectSessionInUrl: false, // ditangani manual agar alur Capacitor/web seragam
       storageKey: 'nanime.supabase.auth'
     },

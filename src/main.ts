@@ -31,77 +31,101 @@ function buildCommands(): void {
 
 let deferredInstall: any = null;
 
-/** Tangani kembali-redirect OAuth (?code=... atau #code=...) → tukar jadi sesi. */
+/**
+ * Ambil ?code= (atau #code=) dari sebuah URL, baik format web
+ * (`#/auth/callback?code=…`) maupun deep-link native (`nanime://auth-callback?code=…`).
+ */
+function extractAuthCode(rawUrl: string): string | null {
+  try {
+    const u = new URL(rawUrl, location.origin);
+    let code = u.searchParams.get('code');
+    if (!code && u.hash) {
+      const hi = u.hash.indexOf('?');
+      const hq = hi > -1 ? u.hash.slice(hi + 1) : u.hash.replace(/^#\/?/, '');
+      code = new URLSearchParams(hq).get('code');
+    }
+    return code;
+  } catch {
+    return null;
+  }
+}
+
+/** Pesan error OAuth (bila Supabase mengembalikan error di redirect). */
+function extractAuthError(rawUrl: string): string | null {
+  try {
+    const u = new URL(rawUrl, location.origin);
+    const q = u.searchParams.get('error_description') || u.searchParams.get('error');
+    if (q) return u.searchParams.get('error_description') || q;
+    if (u.hash.indexOf('error') > -1) {
+      const hi = u.hash.indexOf('?');
+      const hq = hi > -1 ? u.hash.slice(hi + 1) : u.hash.replace(/^#\/?/, '');
+      const p = new URLSearchParams(hq);
+      return p.get('error_description') || p.get('error') || null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Tukar kode OAuth menjadi sesi, tampilkan pesan, lalu muat ulang. */
+async function consumeAuthUrl(rawUrl: string): Promise<boolean> {
+  const err = extractAuthError(rawUrl);
+  if (err) {
+    toast(err, 'err', 'Masuk gagal');
+    return false;
+  }
+  const code = extractAuthCode(rawUrl);
+  if (!code) return false;
+  const res = await exchangeCode(code);
+  if (res.ok) {
+    toast(res.message, 'ok', 'Masuk akun');
+    try {
+      const Browser = await import('@capacitor/browser');
+      void Browser.Browser.close();
+    } catch {
+      /* noop */
+    }
+    setTimeout(() => location.reload(), 800);
+    return true;
+  }
+  toast(res.message, 'err', 'Masuk gagal');
+  return false;
+}
+
+/** Tangani kembali-redirect OAuth (?code=... atau #code=...) pada web. */
 async function handleOAuthRedirect(): Promise<void> {
   if (!isConfigured()) return;
-  let code: string | null = null;
-  try {
-    const u = new URL(location.href);
-    code = u.searchParams.get('code');
-    if (!code && u.hash) {
-      const hp = new URLSearchParams(u.hash.replace(/^#\/?/, ''));
-      code = hp.get('code');
-    }
-  } catch {
-    /* noop */
-  }
-  if (!code) return;
+  if (!extractAuthCode(location.href) && !extractAuthError(location.href)) return;
   try {
     history.replaceState(null, '', location.pathname + '#/home');
   } catch {
     /* noop */
   }
-  const res = await exchangeCode(code);
-  if (res.ok) {
-    toast(res.message, 'ok', 'Masuk akun');
-    setTimeout(() => location.reload(), 800);
-  } else {
-    toast(res.message, 'err', 'Masuk gagal');
-  }
+  await consumeAuthUrl(location.href);
 }
 
 /** Pasang listener deep-link native (nanime://) untuk alur OAuth Android. */
 function bindNativeDeepLink(): void {
-  try {
-    const cap = (globalThis as any).Capacitor;
-    const App = (globalThis as any).NanimeAppPlugin || null;
-    // @capacitor/app diimpor dinamis agar build web tetap ringan & tanpa error.
-    void import('@capacitor/app')
-      .then(mod => {
-        const AppPlugin = mod.App;
-        void AppPlugin.addListener('appUrlOpen', async ({ url }: { url: string }) => {
-          let code: string | null = null;
-          try {
-            const u = new URL(url);
-            code = u.searchParams.get('code') || u.searchParams.get('code');
-            if (!code && u.hash) code = new URLSearchParams(u.hash.slice(1)).get('code');
-          } catch {
-            /* noop */
-          }
-          if (!code) return;
-          const res = await exchangeCode(code);
-          if (res.ok) {
-            toast(res.message, 'ok', 'Masuk akun');
-            try {
-              const Browser = await import('@capacitor/browser');
-              void Browser.Browser.close();
-            } catch {
-              /* noop */
-            }
-            setTimeout(() => location.reload(), 800);
-          } else {
-            toast(res.message, 'err', 'Masuk gagal');
-          }
+  void import('@capacitor/app')
+    .then(mod => {
+      const AppPlugin = mod.App;
+      // Deep-link saat aplikasi dingin (cold start): app dibuka dari tautan callback.
+      void AppPlugin.getLaunchUrl()
+        .then(res => {
+          if (res && res.url) void consumeAuthUrl(res.url);
+        })
+        .catch(() => {
+          /* noop */
         });
-        void cap;
-        void App;
-      })
-      .catch(() => {
-        /* plugin tidak tersedia di web — abaikan */
+      // Deep-link saat aplikasi sudah berjalan.
+      AppPlugin.addListener('appUrlOpen', (data: { url?: string }) => {
+        if (data && data.url) void consumeAuthUrl(data.url);
       });
-  } catch {
-    /* noop */
-  }
+    })
+    .catch(() => {
+      /* plugin tidak tersedia di web — abaikan */
+    });
 }
 
 function captureInstallPrompt(): void {

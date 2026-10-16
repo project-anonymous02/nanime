@@ -1,24 +1,21 @@
-import { PROVIDERS } from '../core/config';
 import { Store } from '../core/store';
 import { esc } from '../core/utils';
 import { svg } from '../core/icons';
+import { detailHref } from '../core/router';
 import type { Card, DownloadLink } from '../core/types';
 
 export function cardHTML(a: Card, opt?: { g?: boolean }): string {
   const o = opt || {};
   const f = Store.isFav(a.id, a.provider);
   const meta = [a.epLabel, a.sub, a.type].filter(Boolean);
-  const prov = (PROVIDERS[a.provider] && PROVIDERS[a.provider].name) || a.provider || '';
 
   return (
-    '<a class="card' + (o.g ? ' g' : '') + '" href="#/anime/' + encodeURIComponent(a.id) +
-      '?provider=' + encodeURIComponent(a.provider) + (a.slug ? '&slug=' + encodeURIComponent(a.slug) : '') +
+    '<a class="card' + (o.g ? ' g' : '') + '" href="' + detailHref(a.id, a.provider, a.slug, a.title) +
       '" data-card="' + esc(a.id) + '" data-provider="' + esc(a.provider) + '" aria-label="' + esc(a.title) + '">' +
     '<div class="poster">' +
     '<span class="perr" aria-hidden="true">' + svg('film', '', 1.7) + '</span>' +
     '<img data-src="' + esc(a.poster) + '" alt="' + esc(a.title) + '" loading="lazy" onload="this.classList.add(\'ld\')" onerror="this.style.display=\'none\'">' +
     '<div class="veil"></div>' +
-    '<span class="badge">' + esc(prov) + '</span>' +
     (a.score ? '<span class="badge score">' + svg('star', '', 1.8) + ' ' + esc(a.score) + '</span>' : '') +
     '<div class="play-ov"><span class="cir">' + svg('play') + '</span></div>' +
     '</div>' +
@@ -65,7 +62,7 @@ export function footerHTML(): string {
     '<footer class="ft"><span class="lg"><img src="logo.jpg" alt="" width="22" height="22">' +
     '<b style="color:var(--mut);font-weight:600">Nanime</b> · Premium Anime Streaming</span>' +
     '<span>Client-side · Tanpa backend · Multi-sumber otomatis</span>' +
-    '<span class="cr">Made By Nata, using third-party APIs. This client scrapes and aggregates anime metadata and stream links from third-party public sources (e.g. Otakudesu, Oploverz, Kuramanime, Kusonime) for personal use only. It hosts no video files on its own servers; all titles, artwork, subtitles and streams belong to their respective owners and uploaders. Nanime is not affiliated with, endorsed by, or responsible for any of those sites — if you enjoy a series, please support the official release.</span></footer>'
+    '<span class="cr">Made By Nata, using third-party APIs. This client scrapes and aggregates anime metadata and stream links from publicly available third-party anime sources for personal use only. It hosts no video files on its own servers; all titles, artwork, subtitles and streams belong to their respective owners and uploaders. Nanime is not affiliated with, endorsed by, or responsible for any of those sites — if you enjoy a series, please support the official release.</span></footer>'
   );
 }
 

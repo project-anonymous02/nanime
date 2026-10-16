@@ -46,7 +46,7 @@ function paint(): void {
       .map(
         (f, i) =>
           '<div class="rv-s" style="--d:' + ((i % 8) * 36) + 'ms">' +
-          '<a class="card g" href="' + detailHref(f.id, f.provider || '', f.slug) + '">' +
+          '<a class="card g" href="' + detailHref(f.id, f.provider || '', f.slug, f.title) + '">' +
           '<div class="poster"><span class="perr" aria-hidden="true">' + svg('film', '', 1.7) + '</span>' +
           '<img src="' + esc(f.cover || '') + '" class="ld" alt="' + esc(f.title) + '" loading="lazy" onerror="this.style.display=\'none\'">' +
           '<div class="veil"></div>' +

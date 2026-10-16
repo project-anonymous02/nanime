@@ -87,7 +87,7 @@ export function statsBodyHTML(): string {
     '<div class="kpi"><div class="v">' + fmtBytes(storageSize()) + '</div><div class="l">Data tersimpan</div></div>' +
     '</div>' +
     (providerRows().length
-      ? '<section class="panel rv" style="margin-bottom:14px"><h3>' + svg('server', '', 2) + ' Per Provider</h3>' + hbar(providerRows()) + '</section>'
+      ? '<section class="panel rv" style="margin-bottom:14px"><h3>' + svg('server', '', 2) + ' Per Sumber</h3>' + hbar(providerRows()) + '</section>'
       : '') +
     (statusRows().some(r => r.v)
       ? '<section class="panel rv" style="margin-bottom:14px"><h3>' + svg('chart', '', 2) + ' Status Koleksi</h3>' + hbar(statusRows()) + '</section>'
@@ -112,7 +112,7 @@ export function statsBodyHTML(): string {
     (hist.length
       ? '<section class="panel rv"><h3>' + svg('clock', '', 2) + ' Aktivitas Terakhir</h3><div class="sched-list">' +
         hist.slice(0, 10).map(h =>
-          '<a class="sched-row" href="' + detailHref(h.id, h.provider || 'otakudesu', h.slug) + '">' +
+          '<a class="sched-row" href="' + detailHref(h.id, h.provider || 'otakudesu', h.slug, h.title) + '">' +
           '<span class="tm">' + esc(h.ep) + '<small>EP</small></span>' +
           '<span class="tx"><b>' + esc(h.title) + '</b><span>' + (h.t ? relTime(h.t) : '') + '</span></span>' +
           '<span style="width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--dim)">' + svg('right', '', 2.2) + '</span>' +

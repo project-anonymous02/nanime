@@ -109,7 +109,7 @@ export function settingsHTML(): string {
 
   const cs = cacheStats();
   h +=
-    '<div class="set-grp"><h4>Status Provider</h4>' +
+    '<div class="set-grp"><h4>Status Sumber</h4>' +
     '<div class="note">APK: HTTP native via CapacitorHttp (bypass CORS). Browser: CORS diblokir — pasang APK untuk akses penuh.</div>' +
     '<div class="kv" style="margin-top:12px"><span>Cache respons</span><span>' + cs.entries + ' entri · ' + fmtBytes(cs.bytes) + '</span></div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +

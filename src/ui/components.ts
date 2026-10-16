@@ -15,16 +15,15 @@ export function cardHTML(a: Card, opt?: { g?: boolean }): string {
     '<div class="poster">' +
     '<span class="perr" aria-hidden="true">' + svg('film', '', 1.7) + '</span>' +
     '<img data-src="' + esc(a.poster) + '" alt="' + esc(a.title) + '" loading="lazy" onload="this.classList.add(\'ld\')" onerror="this.style.display=\'none\'">' +
-    '<div class="veil"></div>' +
+    (a.epLabel ? '<span class="badge ep">' + esc(a.epLabel) + '</span>' : '') +
     (a.score ? '<span class="badge score">' + svg('star', '', 1.8) + ' ' + esc(a.score) + '</span>' : '') +
-    '<div class="play-ov"><span class="cir">' + svg('play') + '</span></div>' +
-    '</div>' +
-    '<div class="body"><div class="nm">' + esc(a.title) + '</div>' +
-    '<div class="meta">' + meta.map(esc).join('<i></i>') + '</div></div>' +
     '<button class="fav-btn' + (f ? ' on' : '') + '" data-fav="' + esc(a.id) + '" data-provider="' + esc(a.provider) +
       '" data-cover="' + esc(a.poster) + '" data-title="' + esc(a.title) + '" data-score="' + esc(a.score || '') +
       '" data-epl="' + esc(a.epLabel || '') + '" data-sub="' + esc(a.sub || '') + '" data-type="' + esc(a.type || '') +
       '" data-slug="' + esc(a.slug || '') + '" aria-label="Favorit" aria-pressed="' + f + '">' + svg('heart', '', 2.1) + '</button>' +
+    '</div>' +
+    '<div class="body"><div class="nm">' + esc(a.title) + '</div>' +
+    '<div class="meta">' + meta.map(esc).join('<i></i>') + '</div></div>' +
     '</a>'
   );
 }

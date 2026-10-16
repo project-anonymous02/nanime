@@ -26,19 +26,38 @@
 /* Kosongkan video dashboard lama (aset dihapus) */
 .dash{display:none!important;}
 
-/* Kartu: hover halus, tanpa glow */
-.card{box-shadow:none;background:var(--panel);will-change:auto;}
-.card:hover{transform:translateY(-2px);border-color:var(--line2);box-shadow:var(--sh1);}
-.card:hover .poster img{transform:scale(1.03);}
-.card .play-ov .cir{background:var(--acc);box-shadow:none;border-color:transparent;}
-
-/* Performa gulir: matikan layer berat per-kartu (blur/blur komposit mahal di WebView) */
-.badge,.fav-btn,.play-ov .cir,.hero-search,.sheet,.toast{backdrop-filter:none;-webkit-backdrop-filter:none;}
-.card{contain:layout paint;}
-.card .play-ov{opacity:0;}
-.card:hover .play-ov,.card:focus-visible .play-ov{opacity:1;}
+/* Kartu ala Wibuku: poster bersih, judul DI BAWAH poster, tanpa veil/overlay */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:none;will-change:auto;transition:border-color .22s var(--ease),transform .22s var(--ease);}
+.card:hover{transform:translateY(-2px);border-color:var(--line2);}
+.card .poster{aspect-ratio:2/3;border-radius:0;background:var(--panel2);}
+.card .veil,.card .play-ov{display:none!important;}
+.card .body{position:static;padding:9px 10px 11px;}
+.card .nm{font-size:12.6px;font-weight:600;line-height:1.34;text-shadow:none;color:var(--txt);}
+.card .meta{margin-top:4px;padding-right:0;font-size:10.6px;color:var(--dim);}
 .card .poster img{transition:opacity .3s var(--ease);}
 .card:hover .poster img{transform:none;}
+.badge.ep{background:var(--acc);border-color:transparent;color:#fff;}
+.badge.score{top:auto;bottom:8px;left:8px;right:auto;}
+.fav-btn{top:8px;right:8px;bottom:auto;}
+
+/* Performa gulir: matikan layer berat per-kartu (blur komposit mahal di WebView) */
+.badge,.fav-btn,.hero-search,.sheet,.toast{backdrop-filter:none;-webkit-backdrop-filter:none;}
+.card{contain:layout paint;}
+
+/* Detail ala Wibuku: poster kiri, info kanan (juga di mobile) */
+.detail-hero .bd{height:300px;opacity:.28;}
+.detail-in{grid-template-columns:132px 1fr;justify-items:start;text-align:left;gap:16px;padding:18px 0 10px;}
+.cover-box{width:132px;box-shadow:var(--sh1);animation:none;}
+.cover-box{padding:0;background:var(--panel2);border:1px solid var(--line);}
+.detail-meta h1{font-size:clamp(19px,4.6vw,30px);}
+.detail-meta .stats,.detail-actions{justify-content:flex-start;}
+.panel{background:var(--panel);backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;}
+.ep,.srv button,.stat{background:var(--panel2);}
+
+@media(min-width:900px){
+  .detail-in{grid-template-columns:200px 1fr;gap:28px;padding:34px 0 12px;}
+  .cover-box{width:200px;}
+}
 
 /* Tombol & chip rata */
 .btn{background:var(--panel2);border-color:var(--line2);border-radius:8px;box-shadow:none;}

@@ -117,21 +117,58 @@ export const ProviderAggregator = {
    * update baru / selesai / donghua / movie. Penggabungan kanonik
    * (satu judul = satu kartu) dilakukan oleh lapisan katalog.
    *
-   * Cepat: maksimal 6 scraping serentak (radio HP lebih sehat) dan ada
+   * Cepat: maksimal 8 scraping serentak dan ada
    * `deadline` — begitu waktunya habis, hasil yang sudah masuk langsung
    * dipakai; penyedia yang belum selesai tetap berjalan di latar dan
    * mengisi cache per-penyedia untuk panggilan berikutnya.
    */
-  async homeFeed(opts: { timeout?: number; deadline?: number; concurrency?: number } = {}): Promise<HomeFeedRaw> {
+  async homeFeed(opts: {
+    timeout?: number;
+    deadline?: number;
+    concurrency?: number;
+    onUpdate?: (feed: HomeFeedRaw) => void;
+  } = {}): Promise<HomeFeedRaw> {
     const timeout = opts.timeout || 15000;
     const deadline = opts.deadline ?? 10000;
-    const concurrency = opts.concurrency ?? 6;
+    const concurrency = opts.concurrency ?? 8;
     const providers = allProviders()
       .filter(p => p.active && !p.downloadOnly)
       .sort((a, b) => a.priority - b.priority);
 
     const results: Array<{ p: AnimeProvider; ok: boolean; data?: Awaited<ReturnType<AnimeProvider['home']>>; error?: string }> =
       new Array(providers.length);
+
+    const snapshot = (): HomeFeedRaw => {
+      const newUpdate: Card[] = [];
+      const completed: Card[] = [];
+      const donghua: Card[] = [];
+      const movie: Card[] = [];
+      const sources: SourceResult[] = [];
+      results.forEach(r => {
+        if (!r) return;
+        const p = r.p;
+        if (r.ok && r.data) {
+          const d = r.data;
+          const items = (d.ongoing || []).concat(d.completed || []).concat(d.movie || []).map(c => ({
+            ...c,
+            provider: c.provider || p.id
+          }));
+          if (p.movieOnly) movie.push(...(d.movie || items));
+          else if (p.content === 'donghua') donghua.push(...items);
+          else {
+            newUpdate.push(...(d.ongoing || []));
+            completed.push(...(d.completed || []));
+            movie.push(...(d.movie || []));
+          }
+          markHealth(p.id, true);
+          sources.push({ id: p.id, ok: true, count: (d.ongoing || []).length + (d.completed || []).length, items: [] });
+        } else {
+          markHealth(p.id, false, r.error || 'timeout');
+          sources.push({ id: p.id, ok: false, count: 0, items: [], error: r.error || '' });
+        }
+      });
+      return { newUpdate, completed, donghua, movie, sources };
+    };
 
     // Maksimal `concurrency` scraping serentak — urutan prioritas dipertahankan.
     const running = runPool(providers, concurrency, async p => {
@@ -145,55 +182,13 @@ export const ProviderAggregator = {
       } catch (e) {
         results[i] = { p, ok: false, error: String((e as Error)?.message || e) };
       }
+      opts.onUpdate?.(snapshot());
     });
 
     // Tunggu semua ATAU batas waktu habis — yang penting UI bisa lanjut.
     await Promise.race([running, new Promise(r => setTimeout(r, deadline))]);
 
-    const newUpdate: Card[] = [];
-    const completed: Card[] = [];
-    const donghua: Card[] = [];
-    const movie: Card[] = [];
-    const sources: SourceResult[] = [];
-
-    results.forEach(r => {
-      if (!r) return;
-      const p = r.p;
-      if (r.ok && r.data) {
-        const d = r.data;
-        const items = (d.ongoing || []).concat(d.completed || []).concat(d.movie || []).map(c => ({
-          ...c,
-          provider: c.provider || p.id
-        }));
-        if (p.movieOnly) {
-          movie.push(...(d.movie || items));
-        } else if (p.content === 'donghua') {
-          donghua.push(...items);
-        } else {
-          newUpdate.push(...(d.ongoing || []));
-          completed.push(...(d.completed || []));
-          movie.push(...(d.movie || []));
-        }
-        markHealth(p.id, true);
-        sources.push({
-          id: p.id,
-          ok: true,
-          count: (d.ongoing || []).length + (d.completed || []).length,
-          items: []
-        });
-      } else {
-        markHealth(p.id, false, r.error || 'timeout');
-        sources.push({
-          id: p.id,
-          ok: false,
-          count: 0,
-          items: [],
-          error: r.error || ''
-        });
-      }
-    });
-
-    return { newUpdate, completed, donghua, movie, sources };
+    return snapshot();
   },
 
   /**

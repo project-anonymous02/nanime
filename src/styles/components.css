@@ -1772,6 +1772,9 @@
   position: absolute;
   inset: 0;
   aspect-ratio: auto;
+  /* Tap pada video mini harus membuka halaman pemutar; jangan biarkan
+     kontrol native WebView mengubahnya menjadi aksi play/pause. */
+  pointer-events: none;
 }
 
 .gp-media video,

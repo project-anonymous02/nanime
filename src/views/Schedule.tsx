@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Catalog } from '../core/services/Catalog';
 import type { ScheduleGroup } from '../core/types';
@@ -22,7 +22,7 @@ export function Schedule() {
 
   const dayRefs = useRef<Record<number, HTMLElement | null>>({});
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setError(false);
     try {
       const r = await Catalog.schedule();
@@ -31,7 +31,7 @@ export function Schedule() {
     } catch {
       setError(true);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void load();

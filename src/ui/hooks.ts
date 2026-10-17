@@ -173,15 +173,21 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
         }, 420);
       }
     };
+    // Android WebView mengirim touchcancel ketika gesture diserahkan ke
+    // scroll native. Itu bukan intent refresh, jadi batalkan tarikan saja.
+    const onCancel = () => {
+      startY.current = null;
+      setPull(0);
+    };
     window.addEventListener('touchstart', onStart, { passive: true });
     window.addEventListener('touchmove', onMove, { passive: true });
     window.addEventListener('touchend', onEnd, { passive: true });
-    window.addEventListener('touchcancel', onEnd, { passive: true });
+    window.addEventListener('touchcancel', onCancel, { passive: true });
     return () => {
       window.removeEventListener('touchstart', onStart);
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onEnd);
-      window.removeEventListener('touchcancel', onEnd);
+      window.removeEventListener('touchcancel', onCancel);
     };
   }, [enabled, onRefresh, setPull]);
 
@@ -221,24 +227,15 @@ export function useMediaQuery(query: string) {
 export function useScrollGuard() {
   useEffect(() => {
     const root = document.documentElement;
-    let idle = 0;
-    let active = false;
     const onScroll = () => {
-      if (!active) {
-        active = true;
-        root.dataset.scrolling = '1';
-      }
-      window.clearTimeout(idle);
-      idle = window.setTimeout(() => {
-        active = false;
-        delete root.dataset.scrolling;
-      }, 140);
+      // Jangan mengaktifkan lagi animasi masuk saat scroll berhenti; CSS
+      // yang dilepas-pasang membuat semua elemen tampak seperti refresh.
+      root.dataset.scrollSeen = '1';
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', onScroll);
-      window.clearTimeout(idle);
-      delete root.dataset.scrolling;
+      delete root.dataset.scrollSeen;
     };
   }, []);
 }

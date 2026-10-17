@@ -271,9 +271,9 @@
 }
 
 /* Saat scroll cepat: matikan semua animasi masuk (anti-jank). */
-html[data-scrolling='1'] .anim-up,
-html[data-scrolling='1'] .stagger > *,
-html[data-scrolling='1'] .reveal {
+html[data-scroll-seen='1'] .anim-up,
+html[data-scroll-seen='1'] .stagger > *,
+html[data-scroll-seen='1'] .reveal {
   animation: none;
   opacity: 1;
   transform: none;

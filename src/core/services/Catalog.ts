@@ -108,8 +108,8 @@ export const Catalog = {
     opts: { onFresh?: (feed: HomeFeed) => void; fresh?: boolean } = {}
   ): Promise<HomeFeed> {
     if (opts.fresh) CacheManager.invalidate('feed', 'home');
-    const build = async (): Promise<Omit<HomeFeed, 'stale'>> => {
-      const raw = await ProviderAggregator.homeFeed();
+    let updateRevision = 0;
+    const transform = async (raw: Awaited<ReturnType<typeof ProviderAggregator.homeFeed>>): Promise<Omit<HomeFeed, 'stale'>> => {
       const newUpdate = (await SearchEngineMerge(raw.newUpdate)).slice(0, 24);
       const completed = (await SearchEngineMerge(raw.completed)).slice(0, 24);
       const donghua = (await SearchEngineMerge(raw.donghua)).slice(0, 24);
@@ -124,6 +124,23 @@ export const Catalog = {
         .map((c, i) => ({ ...c, rank: i + 1 }));
       return { newUpdate, weekly, completed, donghua, movie, sources: raw.sources };
     };
+    const build = async (): Promise<Omit<HomeFeed, 'stale'>> =>
+      ProviderAggregator.homeFeed({
+        onUpdate: raw => {
+          if (!opts.onFresh) return;
+          if (!raw.newUpdate.length && !raw.completed.length && !raw.donghua.length && !raw.movie.length) return;
+          const revision = ++updateRevision;
+          // Jika seluruh sumber belum selesai pada deadline, tampilkan hasil
+          // yang sudah datang lalu tambahkan sumber berikutnya di latar.
+          void transform(raw).then(d => {
+            if (revision !== updateRevision) return;
+            remember([...d.newUpdate, ...d.completed, ...d.donghua, ...d.movie]);
+            opts.onFresh!({ ...d, stale: false });
+          }).catch(() => {
+            /* snapshot kosong sementara sumber lain masih memuat */
+          });
+        }
+      }).then(transform);
     const onFresh = opts.onFresh
       ? (d: Omit<HomeFeed, 'stale'>) => {
           remember([...d.newUpdate, ...d.completed, ...d.donghua, ...d.movie]);

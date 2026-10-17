@@ -301,6 +301,29 @@ export function GlobalPlayer() {
     let alive = true;
     const pick = async () => {
       const st = usePlayer.getState();
+      const video = videoRef.current;
+      if (video && lastSrcSession.current === sessionKey && video.currentTime > 0.5) {
+        pendingSeek.current = video.currentTime;
+      }
+      // Lepas URL lama sebelum resolve sumber baru agar gambar/audio lama
+      // tidak tetap tampil sebagai lapisan di bawah pilihan sumber terbaru.
+      if (video) {
+        try {
+          video.pause();
+          video.removeAttribute('src');
+          video.load();
+        } catch {
+          /* noop */
+        }
+      }
+      try {
+        hlsRef.current?.destroy();
+      } catch {
+        /* noop */
+      }
+      hlsRef.current = null;
+      usePlayer.getState().setPlaying(false);
+      usePlayer.getState().setPlayUrl('');
       const raw: string[] = [];
 
       /* Kandidat utama: kualitas terpilih (atau server yang dipilih manual). */
@@ -433,9 +456,10 @@ export function GlobalPlayer() {
     const video = videoRef.current;
     if (!video) return;
 
-    /* Sesi berganti tetapi URL belum siap: hentikan audio lama dahulu. */
+    /* URL kosong/embed baru: hentikan video lama, termasuk pergantian sumber
+       dalam sesi yang sama. */
     if (!playUrl || !isVideo) {
-      if (lastSrcSession.current !== sessionKey) {
+      if (video.hasAttribute('src') || lastSrcSession.current !== sessionKey) {
         lastSrcSession.current = sessionKey;
         try {
           video.pause();

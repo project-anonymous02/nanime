@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Catalog } from '../core/services/Catalog';
 import type { DetailBundle, QualityLabel, StreamBundle } from '../core/types';
-import { useApp } from '../state/app';
 import { usePlayer } from '../state/player';
 import { useSettings } from '../state/settings';
 import { toast } from '../state/ui';
@@ -21,12 +20,12 @@ export function Watch() {
   const { id = '', episode = '' } = useParams();
   const [params] = useSearchParams();
   const titleHint = params.get('title') || '';
+  const episodeProvider = params.get('episodeProvider') || undefined;
+  const episodeSourceId = params.get('episodeId') || undefined;
+  const episodeSourceSlug = params.get('episodeSlug') || undefined;
   const navigate = useNavigate();
 
-  const mode = useApp(a => a.mode);
-  const setMode = useApp(a => a.setMode);
   const quality = usePlayer(s => s.quality);
-  const serverRef = usePlayer(s => s.serverRef);
 
   const [stream, setStream] = useState<StreamBundle | null>(null);
   const [detail, setDetail] = useState<DetailBundle | null>(null);
@@ -45,11 +44,21 @@ export function Watch() {
     setError(false);
     setStream(null);
     try {
-      const b = await Catalog.stream(id, episode, { title: titleHint });
+      const b = await Catalog.stream(id, episode, {
+        title: titleHint,
+        episodeProvider,
+        episodeId: episodeSourceId,
+        episodeSlug: episodeSourceSlug
+      });
       if (req !== reqRef.current) return;
       setStream(b);
       const pref = useSettings.getState().defaultQuality as QualityLabel;
-      const desired = b.qualities.find(q => q.label === pref)?.source ? pref : b.defaultQuality;
+      const hasQualityVariants = b.qualities.some(q => q.source?.exact);
+      const desired = b.qualities.find(q => q.label === pref)?.source?.exact
+        ? pref
+        : hasQualityVariants
+          ? b.defaultQuality
+          : 'Auto';
       const st = usePlayer.getState();
       const cur = st.session;
       if (cur && !st.closed && cur.animeId === id && String(cur.episode) === String(b.episode)) {
@@ -71,11 +80,24 @@ export function Watch() {
     } catch {
       if (req === reqRef.current) setError(true);
     }
-  }, [id, episode, titleHint]);
+  }, [id, episode, titleHint, episodeProvider, episodeSourceId, episodeSourceSlug]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    const active = usePlayer.getState();
+    if (active.session && (
+      active.session.animeId !== id ||
+      active.session.episode !== String(episode) ||
+      !!episodeSourceId || !!episodeSourceSlug
+    )) {
+      /* Invalidate sesi lama agar resolver asinkronnya tak dapat memasang URL
+         setelah episode baru dipilih. Sesi baru dibuka setelah resolve selesai. */
+      active.close();
+    }
     void load();
+    return () => {
+      reqRef.current++;
+    };
   }, [load]);
 
   /* ── Detail (daftar episode + tab info) ── */
@@ -100,15 +122,11 @@ export function Watch() {
   const title = stream?.title || detail?.title || titleHint || 'Memuat…';
   const episodes = detail?.episodeList || [];
   const qualityDef = useMemo(() => stream?.qualities || [], [stream]);
-  const primaryProvider = stream?.servers[0]?.providerRef;
-  const serverList = (stream?.servers || []).filter(s => mode === 'multi' || s.providerRef === primaryProvider);
-
   const pickQuality = (label: QualityLabel) => {
     const st = usePlayer.getState();
     st.setServerRef(null);
     st.setQuality(label);
   };
-  const pickServer = (ref: string) => usePlayer.getState().setServerRef(ref);
 
   const onShare = async () => {
     const url = location.origin + location.pathname + '#' + watchPath(id, String(stream?.episode ?? episode), title);
@@ -186,58 +204,28 @@ export function Watch() {
 
         {panel === 'quality' && stream ? (
           <div className="wp-panel">
-            <div className="wp-panel-head">
-              <span className="wp-panel-title">Pilihan Kualitas</span>
-              <div className="mode-fab" style={{ position: 'static', animation: 'none' }} role="group" aria-label="Mode sumber">
-                <button
-                  type="button"
-                  className={'mode-opt' + (mode === 'single' ? ' active' : '')}
-                  onClick={() => setMode('single')}
-                >
-                  SINGLE
-                </button>
-                <button
-                  type="button"
-                  className={'mode-opt' + (mode === 'multi' ? ' active' : '')}
-                  onClick={() => setMode('multi')}
-                >
-                  MULTI
-                </button>
-              </div>
-            </div>
+            <div className="wp-panel-head"><span className="wp-panel-title">Pilihan Kualitas</span></div>
             <div className="quality-row">
+              <button
+                type="button"
+                className={'quality-btn' + (quality === 'Auto' ? ' active' : '')}
+                onClick={() => usePlayer.getState().setQuality('Auto')}
+              >
+                <span className="q-dot blue" />Auto
+              </button>
               {qualityDef.map(q => {
-                const active = !serverRef && quality === q.label;
-                const dot = !q.source ? 'gray' : q.approx ? 'gold' : 'green';
+                const active = quality === q.label;
+                const dot = q.approx ? 'gold' : 'green';
+                if (!q.source || !q.source.exact) return null;
                 return (
                   <button
                     key={q.label}
                     type="button"
                     className={'quality-btn' + (active ? ' active' : '')}
-                    disabled={!q.source}
                     onClick={() => pickQuality(q.label)}
                   >
                     <span className={'q-dot ' + dot} />
                     {q.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-              {serverList.map(s => {
-                const active = serverRef === s.ref || (!serverRef && !!s.isDefault);
-                return (
-                  <button
-                    key={s.ref}
-                    type="button"
-                    className={'server-item' + (active ? ' active' : '')}
-                    onClick={() => pickServer(s.ref)}
-                  >
-                    <Icon name="server" size={18} />
-                    <span className="ellipsis" style={{ flex: 1 }}>
-                      {s.label}
-                    </span>
-                    {serverRef === s.ref ? <Icon name="check" size={16} /> : null}
                   </button>
                 );
               })}
@@ -289,7 +277,17 @@ export function Watch() {
                     key={ep.num + ep.id}
                     type="button"
                     className={'wp-epchip ripple-host' + (String(stream?.episode) === ep.num ? ' on' : '')}
-                    onClick={() => navigate(watchPath(id, ep.num, title), { replace: true })}
+                    onClick={() => {
+                      const target = ep.sources?.[0];
+                      const query = new URLSearchParams();
+                      if (title) query.set('title', title);
+                      if (target) {
+                        query.set('episodeProvider', target.provider);
+                        query.set('episodeId', target.id);
+                        query.set('episodeSlug', target.slug);
+                      }
+                      navigate({ pathname: watchPath(id, ep.num), search: query.toString() ? '?' + query.toString() : '' }, { replace: true });
+                    }}
                   >
                     {ep.num}
                   </button>

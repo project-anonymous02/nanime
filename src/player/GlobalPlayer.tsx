@@ -40,9 +40,16 @@ function playFlip(el: HTMLElement, frames: Keyframe[], options: KeyframeAnimatio
   el.animate(frames, options);
 }
 
-function rawServerId(ref: string): string {
-  const i = ref.indexOf(':srv:');
-  return i > -1 ? ref.slice(i + 5) : ref;
+const QUALITY_HEIGHT: Record<QualityLabel, number> = { '1080p': 1080, '720p': 720, '480p': 480, '360p': 360 };
+
+function autoQualityLimit(): number {
+  const connection = (navigator as Navigator & { connection?: { downlink?: number; effectiveType?: string } }).connection;
+  const downlink = connection?.downlink;
+  if (typeof downlink === 'number' && Number.isFinite(downlink)) {
+    if (downlink < 1.5) return 480;
+    if (downlink < 4) return 720;
+  } else if (connection?.effectiveType === '2g' || connection?.effectiveType === 'slow-2g') return 360;
+  return Math.min(1080, Math.max(360, window.screen?.height || 1080));
 }
 
 export function fmtTime(sec: number): string {
@@ -119,7 +126,6 @@ export function GlobalPlayer() {
 
   const session = usePlayer(s => s.session);
   const quality = usePlayer(s => s.quality);
-  const serverRef = usePlayer(s => s.serverRef);
   const playUrl = usePlayer(s => s.playUrl);
   const playing = usePlayer(s => s.playing);
   const currentTime = usePlayer(s => s.currentTime);
@@ -157,6 +163,10 @@ export function GlobalPlayer() {
   const lastSrcSession = useRef('');
   const resumed = useRef(false);
   const pendingSeek = useRef(0);
+  const resumeAfterSwitch = useRef<boolean | null>(null);
+  const fallbackUrls = useRef<string[]>([]);
+  const fallbackIndex = useRef(0);
+  const mediaErrorHandler = useRef<() => void>(() => undefined);
   const live = useRef({ pos: 0, dur: 0 });
   const dockedRect = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const prevFloating = useRef(false);
@@ -299,11 +309,17 @@ export function GlobalPlayer() {
   useEffect(() => {
     if (!session) return;
     let alive = true;
+    if (lastSrcSession.current !== sessionKey) {
+      pendingSeek.current = 0;
+      resumeAfterSwitch.current = null;
+      resumed.current = false;
+    }
     const pick = async () => {
       const st = usePlayer.getState();
       const video = videoRef.current;
-      if (video && lastSrcSession.current === sessionKey && video.currentTime > 0.5) {
-        pendingSeek.current = video.currentTime;
+      if (video && lastSrcSession.current === sessionKey) {
+        if (video.currentTime > 0.5) pendingSeek.current = video.currentTime;
+        resumeAfterSwitch.current = !video.paused;
       }
       // Lepas URL lama sebelum resolve sumber baru agar gambar/audio lama
       // tidak tetap tampil sebagai lapisan di bawah pilihan sumber terbaru.
@@ -326,28 +342,29 @@ export function GlobalPlayer() {
       usePlayer.getState().setPlayUrl('');
       const raw: string[] = [];
 
-      /* Kandidat utama: kualitas terpilih (atau server yang dipilih manual). */
-      if (serverRef) {
-        const s = session.stream.servers.find(x => x.ref === serverRef);
-        if (s) {
-          const url = s.url || (await Catalog.resolveServerUrl(s.providerRef, rawServerId(s.ref)));
-          if (url) raw.push(url);
-        }
-      } else {
-        const src = session.stream.qualities.find(q => q.label === quality)?.source;
-        if (src) {
-          const url = src.url || (await Catalog.resolveServerUrl(src.providerRef, src.url));
-          if (url) raw.push(url);
-        }
-      }
+      /* Pilih otomatis di antara varian nyata. HLS manifest didahulukan agar
+         ABR milik Hls.js dapat mengatur level sendiri. */
+      const available = session.stream.qualities.filter(q => q.source?.url && q.source.exact);
+      const limit = quality === 'Auto' ? autoQualityLimit() : QUALITY_HEIGHT[quality];
+      const ordered = available.slice().sort((a, b) => {
+        const ah = QUALITY_HEIGHT[a.label], bh = QUALITY_HEIGHT[b.label];
+        const aHls = /\.m3u8(?:$|[?#])/i.test(a.source?.url || '');
+        const bHls = /\.m3u8(?:$|[?#])/i.test(b.source?.url || '');
+        if (aHls !== bHls) return aHls ? -1 : 1;
+        if (quality === 'Auto') return (bh <= limit ? bh : 0) - (ah <= limit ? ah : 0) || bh - ah;
+        return Math.abs(ah - limit) - Math.abs(bh - limit) || bh - ah;
+      });
+      ordered.forEach(q => { if (q.source?.url) raw.push(q.source.url); });
 
-      /* Cadangan otomatis: kualitas lain (yang eksak lebih dulu). */
-      session.stream.qualities
-        .slice()
-        .sort((a, b) => Number(a.approx) - Number(b.approx))
-        .forEach(q => {
-          if (q.source?.url) raw.push(q.source.url);
-        });
+      /* Server URL dipakai sebagai cadangan internal, tidak pernah dipaparkan
+         sebagai pilihan pengguna. Satu kali resolve per server, maksimal lima. */
+      for (const s of session.stream.servers) {
+        if (raw.length >= 5) break;
+        const serverQuality = s.quality && s.quality in QUALITY_HEIGHT ? s.quality as QualityLabel : null;
+        if (quality !== 'Auto' && serverQuality && Math.abs(QUALITY_HEIGHT[serverQuality] - limit) > 360) continue;
+        const url = s.url || await Catalog.resolveServerUrl(s.providerRef, s.ref.includes(':srv:') ? s.ref.slice(s.ref.indexOf(':srv:') + 5) : s.ref);
+        if (url) raw.push(url);
+      }
 
       /* Cadangan terakhir: tautan unduhan berupa file langsung. */
       (session.stream.downloads || []).forEach(g => {
@@ -367,6 +384,7 @@ export function GlobalPlayer() {
          di-scrape menjadi file. Bila semuanya gagal, pakai embed sebagai
          jalan terakhir (bukan pemutar yang dipilih pengguna). */
       let embed = '';
+      const playable: string[] = [];
       for (const u of candidates) {
         if (!alive || usePlayer.getState().session !== st.session) return;
         let media: Awaited<ReturnType<typeof Catalog.resolvePlayable>>;
@@ -376,18 +394,35 @@ export function GlobalPlayer() {
           continue;
         }
         if (media.kind === 'file' && media.url) {
-          if (alive && usePlayer.getState().session === st.session) usePlayer.getState().setPlayUrl(media.url);
-          return;
+          if (!playable.includes(media.url)) playable.push(media.url);
+          continue;
         }
         if (!embed && media.url) embed = media.url;
       }
-      if (alive && usePlayer.getState().session === st.session) usePlayer.getState().setPlayUrl(embed);
+      if (alive && usePlayer.getState().session === st.session) {
+        fallbackUrls.current = playable;
+        fallbackIndex.current = 0;
+        usePlayer.getState().setPlayUrl(playable[0] || embed);
+      }
     };
     void pick();
     return () => {
       alive = false;
     };
-  }, [session, quality, serverRef]);
+  }, [session, quality]);
+
+  const onMediaError = useCallback(() => {
+    const video = videoRef.current;
+    if (video) resumeAfterSwitch.current = !video.paused;
+    const next = fallbackIndex.current + 1;
+    if (next < fallbackUrls.current.length) {
+      fallbackIndex.current = next;
+      usePlayer.getState().setPlayUrl(fallbackUrls.current[next]);
+      return;
+    }
+    toast(GENERIC_ERROR, 'err');
+  }, []);
+  mediaErrorHandler.current = onMediaError;
 
   /* ── Catat riwayat saat sesi baru dibuka ── */
   const addHistoryRef = useRef(addHistory);
@@ -496,6 +531,20 @@ export function GlobalPlayer() {
           if (Hls.isSupported()) {
             const hls = new Hls({ enableWorker: true, maxBufferLength: 30 });
             hlsRef.current = hls;
+            hls.on(Hls.Events.ERROR, (_event, data) => {
+              if (data.fatal) mediaErrorHandler.current();
+            });
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+              const selected = usePlayer.getState().quality;
+              if (selected !== 'Auto' && hls.levels.length) {
+                const target = QUALITY_HEIGHT[selected];
+                let nearest = 0;
+                for (let i = 1; i < hls.levels.length; i++) {
+                  if (Math.abs(hls.levels[i].height - target) < Math.abs(hls.levels[nearest].height - target)) nearest = i;
+                }
+                hls.currentLevel = nearest;
+              }
+            });
             hls.loadSource(playUrl);
             hls.attachMedia(video);
           } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -601,6 +650,9 @@ export function GlobalPlayer() {
         }
       }
     }
+    const shouldResume = resumeAfterSwitch.current;
+    resumeAfterSwitch.current = null;
+    if (shouldResume === false) return;
     void v.play().catch(() => usePlayer.getState().setPlaying(false));
   };
 
@@ -850,7 +902,7 @@ export function GlobalPlayer() {
               onPlay={() => usePlayer.getState().setPlaying(true)}
               onPause={() => usePlayer.getState().setPlaying(false)}
               onEnded={onEnded}
-              onError={() => toast(GENERIC_ERROR, 'err')}
+              onError={onMediaError}
             />
           ) : playUrl ? (
             <iframe
@@ -1122,7 +1174,13 @@ export function GlobalPlayer() {
       ) : null}
 
       <Sheet open={sheet === 'quality'} onClose={() => setSheet(null)} title="Kualitas Video">
-        {(stream?.qualities || []).map(q => {
+        <SheetItem onClick={() => { usePlayer.getState().setQuality('Auto'); setSheet(null); }}>
+          <span className="qs-row">
+            <span className="qs-check">{quality === 'Auto' ? <Icon name="check" size={15} strokeWidth={3} /> : null}</span>
+            <span className="qs-body"><span className="qs-title green">Auto</span><span className="qs-desc">Pilih sumber dan kualitas yang sesuai secara otomatis.</span></span>
+          </span>
+        </SheetItem>
+        {(stream?.qualities || []).filter(q => q.source?.exact).map(q => {
           const tier: Record<string, { name: string; tone: string; desc: string }> = {
             '1080p': { name: 'Premium', tone: 'gold', desc: 'Kualitas paling tinggi untuk tampilan maksimal, terbaik di jaringan cepat.' },
             '720p': { name: 'Bagus', tone: 'orange', desc: 'Gambar lebih tajam dan nyaman ditonton jika internet kamu cukup stabil.' },
@@ -1130,12 +1188,12 @@ export function GlobalPlayer() {
             '360p': { name: 'Hemat', tone: 'gray', desc: 'Ringan untuk kuota dan cepat diputar di koneksi yang tidak stabil.' }
           };
           const t = tier[q.label];
-          const selected = serverRef === null && quality === q.label;
+          const selected = quality === q.label;
           return (
             <SheetItem
               key={q.label}
               onClick={() => {
-                if (!q.source) return;
+                if (!q.source?.exact) return;
                 usePlayer.getState().setServerRef(null);
                 usePlayer.getState().setQuality(q.label as QualityLabel);
                 setSheet(null);
@@ -1150,7 +1208,6 @@ export function GlobalPlayer() {
                   </span>
                   <span className="qs-desc">{t?.desc || 'Kualitas video dari sumber.'}</span>
                 </span>
-                {!q.source ? <span className="qs-off">—</span> : null}
               </span>
             </SheetItem>
           );

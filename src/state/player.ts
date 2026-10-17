@@ -16,6 +16,7 @@ export interface PlayerSession {
   stream: StreamBundle;
   episodes: EpisodeItem[];
 }
+export type QualitySelection = QualityLabel | 'Auto';
 
 /** Geometri awal animasi expand (floating → fullscreen). */
 export interface ExpandFrom {
@@ -27,7 +28,7 @@ export interface ExpandFrom {
 
 interface PlayerState {
   session: PlayerSession | null;
-  quality: QualityLabel;
+  quality: QualitySelection;
   serverRef: string | null;
   playUrl: string;
   playing: boolean;
@@ -45,7 +46,7 @@ interface PlayerState {
   width: number;
   expandFrom: ExpandFrom | null;
 
-  open(s: { session: PlayerSession; quality: QualityLabel }): void;
+  open(s: { session: PlayerSession; quality: QualitySelection }): void;
   patchSession(p: Partial<PlayerSession>): void;
   close(): void;
   setPlayUrl(u: string): void;
@@ -54,7 +55,7 @@ interface PlayerState {
   setVolume(v: number): void;
   setBrightness(v: number): void;
   setSpeed(v: number): void;
-  setQuality(q: QualityLabel): void;
+  setQuality(q: QualitySelection): void;
   setServerRef(r: string | null): void;
   setFloating(v: boolean): void;
   setPos(x: number, y: number): void;
@@ -81,7 +82,7 @@ export function episodeNeighbors(
 
 export const usePlayer = create<PlayerState>()((set, get) => ({
   session: null,
-  quality: '480p',
+  quality: 'Auto',
   serverRef: null,
   playUrl: '',
   playing: false,

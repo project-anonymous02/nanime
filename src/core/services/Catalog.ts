@@ -205,8 +205,9 @@ export const Catalog = {
   },
 
   /** Sumber putar satu episode dengan 4 kualitas yang selalu tersedia. */
-  stream(id: string, episode: string, opts: { title?: string } = {}): Promise<StreamBundle> {
-    return CacheManager.get('streamBundle', id + ':' + episode, TTL.stream, () =>
+  stream(id: string, episode: string, opts: { title?: string; episodeProvider?: string; episodeId?: string; episodeSlug?: string } = {}): Promise<StreamBundle> {
+    const episodeKey = [episode, opts.episodeProvider || '', opts.episodeId || '', opts.episodeSlug || ''].join(':');
+    return CacheManager.get('streamBundle', id + ':' + episodeKey, TTL.stream, () =>
       buildStream(id, episode, opts)
     );
   },
@@ -433,7 +434,7 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
   };
 }
 
-async function buildStream(id: string, episode: string, opts: { title?: string }): Promise<StreamBundle> {
+async function buildStream(id: string, episode: string, opts: { title?: string; episodeProvider?: string; episodeId?: string; episodeSlug?: string }): Promise<StreamBundle> {
   let entry = await TitleIndex.get(id);
   if (!entry || !entry.sources.length) {
     /* Detail sekaligus menyembuhkan indeks & mengisi daftar episode per sumber. */
@@ -450,14 +451,17 @@ async function buildStream(id: string, episode: string, opts: { title?: string }
   const sources = sortSources(entry).filter(s => {
     const p = getProvider(s.provider);
     return p && p.active && !p.downloadOnly;
-  });
+  }).sort((a, b) => Number(b.provider === opts.episodeProvider) - Number(a.provider === opts.episodeProvider));
 
-  const requests = sources
+  const makeRequests = (list: typeof sources) => list
     .map(s => {
       const eps = s.episodes || [];
-      const hit = !isNaN(want)
-        ? eps.find(e => Number(e.num) === want) || eps.find(e => episodeNumber(e.title || '') === want)
-        : eps.find(e => e.id === episode || e.slug === episode);
+      const targeted = !!opts.episodeProvider && s.provider === opts.episodeProvider && (opts.episodeId || opts.episodeSlug);
+      const hit = targeted
+        ? eps.find(e => (opts.episodeId && e.id === opts.episodeId) || (opts.episodeSlug && e.slug === opts.episodeSlug))
+        : !isNaN(want)
+          ? eps.find(e => Number(e.num) === want) || eps.find(e => episodeNumber(e.title || '') === want)
+          : eps.find(e => e.id === episode || e.slug === episode);
       if (!hit) return null;
       return {
         provider: s.provider,
@@ -471,6 +475,7 @@ async function buildStream(id: string, episode: string, opts: { title?: string }
       };
     })
     .filter((x): x is NonNullable<typeof x> => !!x);
+  const requests = makeRequests(sources);
 
   let results: { provider: string; stream: import('../types').EpisodeStream; ms: number }[] = [];
   if (requests.length) {
@@ -484,25 +489,11 @@ async function buildStream(id: string, episode: string, opts: { title?: string }
       await buildDetail(id, opts);
       entry = await TitleIndex.get(id);
       if (entry) {
-        const retry = sortSources(entry)
-          .map(s => {
-            const eps = s.episodes || [];
-            const hit = !isNaN(want)
-              ? eps.find(e => Number(e.num) === want) || eps.find(e => episodeNumber(e.title || '') === want)
-              : eps.find(e => e.id === episode || e.slug === episode);
-            if (!hit) return null;
-            return {
-              provider: s.provider,
-              params: {
-                animeId: s.id,
-                animeSlug: s.slug,
-                episodeId: hit.id,
-                episodeSlug: hit.slug,
-                episode: String(want || episode)
-              }
-            };
-          })
-          .filter((x): x is NonNullable<typeof x> => !!x);
+        const retrySources = sortSources(entry).filter(s => {
+          const p = getProvider(s.provider);
+          return p && p.active && !p.downloadOnly;
+        }).sort((a, b) => Number(b.provider === opts.episodeProvider) - Number(a.provider === opts.episodeProvider));
+        const retry = makeRequests(retrySources);
         if (retry.length) {
           const r2 = await FallbackEngine.resolveAll(retry, { timeout: 8000, max: 12 });
           results = r2.results;

@@ -1913,15 +1913,26 @@
 
 .gp-side.right {
   right: 8px;
+  top: 66%;
 }
 
 .gp-vslider {
-  width: 34px;
-  height: 120px;
+  width: 44px;
+  height: 68px;
   display: grid;
   place-items: center;
   touch-action: none;
   cursor: pointer;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .gp-side.right {
+    top: 72%;
+  }
+
+  .gp-side.right .gp-vslider {
+    height: 44px;
+  }
 }
 
 .gp-vtrack {

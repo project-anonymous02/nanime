@@ -25,6 +25,16 @@ describe('guessQuality — menebak label dari teks apa pun', () => {
 });
 
 describe('buildForcedQualities — 4 kualitas SELALU ada', () => {
+  it('tidak memberi label resolusi pada sumber yang kualitasnya tidak diketahui', () => {
+    const out = buildForcedQualities({
+      streams: [{ provider: 'a', stream: stream({ playerUrl: 'https://cdn.test/watch?id=1', title: 'Episode 1' }) }],
+      downloads: []
+    });
+    expect(out.qualities.every(q => q.source === null)).toBe(true);
+    expect(out.servers[0].quality).toBeUndefined();
+    expect(out.servers[0].url).toContain('watch?id=1');
+  });
+
   it('slot kosong meminjam sumber kualitas terdekat (approx)', () => {
     const out = buildForcedQualities({
       streams: [

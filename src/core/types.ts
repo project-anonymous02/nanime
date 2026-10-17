@@ -354,7 +354,7 @@ export interface ForcedQuality {
   approx: boolean;
 }
 
-/** Entri server yang ditampilkan di tab "Sumber Stream". */
+/** Kandidat sumber internal untuk resolver otomatis; tidak ditampilkan di menu kualitas. */
 export interface StreamServerRef {
   ref: string;
   label: string;

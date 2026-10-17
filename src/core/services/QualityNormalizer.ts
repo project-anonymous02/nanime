@@ -4,13 +4,13 @@ import { qualityRank } from '../utils/qualitySorter';
 import { isVideoUrl } from '../utils';
 
 /**
- * QualityNormalizer — memaksa 4 kualitas (1080p / 720p / 480p / 360p) SELALU
- * tersedia di pemutar dengan menggabungkan sumber dari SEMUA penyedia:
+ * QualityNormalizer — menyatukan sumber dari SEMUA penyedia ke empat slot
+ * resolusi internal (1080p / 720p / 480p / 360p):
  * jika penyedia A hanya punya 720p dan penyedia B punya 1080p, hasil akhir
  * tetap menampilkan keempat kualitas tanpa teks "tidak tersedia".
  *
- * Bila sebuah kualitas benar-benar tidak dimiliki penyedia mana pun, slot itu
- * memakai sumber kualitas terdekat (ditandai `approx`) sehingga tetap bisa dipilih.
+ * Slot kualitas yang dipinjam ditandai `approx`; UI pemilihan harus menyaring
+ * slot tersebut agar kualitas tak tersedia tidak ditampilkan sebagai nyata.
  */
 
 export interface NormalizeInput {
@@ -59,9 +59,9 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
     const provider = entry.provider;
 
     if (st.playerUrl) {
-      const label = guessQuality(st.playerUrl) || guessQuality(st.title || '') || '720p';
+      const label = guessQuality(st.playerUrl) || guessQuality(st.title || '');
       const kind = isVideoUrl(st.playerUrl) ? 'file' : 'embed';
-      put(label, { url: st.playerUrl, providerRef: provider, label: st.title || label, kind, exact: true });
+      if (label) put(label, { url: st.playerUrl, providerRef: provider, label: st.title || label, kind, exact: true });
       const ref = provider + ':main:' + idx;
       if (!seenServer.has(ref)) {
         seenServer.add(ref);
@@ -71,7 +71,7 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
           url: st.playerUrl,
           providerRef: provider,
           isDefault: idx === 0,
-          quality: label
+          quality: label || undefined
         });
       }
     }

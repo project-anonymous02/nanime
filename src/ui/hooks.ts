@@ -121,6 +121,8 @@ export interface PullState {
 /**
  * Tarik-untuk-menyegarkan (sentuh). Mengembalikan jarak tarikan dalam px dan
  * status menyegarkan, ditambah handler untuk dipasang di elemen pembungkus.
+ * Hanya aktif benar-benar di paling atas (scrollY === 0) dan setelah digeser
+ * minimal 80px — gerakan scroll biasa TIDAK PERNAH memicu penyegaran.
  */
 export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabled = true) {
   const [state, setState] = useState<PullState>({ pull: 0, refreshing: false });
@@ -137,11 +139,16 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
     if (!enabled) return;
     const onStart = (e: TouchEvent) => {
       if (refreshingRef.current) return;
-      if ((window.scrollY || document.documentElement.scrollTop) > 2) return;
+      if ((window.scrollY || document.documentElement.scrollTop) !== 0) return;
       startY.current = e.touches[0]?.clientY ?? null;
     };
     const onMove = (e: TouchEvent) => {
       if (startY.current == null || refreshingRef.current) return;
+      if ((window.scrollY || document.documentElement.scrollTop) !== 0) {
+        startY.current = null;
+        setPull(0);
+        return;
+      }
       const dy = (e.touches[0]?.clientY ?? 0) - startY.current;
       if (dy <= 0) {
         setPull(0);
@@ -154,7 +161,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
       startY.current = null;
       const dist = pullRef.current;
       setPull(0);
-      if (dist < 62 || refreshingRef.current) return;
+      if (dist < 80 || refreshingRef.current) return;
       refreshingRef.current = true;
       setState(s => ({ ...s, refreshing: true }));
       try {

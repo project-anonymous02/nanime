@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Catalog } from '../core/services/Catalog';
 import type { AggregatedCard } from '../core/types';
 import { EmptyState, ErrorState, ListSkel } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 import { detailPath } from '../lib/nav';
+import { useNotifications } from '../state/notifications';
 
 /** Notifikasi — ringkasan update terbaru dengan aksen belum dibaca. */
 
@@ -12,8 +13,7 @@ export function Notifications() {
   const navigate = useNavigate();
   const [items, setItems] = useState<AggregatedCard[] | null>(null);
   const [error, setError] = useState(false);
-  const [removed, setRemoved] = useState<Set<string>>(new Set());
-  const [readAll, setReadAll] = useState(false);
+  const { read, removed, markRead, remove } = useNotifications();
 
   const load = useCallback(async () => {
     setError(false);
@@ -29,7 +29,17 @@ export function Notifications() {
     void load();
   }, [load]);
 
-  const visible = (items || []).filter(c => !removed.has(c.canonicalId));
+  const visible = useMemo(
+    () => (items || []).filter(c => !removed.includes(c.canonicalId)),
+    [items, removed]
+  );
+
+  useEffect(() => {
+    if (!visible.length) return;
+    markRead(visible.map(c => c.canonicalId));
+    // Membuka daftar = sudah dibaca; statusnya disimpan permanen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   return (
     <>
@@ -46,10 +56,17 @@ export function Notifications() {
 
       {items
         ? visible.map(c => {
-            const unread = !readAll;
+            const unread = !read.includes(c.canonicalId);
             return (
               <div className={'notif-card' + (unread ? ' unread' : '')} key={c.canonicalId}>
-                <button type="button" className="nf-main" onClick={() => navigate(detailPath(c.canonicalId, c.title))}>
+                <button
+                  type="button"
+                  className="nf-main"
+                  onClick={() => {
+                    markRead([c.canonicalId]);
+                    navigate(detailPath(c.canonicalId, c.title));
+                  }}
+                >
                   <span className="nf-icon">
                     <Icon name="play" size={16} strokeWidth={0} />
                   </span>
@@ -67,13 +84,7 @@ export function Notifications() {
                     type="button"
                     className="nf-trash"
                     aria-label="Hapus notifikasi"
-                    onClick={() =>
-                      setRemoved(prev => {
-                        const next = new Set(prev);
-                        next.add(c.canonicalId);
-                        return next;
-                      })
-                    }
+                    onClick={() => remove(c.canonicalId)}
                   >
                     <Icon name="trash" size={15} />
                   </button>
@@ -88,7 +99,11 @@ export function Notifications() {
       ) : null}
 
       {items && visible.length ? (
-        <button type="button" className="notif-read-all" onClick={() => setReadAll(true)}>
+        <button
+          type="button"
+          className="notif-read-all"
+          onClick={() => markRead(visible.map(c => c.canonicalId))}
+        >
           <Icon name="check" size={15} strokeWidth={3} />
           Baca semua notifikasi
         </button>

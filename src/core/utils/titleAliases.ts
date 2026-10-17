@@ -59,10 +59,35 @@ ALIAS_GROUPS.forEach((group, i) => {
   });
 });
 
-/** Kembalikan id grup kanonik bila judul cocok dengan sinonim yang dikenal. */
+/**
+ * Kunci grup sinonim untuk judul apa pun.
+ * Selain kecocokan persis, judul panjang yang MEMUAT salah satu sinonim
+ * (mis. "Tenki no Ko: Weathering With You" memuat "tenki no ko") juga
+ * dianggap bagian grup yang sama — kuncinya minimal 2 kata agar sinonim
+ * pendek tunggal tidak salah menempel.
+ */
 export function aliasKey(title: string): string {
   const key = normalizeKey(title);
-  return ALIAS_MAP.get(key) || '';
+  if (!key) return '';
+  const exact = ALIAS_MAP.get(key);
+  if (exact) return exact;
+
+  const titleTokens = key.split(' ');
+  let best = '';
+  let bestSize = 0;
+  ALIAS_GROUPS.forEach((group, i) => {
+    for (const alias of group) {
+      const aKey = normalizeKey(alias);
+      const aTokens = aKey.split(' ');
+      if (aTokens.length < 2) continue;
+      if (!aTokens.every(t => titleTokens.includes(t))) continue;
+      if (aTokens.length > bestSize) {
+        bestSize = aTokens.length;
+        best = 'g' + i;
+      }
+    }
+  });
+  return best;
 }
 
 /** Semua varian judul (termasuk dirinya) untuk sebuah judul. */

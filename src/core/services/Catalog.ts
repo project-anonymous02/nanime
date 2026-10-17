@@ -4,11 +4,13 @@ import { ProviderAggregator } from './ProviderAggregator';
 import { searchAggregated, mergeCards } from './SearchEngine';
 import { FallbackEngine } from './FallbackEngine';
 import { DownloadAggregator } from './DownloadAggregator';
-import { TitleIndex, titleFromKey, type IndexedEntry } from './TitleIndex';
+import { TitleIndex, titleFromKey, titleKey, type IndexedEntry } from './TitleIndex';
 import { CacheManager, TTL } from './CacheManager';
 import { buildForcedQualities } from './QualityNormalizer';
 import { episodeNumber, mergeEpisodes } from './EpisodeMatcher';
+import { resolveMediaUrl, type ResolvedMedia } from './StreamExtractor';
 import { groupByQuality } from '../utils/qualitySorter';
+import { isVideoUrl } from '../utils';
 import type {
   AggregatedCard,
   AggregatedSearchResult,
@@ -16,6 +18,7 @@ import type {
   DetailBundle,
   HomeFeed,
   ScheduleGroup,
+  ScheduleItem,
   StreamBundle,
   StreamServerRef
 } from '../types';
@@ -155,6 +158,7 @@ export const Catalog = {
       async () => {
         const r = await ProviderAggregator.schedule();
         if (!r.groups.length) throw new Error('empty');
+        await hydrateSchedulePosters(r.groups);
         return r;
       }
     );
@@ -171,6 +175,16 @@ export const Catalog = {
     } catch {
       return '';
     }
+  },
+
+  /**
+   * Ubah URL sumber mana pun menjadi media siap-putar untuk pemutar kustom:
+   * file langsung (mp4/m3u8) atau — bila hanya tersedia halaman embed —
+   * hasil scraping URL filenya. Bila tetap gagal, URL asli dipertahankan
+   * sebagai `embed` (iframe) jalan terakhir.
+   */
+  resolvePlayable(url: string): Promise<ResolvedMedia> {
+    return resolveMediaUrl(url);
   },
 
   /** Jumlah penyedia aktif (untuk statistik internal, tidak ditampilkan). */
@@ -227,6 +241,62 @@ async function collectEpisodes(
   return { groups, details };
 }
 
+/** Jumlah episode unik hasil penggabungan beberapa kelompok sumber. */
+function mergedLength(groups: { provider: string; items: { num: string; id: string; slug: string; date: string; title?: string }[] }[]): number {
+  return mergeEpisodes(
+    groups.map(g => ({
+      provider: g.provider,
+      items: g.items.map(i => ({ num: i.num, id: i.id, slug: i.slug, date: i.date, title: i.title }))
+    }))
+  ).length;
+}
+
+/** Perkiraan jumlah episode sebenarnya (klaim detail atau jumlah sumber terbanyak). */
+function expectedEpisodeCount(base: Detail | undefined, sources: IndexedEntry['sources']): number {
+  const claimed = base ? episodeNumber(base.episodes || '') : NaN;
+  if (!isNaN(claimed) && claimed > 0) return claimed;
+  const known = sources.reduce((n, s) => Math.max(n, (s.episodes || []).length), 0);
+  return known;
+}
+
+/**
+ * Lengkapi poster jadwal: endpoint jadwal sebagian penyedia hanya memuat judul,
+ * jadi poster diambil dari halaman detail (berbatch, tanpa memperlambat render).
+ */
+async function hydrateSchedulePosters(groups: ScheduleGroup[], limit = 60): Promise<void> {
+  const missing: ScheduleItem[] = [];
+  for (const g of groups) for (const it of g.items) if (!it.poster) missing.push(it);
+  const queue = missing.slice(0, limit);
+  if (!queue.length) return;
+
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < queue.length) {
+      const it = queue[cursor++];
+      try {
+        const p = getProvider(it.provider);
+        if (!p) continue;
+        const d = await withTimeout(CacheManager.detail(p.id, it.id, () => p.detail(it.id, it.slug)), 10000);
+        if (d?.poster) {
+          it.poster = d.poster;
+          void TitleIndex.upsert({
+            id: titleKey(d.title || it.title),
+            title: d.title || it.title,
+            poster: d.poster,
+            score: d.score,
+            type: d.type,
+            status: d.status,
+            sources: [{ provider: it.provider, id: it.id, slug: it.slug || it.id }]
+          });
+        }
+      } catch {
+        /* poster dibiarkan kosong — SmartImage menampilkan placeholder */
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(6, queue.length) }, worker));
+}
+
 async function buildDetail(id: string, opts: { title?: string }): Promise<DetailBundle> {
   let entry = await TitleIndex.get(id);
   if (!entry || !entry.sources.length) {
@@ -241,15 +311,26 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
 
   const sources = sortSources(entry);
   const { groups, details } = await collectEpisodes(entry, sources);
+  let fetched = Math.min(4, sources.length);
 
-  if (!details.length) {
+  if (!details.length && sources.length > 4) {
     /* Coba gelombang kedua (sumber prioritas rendah) sebelum menyerah. */
-    const rest = sources.slice(4);
-    if (rest.length) {
-      const second = await collectEpisodes(entry, rest, 4);
-      details.push(...second.details);
-      groups.push(...second.groups);
-    }
+    const second = await collectEpisodes(entry, sources.slice(4, 8), 4);
+    fetched = Math.min(8, sources.length);
+    details.push(...second.details);
+    groups.push(...second.groups);
+  }
+
+  /* Provider lain belum tentu punya episode yang sama — tarik sumber
+     berikutnya juga bila daftar hasil masih jauh lebih pendek dari jumlah
+     episode yang diklaim (mis. provider A hanya punya 1–12, provider B 1–24). */
+  const expected = expectedEpisodeCount(details[0]?.detail, sources);
+  while (details.length && expected > 0 && mergedLength(groups) < expected && fetched < sources.length) {
+    const next = await collectEpisodes(entry, sources.slice(fetched, fetched + 4), 4);
+    fetched += 4;
+    if (!next.details.length) break;
+    details.push(...next.details);
+    groups.push(...next.groups);
   }
 
   if (!details.length) throw new Error(GENERIC_ERROR);
@@ -370,11 +451,10 @@ async function buildStream(id: string, episode: string, opts: { title?: string }
     }
   }
 
-  if (!results.length) throw new Error(GENERIC_ERROR);
   if (!entry) throw new Error(GENERIC_ERROR);
 
-  const primary = results[0];
-  const primarySource = sortSources(entry).find(s => s.provider === primary.provider);
+  const primaryProvider = results[0]?.provider || requests[0]?.provider || sources[0]?.provider || '';
+  const primarySource = sortSources(entry).find(s => s.provider === primaryProvider);
 
   /* Unduh: gabungan semua penyedia unduhan (tidak pernah melempar). */
   let downloads: import('../types').DownloadLink[] = [];
@@ -382,29 +462,58 @@ async function buildStream(id: string, episode: string, opts: { title?: string }
     const dl = await DownloadAggregator.collect({
       title: entry.title,
       episode: String(want || episode),
-      preferred: primary.provider,
+      preferred: primaryProvider,
       animeId: primarySource?.id,
       animeSlug: primarySource?.slug,
-      episodeId: requests.find(r => r.provider === primary.provider)?.params.episodeId,
-      episodeSlug: requests.find(r => r.provider === primary.provider)?.params.episodeSlug
+      episodeId: requests.find(r => r.provider === primaryProvider)?.params.episodeId,
+      episodeSlug: requests.find(r => r.provider === primaryProvider)?.params.episodeSlug
     });
     downloads = dl.links;
   } catch {
     downloads = [];
   }
 
+  /* Jalur terakhir bila semua API stream gagal: pakai tautan unduhan yang
+     tersedia (file langsung lebih dulu, lalu halaman unduhan sebagai embed).
+     Sumber dipilih dari data, bukan hardcoding. */
+  let fallbackStreams: { provider: string; stream: import('../types').EpisodeStream }[] = [];
+  if (!results.length) {
+    const direct = downloads.find(d => isVideoUrl(d.url));
+    const pageLink = downloads.find(d => /^https?:\/\//i.test(d.url));
+    const url = (direct || pageLink)?.url || '';
+    if (url) {
+      fallbackStreams = [
+        {
+          provider: primaryProvider || 'download',
+          stream: {
+            provider: primaryProvider || 'download',
+            title: 'Episode ' + (want || episode),
+            playerUrl: url,
+            qualities: [],
+            servers: [],
+            downloads,
+            info: {}
+          }
+        }
+      ];
+    }
+  }
+
+  const streams = results.length ? results : fallbackStreams;
+  if (!streams.length) throw new Error(GENERIC_ERROR);
+
   const norm = buildForcedQualities({
-    streams: results.map(r => ({ provider: r.provider, stream: r.stream })),
+    streams: streams.map(r => ({ provider: r.provider, stream: r.stream })),
     downloads
   });
 
   const servers: StreamServerRef[] = norm.servers;
-  if (!servers.length && primary.stream.playerUrl) {
+  if (!servers.length && streams[0].stream.playerUrl) {
     servers.push({
-      ref: primary.provider + ':main',
+      ref: streams[0].provider + ':main',
       label: 'Server Utama',
-      url: primary.stream.playerUrl,
-      providerRef: primary.provider,
+      url: streams[0].stream.playerUrl,
+      providerRef: streams[0].provider,
       isDefault: true
     });
   }
@@ -420,6 +529,6 @@ async function buildStream(id: string, episode: string, opts: { title?: string }
     servers,
     downloads: groupByQuality(downloads).map(g => ({ quality: g.quality, items: g.items })),
     synopsis: '',
-    sourceCount: results.length
+    sourceCount: streams.length
   };
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Catalog, GENERIC_ERROR } from '../core/services/Catalog';
 import type { QualityLabel } from '../core/types';
+import { isVideoUrl } from '../core/utils';
 import { useAuth } from '../state/auth';
 import { useLibrary } from '../state/library';
 import { clampFloatWidth, episodeNeighbors, usePlayer } from '../state/player';
@@ -16,13 +17,22 @@ import { watchPath } from '../lib/nav';
  *
  * • Di `/watch/:id/:episode` tampil docked penuh di atas halaman.
  * • Di halaman lain otomatis menjadi Floating Mini Player yang bisa di-drag,
- *   di-pinch, di-tap (putar/jeda), di-double-tap (kembali fullscreen), dan
- *   di-long-press (tombol tutup). Playback TIDAK PERNAH terputus saat pindah
- *   halaman — komponen ini hidup di luar `<Routes>`.
+ *   di-tap (kembali fullscreen), dan ditutup lewat tombol X. Playback TIDAK
+ *   PERNAH terputus saat pindah halaman — komponen ini hidup di luar `<Routes>`.
+ * • Pemutar kustom SELALU menang: URL embed provider di-scrape menjadi URL
+ *   video langsung; `<video controls>` (native) dan iframe provider tidak
+ *   pernah dirender kecuali sebagai jalan terakhir.
  */
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
-const isVideoUrl = (u: string) => /\.(m3u8|mp4|webm|mkv|mov)(\?|#|$)/i.test(u);
+
+/** Jarak aman di bawah mini player agar navigasi bawah tidak tertutup. */
+function floatBottomGuard(): number {
+  const nav = document.querySelector('.bottom-nav');
+  if (!nav) return 20;
+  const top = nav.getBoundingClientRect().top;
+  return Math.max(20, window.innerHeight - top + 12);
+}
 
 /** Animasi FLIP aman di lingkungan tanpa Web Animations API (jsdom). */
 function playFlip(el: HTMLElement, frames: Keyframe[], options: KeyframeAnimationOptions) {
@@ -133,8 +143,6 @@ export function GlobalPlayer() {
   const [seekPct, setSeekPct] = useState(0);
   const [hint, setHint] = useState<{ side: 'left' | 'right'; key: number } | null>(null);
   const [locked, setLocked] = useState(false);
-  const [tapIcon, setTapIcon] = useState<'play' | 'pause' | null>(null);
-  const [showClose, setShowClose] = useState(false);
   const [overClose, setOverClose] = useState(false);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -143,8 +151,6 @@ export function GlobalPlayer() {
   const hlsRef = useRef<{ destroy(): void } | null>(null);
   const hideTimer = useRef(0);
   const tapTimer = useRef(0);
-  const closeTimer = useRef(0);
-  const longTimer = useRef(0);
   const lastSave = useRef(0);
   const lastTick = useRef(0);
   const lastTap = useRef(0);
@@ -162,7 +168,6 @@ export function GlobalPlayer() {
     ox: number;
     oy: number;
     moved: boolean;
-    longFired: boolean;
   } | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchRef = useRef<{ d0: number; w0: number } | null>(null);
@@ -177,13 +182,20 @@ export function GlobalPlayer() {
     [session]
   );
 
-  /* ── Geometri floating ── */
+  /* ── Geometri floating (tidak boleh menutupi navigasi bawah) ── */
   const fh = Math.round((width * 9) / 16);
   const defaultPos = () => ({
     x: Math.max(16, window.innerWidth - width - 16),
-    y: Math.max(16, window.innerHeight - fh - 16)
+    y: Math.max(16, window.innerHeight - fh - floatBottomGuard())
   });
-  const effPos = pos.x < 0 ? defaultPos() : pos;
+  const effPos = (() => {
+    const d = pos.x < 0 ? defaultPos() : pos;
+    const maxY = Math.max(16, window.innerHeight - fh - floatBottomGuard());
+    return {
+      x: Math.max(8, Math.min(d.x, window.innerWidth - width - 8)),
+      y: Math.max(8, Math.min(d.y, maxY))
+    };
+  })();
 
   const isWatch = pathname.startsWith('/watch/');
   const show = !!signedIn && !!session && !closed;
@@ -219,7 +231,7 @@ export function GlobalPlayer() {
       if (p.x < 0) return;
       st.setPos(
         Math.max(8, Math.min(p.x, window.innerWidth - w - 8)),
-        Math.max(8, Math.min(p.y, window.innerHeight - h - 8))
+        Math.max(8, Math.min(p.y, window.innerHeight - h - floatBottomGuard()))
       );
     };
     window.addEventListener('resize', onResize, { passive: true });
@@ -283,21 +295,70 @@ export function GlobalPlayer() {
     }
   }, [floating]);
 
-  /* ── Resolusi URL putar (kualitas/server) ── */
+  /* ── Resolusi URL putar: kualitas/server → media langsung (tanpa pemutar provider) ── */
   useEffect(() => {
     if (!session) return;
     let alive = true;
     const pick = async () => {
       const st = usePlayer.getState();
-      let url = '';
+      const raw: string[] = [];
+
+      /* Kandidat utama: kualitas terpilih (atau server yang dipilih manual). */
       if (serverRef) {
         const s = session.stream.servers.find(x => x.ref === serverRef);
-        if (s) url = s.url || (await Catalog.resolveServerUrl(s.providerRef, rawServerId(s.ref)));
+        if (s) {
+          const url = s.url || (await Catalog.resolveServerUrl(s.providerRef, rawServerId(s.ref)));
+          if (url) raw.push(url);
+        }
       } else {
         const src = session.stream.qualities.find(q => q.label === quality)?.source;
-        if (src) url = src.url || (await Catalog.resolveServerUrl(src.providerRef, src.url));
+        if (src) {
+          const url = src.url || (await Catalog.resolveServerUrl(src.providerRef, src.url));
+          if (url) raw.push(url);
+        }
       }
-      if (alive && usePlayer.getState().session === st.session) usePlayer.getState().setPlayUrl(url);
+
+      /* Cadangan otomatis: kualitas lain (yang eksak lebih dulu). */
+      session.stream.qualities
+        .slice()
+        .sort((a, b) => Number(a.approx) - Number(b.approx))
+        .forEach(q => {
+          if (q.source?.url) raw.push(q.source.url);
+        });
+
+      /* Cadangan terakhir: tautan unduhan berupa file langsung. */
+      (session.stream.downloads || []).forEach(g => {
+        g.items.forEach(d => {
+          if (d.url && isVideoUrl(d.url)) raw.push(d.url);
+        });
+      });
+
+      const seen = new Set<string>();
+      const candidates = raw.filter(u => {
+        if (!u || seen.has(u)) return false;
+        seen.add(u);
+        return true;
+      }).slice(0, 5);
+
+      /* Cari URL yang benar-benar bisa diputar `<video>`; embed provider
+         di-scrape menjadi file. Bila semuanya gagal, pakai embed sebagai
+         jalan terakhir (bukan pemutar yang dipilih pengguna). */
+      let embed = '';
+      for (const u of candidates) {
+        if (!alive || usePlayer.getState().session !== st.session) return;
+        let media: Awaited<ReturnType<typeof Catalog.resolvePlayable>>;
+        try {
+          media = await Catalog.resolvePlayable(u);
+        } catch {
+          continue;
+        }
+        if (media.kind === 'file' && media.url) {
+          if (alive && usePlayer.getState().session === st.session) usePlayer.getState().setPlayUrl(media.url);
+          return;
+        }
+        if (!embed && media.url) embed = media.url;
+      }
+      if (alive && usePlayer.getState().session === st.session) usePlayer.getState().setPlayUrl(embed);
     };
     void pick();
     return () => {
@@ -370,7 +431,23 @@ export function GlobalPlayer() {
   /* ── Sumber video / HLS ── */
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !isVideo || !playUrl) return;
+    if (!video) return;
+
+    /* Sesi berganti tetapi URL belum siap: hentikan audio lama dahulu. */
+    if (!playUrl || !isVideo) {
+      if (lastSrcSession.current !== sessionKey) {
+        lastSrcSession.current = sessionKey;
+        try {
+          video.pause();
+          video.removeAttribute('src');
+          video.load();
+        } catch {
+          /* noop */
+        }
+        usePlayer.getState().setPlaying(false);
+      }
+      return;
+    }
     let disposed = false;
 
     /* Ganti kualitas/server pada sesi yang sama → lanjutkan dari posisi kini. */
@@ -378,6 +455,14 @@ export function GlobalPlayer() {
       pendingSeek.current = video.currentTime;
     }
     lastSrcSession.current = sessionKey;
+
+    /* Anime lama tidak boleh tetap berbunyi saat sumber baru dimuat. */
+    try {
+      video.pause();
+    } catch {
+      /* noop */
+    }
+    usePlayer.getState().setPlaying(false);
 
     if (/\.m3u8/i.test(playUrl)) {
       void import('hls.js')
@@ -636,7 +721,6 @@ export function GlobalPlayer() {
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     if (pointers.current.size >= 2) {
-      window.clearTimeout(longTimer.current);
       const [a, b] = [...pointers.current.values()];
       pinchRef.current = { d0: Math.hypot(a.x - b.x, a.y - b.y), w0: usePlayer.getState().width };
       pressRef.current = null;
@@ -647,20 +731,10 @@ export function GlobalPlayer() {
       id: e.pointerId,
       sx: e.clientX,
       sy: e.clientY,
-      ox: st.pos.x,
-      oy: st.pos.y,
-      moved: false,
-      longFired: false
+      ox: st.pos.x < 0 ? defaultPos().x : st.pos.x,
+      oy: st.pos.y < 0 ? defaultPos().y : st.pos.y,
+      moved: false
     };
-    window.clearTimeout(longTimer.current);
-    longTimer.current = window.setTimeout(() => {
-      if (pressRef.current && !pressRef.current.moved) {
-        pressRef.current.longFired = true;
-        setShowClose(true);
-        window.clearTimeout(closeTimer.current);
-        closeTimer.current = window.setTimeout(() => setShowClose(false), 2600);
-      }
-    }, 520);
   };
 
   const onFloatMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -678,15 +752,14 @@ export function GlobalPlayer() {
     const dy = e.clientY - p.sy;
     if (!p.moved && Math.hypot(dx, dy) > 5) {
       p.moved = true;
-      window.clearTimeout(longTimer.current);
-      setShowClose(false);
+      window.clearTimeout(tapTimer.current);
     }
     if (!p.moved) return;
     const st = usePlayer.getState();
     const w = st.width;
     const h = (w * 9) / 16;
     const nx = Math.max(8, Math.min(p.ox + dx, window.innerWidth - w - 8));
-    const ny = Math.max(8, Math.min(p.oy + dy, window.innerHeight - h - 8));
+    const ny = Math.max(8, Math.min(p.oy + dy, window.innerHeight - h - floatBottomGuard()));
     st.setPos(nx, ny);
     const inZone = ny + h > window.innerHeight - 100;
     overCloseRef.current = inZone;
@@ -696,7 +769,6 @@ export function GlobalPlayer() {
   const onFloatUp = (e: React.PointerEvent<HTMLDivElement>) => {
     pointers.current.delete(e.pointerId);
     if (pointers.current.size < 2) pinchRef.current = null;
-    window.clearTimeout(longTimer.current);
     const p = pressRef.current;
     pressRef.current = null;
     const inZone = overCloseRef.current;
@@ -707,21 +779,8 @@ export function GlobalPlayer() {
       if (inZone) closePlayer();
       return;
     }
-    if (p.longFired) return;
-    const now = Date.now();
-    if (now - lastTap.current < 300) {
-      lastTap.current = 0;
-      window.clearTimeout(tapTimer.current);
-      expandToWatch();
-      return;
-    }
-    lastTap.current = now;
-    window.clearTimeout(tapTimer.current);
-    tapTimer.current = window.setTimeout(() => {
-      togglePlay();
-      setTapIcon(playing ? 'pause' : 'play');
-      window.setTimeout(() => setTapIcon(null), 560);
-    }, 250);
+    /* Tap video → kembali ke pemutar layar penuh. */
+    expandToWatch();
   };
 
   /* ── Render ── */
@@ -731,7 +790,6 @@ export function GlobalPlayer() {
   const shown = drag ? seekPct : progress;
   const brightnessPct = Math.round(brightness * 100);
   const volumePct = Math.round(volume * 100);
-  const controls = settings.playerControls;
 
   return (
     <>
@@ -760,7 +818,6 @@ export function GlobalPlayer() {
               playsInline
               autoPlay
               preload="auto"
-              controls={!controls}
               poster={session.poster}
               style={{ objectFit: fit }}
               onLoadedMetadata={onLoadedMetadata}
@@ -790,27 +847,33 @@ export function GlobalPlayer() {
             <div className="gp-progress" aria-hidden="true">
               <span style={{ transform: `scaleX(${shown})` }} />
             </div>
-            {tapIcon ? (
-              <div className="gp-tap-icon" aria-hidden="true">
-                <Icon name={tapIcon} size={26} />
-              </div>
-            ) : null}
-            {showClose ? (
+            <button
+              type="button"
+              className="gp-closex"
+              aria-label="Tutup pemutar"
+              onClick={e => {
+                e.stopPropagation();
+                closePlayer();
+              }}
+            >
+              <Icon name="x" size={14} strokeWidth={2.6} />
+            </button>
+            <div className="gp-mini-footer">
               <button
                 type="button"
-                className="gp-closex"
-                aria-label="Tutup pemutar"
+                className="gp-mini-play"
+                aria-label={playing ? 'Jeda' : 'Putar'}
                 onClick={e => {
                   e.stopPropagation();
-                  closePlayer();
+                  togglePlay();
                 }}
               >
-                <Icon name="x" size={15} strokeWidth={2.4} />
+                <Icon name={playing ? 'pause' : 'play'} size={16} strokeWidth={0} />
               </button>
-            ) : null}
-            <div className="gp-mini-footer">
-              <span className="gp-mini-title ellipsis">{title}</span>
-              <span className="gp-mini-sub">Episode {session.episode}</span>
+              <span className="gp-mini-body">
+                <span className="gp-mini-title ellipsis">{title}</span>
+                <span className="gp-mini-sub">Episode {session.episode}</span>
+              </span>
             </div>
           </>
         ) : (
@@ -819,10 +882,10 @@ export function GlobalPlayer() {
               className="gp-shade"
               aria-hidden="true"
               style={{ opacity: visible ? 1 : 0 }}
-              onPointerUp={controls ? onSurfaceTap : undefined}
+              onPointerUp={onSurfaceTap}
             />
 
-            {controls && stream ? (
+            {stream ? (
               <div className={'gp-controls' + (visible && !locked ? '' : ' gp-hidden')}>
                 {/* Top bar */}
                 <div className="gp-top">
@@ -850,31 +913,35 @@ export function GlobalPlayer() {
                   </button>
                 </div>
 
-                {/* Sisi kiri: brightness */}
-                <div className="gp-side left">
-                  <VSlider
-                    value={brightnessPct}
-                    min={2}
-                    max={150}
-                    onChange={v => usePlayer.getState().setBrightness(v / 100)}
-                    label="Kecerahan"
-                  />
-                  <span className="gp-side-val">{brightnessPct}%</span>
-                  <Icon name="settings" size={17} />
-                </div>
+                {/* Sisi kiri: brightness (opsional, sesuai pengaturan) */}
+                {settings.playerControls ? (
+                  <div className="gp-side left">
+                    <VSlider
+                      value={brightnessPct}
+                      min={2}
+                      max={150}
+                      onChange={v => usePlayer.getState().setBrightness(v / 100)}
+                      label="Kecerahan"
+                    />
+                    <span className="gp-side-val">{brightnessPct}%</span>
+                    <Icon name="settings" size={17} />
+                  </div>
+                ) : null}
 
-                {/* Sisi kanan: volume */}
-                <div className="gp-side right">
-                  <VSlider
-                    value={volumePct}
-                    min={0}
-                    max={100}
-                    onChange={v => usePlayer.getState().setVolume(v / 100)}
-                    label="Volume"
-                  />
-                  <span className="gp-side-val">{volumePct}%</span>
-                  <Icon name={volume === 0 ? 'mute' : 'volume'} size={17} />
-                </div>
+                {/* Sisi kanan: volume (opsional, sesuai pengaturan) */}
+                {settings.playerControls ? (
+                  <div className="gp-side right">
+                    <VSlider
+                      value={volumePct}
+                      min={0}
+                      max={100}
+                      onChange={v => usePlayer.getState().setVolume(v / 100)}
+                      label="Volume"
+                    />
+                    <span className="gp-side-val">{volumePct}%</span>
+                    <Icon name={volume === 0 ? 'mute' : 'volume'} size={17} />
+                  </div>
+                ) : null}
 
                 {/* Tengah */}
                 <div className="gp-center" onPointerUp={onSurfaceTap}>
@@ -994,8 +1061,8 @@ export function GlobalPlayer() {
               </div>
             ) : null}
 
-            {/* Native-controls / iframe: top bar ringkas */}
-            {(!controls || !stream) && stream && !locked ? (
+            {/* Embed jalan terakhir: top bar ringkas (tanpa pemutar provider) */}
+            {!stream && playUrl && !locked ? (
               <div className="gp-top minimal">
                 <button type="button" className="gp-ibtn" aria-label="Kembali" onClick={() => navigate(-1)}>
                   <Icon name="back" size={26} />

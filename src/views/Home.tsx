@@ -4,6 +4,7 @@ import { Catalog } from '../core/services/Catalog';
 import type { AggregatedCard, HomeFeed } from '../core/types';
 import { useAuth } from '../state/auth';
 import { useLibrary } from '../state/library';
+import { useNotifications } from '../state/notifications';
 import { ContinueRailCard, Grid, RankCard, Rail, UpdateCard } from '../ui/Cards';
 import { ErrorState, ListSkel, OfflineBar, PosterSkel, RailSkel, SectionHead } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
@@ -69,6 +70,12 @@ export function Home() {
   const openCard = (c: AggregatedCard) => navigate(detailPath(c.canonicalId, c.title));
   const firstName = (user?.name || 'Sobat Anime').split(' ')[0];
   const fresh = feed?.newUpdate || [];
+  const notifRead = useNotifications(s => s.read);
+  const notifRemoved = useNotifications(s => s.removed);
+  const unreadNotifs = useMemo(
+    () => fresh.filter(c => !notifRead.includes(c.canonicalId) && !notifRemoved.includes(c.canonicalId)).length,
+    [fresh, notifRead, notifRemoved]
+  );
 
   const onCarScroll = () => {
     const el = carRef.current;
@@ -107,7 +114,7 @@ export function Home() {
               <button type="button" className="ibtn glow ripple-host" aria-label="Notifikasi" onClick={() => navigate('/notifications')}>
                 <Icon name="bell" />
               </button>
-              {fresh.length ? <span className="bell-dot">{Math.min(fresh.length, 9)}</span> : null}
+              {unreadNotifs ? <span className="bell-dot">{Math.min(unreadNotifs, 9)}</span> : null}
             </div>
             <button type="button" className="ibtn glow ripple-host" aria-label="Cari" onClick={() => navigate('/search')}>
               <Icon name="search" />

@@ -1,95 +1,67 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { applyImport } from '../src/features/exportImport';
-import { Store } from '../src/core/store';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { CacheManager } from '../src/core/services/CacheManager';
 
-describe('ekspor/impor data', () => {
-  beforeEach(() => {
-    (globalThis as any).localStorage.clear();
-    Store.favs = [];
-    Store.hist = [];
-    Store.cont = [];
-    Store.meta = {};
-    Store.shist = [];
+beforeEach(() => {
+  CacheManager.clear();
+});
+
+describe('CacheManager — lapisan memori', () => {
+  it('hit memori: fungsi hanya dijalankan sekali', async () => {
+    const fn = vi.fn().mockResolvedValue(42);
+    expect(await CacheManager.get('t', 'k1', 60_000, fn)).toBe(42);
+    expect(await CacheManager.get('t', 'k1', 60_000, fn)).toBe(42);
+    expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  it('menerima bundle Nanime dan mengisi Store', () => {
-    const res = applyImport({
-      app: 'nanime',
-      v: 2,
-      at: Date.now(),
-      favs: [{ id: 'a', title: 'A', cover: '', provider: 'otakudesu', score: '', epLabel: '', sub: '', type: '', slug: '' }],
-      hist: [{ id: 'a', slug: '', title: 'A', cover: '', ep: '1', provider: 'otakudesu', eid: '', eslug: '' }],
-      cont: [],
-      shist: ['naruto'],
-      meta: { a: { status: 'watching', rating: 4, t: Date.now() } },
-      cfg: { provider: 'oploverz' }
+  it('panggilan serentak berbagi satu eksekusi (inflight)', async () => {
+    let calls = 0;
+    const fn = () =>
+      new Promise<number>(res => {
+        calls++;
+        setTimeout(() => res(7), 5);
+      });
+    const [a, b] = await Promise.all([
+      CacheManager.get('t', 'k2', 60_000, fn),
+      CacheManager.get('t', 'k2', 60_000, fn)
+    ]);
+    expect([a, b]).toEqual([7, 7]);
+    expect(calls).toBe(1);
+  });
+});
+
+describe('CacheManager — tahan gagal (mode luring)', () => {
+  it('getOrStale mengembalikan salinan lama saat jaringan gagal', async () => {
+    await CacheManager.get('t', 'k3', 1, async () => 'lama');
+    await new Promise(r => setTimeout(r, 10));
+    const res = await CacheManager.getOrStale('t', 'k3', 1, async () => {
+      throw new Error('offline');
     });
-    expect(res.ok).toBe(true);
-    expect(Store.favs).toHaveLength(1);
-    expect(Store.hist).toHaveLength(1);
-    expect(Store.shist).toEqual(['naruto']);
-    expect(Store.cfg.provider).toBe('oploverz');
+    expect(res.stale).toBe(true);
+    expect(res.data).toBe('lama');
   });
 
-  it('menolak file bukan Nanime', () => {
-    expect(applyImport({ app: 'lain', favs: [] }).ok).toBe(false);
-    expect(applyImport(null).ok).toBe(false);
-    expect(applyImport({ favs: 'bukan-array' }).ok).toBe(false);
+  it('getOrStale melempar bila tidak ada salinan sama sekali', async () => {
+    await expect(
+      CacheManager.getOrStale('t', 'k4', 1000, async () => {
+        throw new Error('x');
+      })
+    ).rejects.toThrow('x');
+  });
+});
+
+describe('CacheManager — manajemen', () => {
+  it('sweep membuang entri kedaluwarsa', async () => {
+    await CacheManager.get('t', 'k5', 1, async () => 'sementara');
+    await new Promise(r => setTimeout(r, 10));
+    expect(CacheManager.stats().entries).toBeGreaterThan(0);
+    CacheManager.sweep();
+    expect(CacheManager.stats().entries).toBe(0);
   });
 
-  it('menolak bundle kosong TANPA menyentuh data lokal', () => {
-    Store.favs.push({ id: 'keep', title: 'Keep', cover: '', provider: 'otakudesu', score: '', epLabel: '', sub: '', type: '', slug: '' });
-    const res = applyImport({ app: 'nanime' });
-    expect(res.ok).toBe(false);
-    expect(Store.favs).toHaveLength(1);
-    expect(Store.favs[0].id).toBe('keep');
-  });
-
-  it('impor skema v3 (entries/progress/history) dipetakan ke koleksi Store', () => {
-    const res = applyImport({
-      app: 'nanime',
-      schema: 3,
-      at: Date.now(),
-      entries: [
-        { key: 'otakudesu:a', provider: 'otakudesu', animeId: 'a', slug: 'a-slug', title: 'Anime A', poster: 'x.jpg', status: 'watching', rating: 5, favorite: true, listIds: [], createdAt: 1, updatedAt: 2 },
-        { key: 'oploverz:b', provider: 'oploverz', animeId: 'b', slug: '', title: 'Anime B', poster: '', status: 'ptw', rating: 0, favorite: false, listIds: [], createdAt: 1, updatedAt: 2 }
-      ],
-      progress: [
-        { key: 'otakudesu:a', provider: 'otakudesu', animeId: 'a', slug: 'a-slug', title: 'Anime A', poster: 'x.jpg', episode: '12', episodeId: 'e12', episodeSlug: 'ep-12', positionSec: 300, durationSec: 1400, percent: 21, completed: false, updatedAt: 999 }
-      ],
-      history: [
-        { key: 'otakudesu:a', provider: 'otakudesu', animeId: 'a', slug: 'a-slug', title: 'Anime A', poster: 'x.jpg', episode: '11', episodeId: 'e11', episodeSlug: 'ep-11', watchedAt: 4242 }
-      ],
-      lists: [],
-      searchHistory: ['jujutsu'],
-      seen: { a: 7 },
-      settings: { provider: 'anichin', autoNext: false }
-    });
-    expect(res.ok).toBe(true);
-    // favorite:false tidak masuk favorit, tapi status & rating tetap tersimpan
-    expect(Store.favs).toHaveLength(1);
-    expect(Store.favs[0]).toMatchObject({ id: 'a', slug: 'a-slug', provider: 'otakudesu', cover: 'x.jpg' });
-    expect(Store.meta.a).toMatchObject({ status: 'watching', rating: 5 });
-    expect(Store.meta.b).toMatchObject({ status: 'ptw', rating: 0 });
-    expect(Store.cont[0]).toMatchObject({ id: 'a', ep: '12', pct: 21, dur: 1400, eid: 'e12' });
-    expect(Store.hist[0]).toMatchObject({ id: 'a', ep: '11', t: 4242 });
-    expect(Store.shist).toEqual(['jujutsu']);
-    expect(Store.seen).toEqual({ a: 7 });
-    expect(Store.cfg.provider).toBe('anichin');
-    expect(Store.cfg.autoNext).toBe(false);
-  });
-
-  it('impor v3 yang rusak (entri tanpa animeId) ditolak tanpa merusak data', () => {
-    Store.hist.push({ id: 'h1', slug: '', title: 'H', cover: '', ep: '1', provider: 'otakudesu', eid: '', eslug: '' });
-    const res = applyImport({
-      app: 'nanime',
-      schema: 3,
-      entries: [{ provider: 'x', title: 'Tanpa ID' }],
-      progress: [],
-      history: []
-    });
-    expect(res.ok).toBe(false);
-    expect(Store.hist).toHaveLength(1);
-    expect(Store.favs).toHaveLength(0);
+  it('clear mengosongkan seluruh lapisan memori', async () => {
+    await CacheManager.get('t', 'k6', 60_000, async () => 1);
+    expect(CacheManager.stats().entries).toBeGreaterThan(0);
+    CacheManager.clear();
+    expect(CacheManager.stats()).toEqual({ entries: 0, bytes: 0 });
   });
 });

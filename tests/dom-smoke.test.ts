@@ -1,96 +1,171 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { createElement, act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { HashRouter } from 'react-router-dom';
+import { App } from '../src/App';
+import { useAuth } from '../src/state/auth';
+import { usePlayer } from '../src/state/player';
+import type { StreamBundle } from '../src/core/types';
 
-const SHELL = `
-<div id="bg"><div class="orb a"></div><div class="orb b"></div></div>
-<div class="topgrad" id="topgrad"></div>
-<div id="app">
-<aside id="sidebar">
-<a class="sb-brand" href="#/home"><span class="lbox"><img src="logo.jpg" alt="Logo" width="44" height="44"></span></a>
-<nav class="sb-nav" id="sbNav"></nav>
-<div class="sb-foot">
-<div class="sb-status" id="sbStatus"></div>
-<button class="btn ghost sm" data-act="open-settings" id="btnSettings">Pengaturan</button>
-</div>
-</aside>
-<header id="topbar">
-<button class="ibtn" id="tbBack" data-act="back" style="display:none"></button>
-<a class="tb-logo" href="#/home" id="tbBrand"><img src="logo.jpg" alt="" width="28" height="28"><span>NANIME</span></a>
-<span class="spacer"></span><span id="tbStatus"></span>
-<button class="ibtn" data-act="open-palette" id="btnPalette"></button>
-</header>
-<main id="view" role="main"></main>
-<nav id="tabbar"></nav>
-</div>
-<div id="toasts" aria-live="polite"></div>
-<div id="sheet-root" role="dialog" aria-modal="true"></div>
-`;
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+const emptyStream: StreamBundle = {
+  id: 'anime-uji',
+  title: 'Anime Uji',
+  poster: '',
+  episode: '1',
+  qualities: [],
+  defaultQuality: '480p',
+  servers: [],
+  downloads: [],
+  synopsis: '',
+  sourceCount: 0
+};
 
-beforeAll(() => {
-  document.body.innerHTML = SHELL;
+async function waitFor(fn: () => void, ms = 5000): Promise<void> {
+  const start = Date.now();
+  for (;;) {
+    try {
+      fn();
+      return;
+    } catch (e) {
+      if (Date.now() - start > ms) throw e;
+      await act(async () => {
+        await sleep(30);
+      });
+    }
+  }
+}
+
+async function goto(hash: string): Promise<void> {
+  await act(async () => {
+    window.location.hash = hash;
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+}
+
+const SOURCE_NAMES = /otakudesu|anoboy|doronime|ylnime|kuramanime|moenime|kusonime|oploverz|anichin|samehadaku/i;
+
+let root: Root | null = null;
+let container: HTMLElement;
+
+beforeAll(async () => {
+  (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   vi.stubGlobal('fetch', () => Promise.reject(new Error('offline test')));
+  localStorage.clear();
+  container = document.createElement('div');
+  document.body.appendChild(container);
+  await act(async () => {
+    root = createRoot(container);
+    root.render(createElement(HashRouter, null, createElement(App)));
+  });
+  await waitFor(() => {
+    expect(container.textContent).toContain('NANIME');
+  });
 });
 
-describe('smoke test DOM', () => {
-  it('boot merender beranda & navigasi', async () => {
-    await import('../src/main');
-    await sleep(120);
-    const view = document.getElementById('view')!;
-    expect(view.innerHTML).toContain('NANIME');
-    expect(view.innerHTML).toContain('hero');
-    expect(document.getElementById('tabbar')!.children.length).toBeGreaterThan(3);
-    expect(document.getElementById('sbNav')!.children.length).toBeGreaterThan(3);
-    expect(document.getElementById('sbStatus')!.textContent).toContain('Otomatis');
+afterAll(async () => {
+  await act(async () => {
+    root?.unmount();
+  });
+  vi.unstubAllGlobals();
+});
+
+describe('smoke test aplikasi React', () => {
+  it('gerbang masuk tampil sebelum ada sesi (tanpa navigasi bawah)', () => {
+    expect(container.querySelector('.bottom-nav')).toBeNull();
+    expect(container.textContent).toContain('Lanjut');
+    expect(container.textContent).toContain('GESER UNTUK MELIHAT SELENGKAPNYA');
+    expect(container.textContent).toContain('Developer: Nata');
   });
 
-  it('menampilkan state gagal saat API tidak terjangkau', async () => {
-    await sleep(300);
-    const view = document.getElementById('view')!;
-    expect(view.innerHTML.toLowerCase()).toContain('gagal');
+  it('setelah masuk, shell & navigasi bawah tampil', async () => {
+    await act(async () => {
+      useAuth.setState({
+        ready: true,
+        signedIn: true,
+        user: { id: 'u1', email: 'tester@nanime.test', name: 'Tester', avatar: null }
+      });
+    });
+    await waitFor(() => {
+      expect(container.querySelector('.bottom-nav')).not.toBeNull();
+      const text = container.textContent || '';
+      expect(text).toContain('Beranda');
+      expect(text).toContain('Cari');
+      expect(text).toContain('Jadwal');
+      expect(text).toContain('Favorit');
+      expect(text).toContain('Profil');
+    });
   });
 
-  it('rute favorit, riwayat, statistik & jadwal render', async () => {
-    const app = await import('../src/app');
-
-    location.hash = '#/favorite';
-    await app.render();
-    await sleep(40);
-    expect(document.getElementById('view')!.innerHTML).toContain('Favorite');
-
-    location.hash = '#/history';
-    await app.render();
-    await sleep(40);
-    expect(document.getElementById('view')!.innerHTML).toContain('Riwayat');
-
-    location.hash = '#/stats';
-    await app.render();
-    await sleep(40);
-    expect(document.getElementById('view')!.innerHTML).toContain('Statistik');
-
-    location.hash = '#/schedule';
-    await app.render();
-    await sleep(400);
-    expect(document.getElementById('view')!.innerHTML).toContain('Jadwal Rilis');
+  it('beranda menampilkan galat umum saat jaringan mati — tanpa nama sumber', async () => {
+    await waitFor(() => {
+      expect(container.textContent).toContain(
+        'Gagal memuat data, silakan periksa koneksi internet dan coba lagi nanti.'
+      );
+    });
+    expect(container.textContent).not.toMatch(SOURCE_NAMES);
   });
 
-  it('tombol pengaturan membuka bottom sheet', async () => {
-    (document.getElementById('btnSettings') as HTMLElement).click();
-    await sleep(40);
-    const root = document.getElementById('sheet-root')!;
-    expect(root.classList.contains('open')).toBe(true);
-    expect(root.textContent).toContain('Pengaturan');
-    expect(root.textContent).toContain('Sumber Otomatis');
-    expect(root.textContent).toContain('Hemat data');
+  it('rute pengaturan & riwayat render', async () => {
+    await goto('#/settings');
+    await waitFor(() => {
+      expect(container.textContent).toContain('Pengaturan');
+    });
+
+    await goto('#/history');
+    await waitFor(() => {
+      expect(container.textContent).toContain('Riwayat');
+    });
+    expect(container.textContent).not.toMatch(SOURCE_NAMES);
   });
 
-  it('palette perintah terbuka lewat tombol', async () => {
-    (document.getElementById('btnPalette') as HTMLElement).click();
-    await sleep(60);
-    const root = document.getElementById('sheet-root')!;
-    expect(root.textContent).toContain('Perintah Cepat');
-    const items = root.querySelectorAll('.pal-item');
-    expect(items.length).toBeGreaterThan(5);
+  it('rute tak dikenal dialihkan kembali ke beranda', async () => {
+    await goto('#/rute-tidak-ada');
+    await waitFor(() => {
+      expect(container.textContent).toContain('Beranda');
+    });
+    expect(container.querySelector('.bottom-nav')).not.toBeNull();
+  });
+
+  it('sesi pemutar hidup: floating di halaman lain, docked di /watch', async () => {
+    await act(async () => {
+      usePlayer.getState().open({
+        session: {
+          animeId: 'anime-uji',
+          episode: '1',
+          title: 'Anime Uji',
+          poster: '',
+          stream: emptyStream,
+          episodes: []
+        },
+        quality: '480p'
+      });
+    });
+
+    await waitFor(() => {
+      const el = container.querySelector('.gp-root.gp-floating');
+      expect(el).not.toBeNull();
+      expect((el as HTMLElement).style.width).toBe('240px');
+    });
+
+    await goto('#/watch/anime-uji/1');
+    await waitFor(() => {
+      expect(container.querySelector('.gp-root.gp-docked')).not.toBeNull();
+      expect(container.querySelector('.gp-root.gp-floating')).toBeNull();
+    });
+
+    await goto('#/home');
+    await waitFor(() => {
+      expect(container.querySelector('.gp-root.gp-floating')).not.toBeNull();
+    });
+
+    await act(async () => {
+      usePlayer.getState().close();
+    });
+    await waitFor(() => {
+      expect(container.querySelector('.gp-root')).toBeNull();
+    });
   });
 });

@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
   appId: 'com.nanime.app',
   appName: 'Nanime',
   webDir: 'dist',
-  backgroundColor: '#05060A',
+  backgroundColor: '#0E0F14',
   android: {
     allowMixedContent: false
   },

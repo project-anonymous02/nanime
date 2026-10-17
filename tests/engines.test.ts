@@ -177,7 +177,7 @@ describe('FallbackEngine.summary', () => {
     expect(moved).not.toContain('ylnime');
     expect(moved).not.toContain('doronime');
     expect(FallbackEngine.summary('doronime', attempts)).toBe('');
-    expect(FallbackEngine.summary(null, attempts)).toContain('gagal');
+    expect(FallbackEngine.summary(null, attempts)).toBe('');
   });
 });
 

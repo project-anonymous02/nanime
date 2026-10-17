@@ -83,4 +83,4 @@ if (win && typeof win.matchMedia !== 'function') {
     dispatchEvent: () => false
   });
 }
-if (win && typeof win.scrollTo !== 'function') win.scrollTo = () => undefined;
+if (win) win.scrollTo = () => undefined;

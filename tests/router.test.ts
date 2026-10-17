@@ -1,39 +1,57 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { parseHash, detailHref, watchHref, go } from '../src/core/router';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { detailPath, watchPath, searchPath, shareOrCopy } from '../src/lib/nav';
+import { extractAuthCode, extractAuthError } from '../src/state/auth';
 
-describe('router', () => {
-  beforeEach(() => {
-    (globalThis as any).location.hash = '#/home';
+describe('tautan rute kanonik', () => {
+  it('detailPath & watchPath memakai id kanonik ter-encode', () => {
+    expect(detailPath('one-piece')).toBe('/detail/one-piece');
+    expect(detailPath('one-piece', 'One Piece')).toBe('/detail/one-piece?title=One%20Piece');
+    expect(watchPath('one-piece', '12')).toBe('/watch/one-piece/12');
+    expect(watchPath('one-piece', '12', 'One Piece')).toBe('/watch/one-piece/12?title=One%20Piece');
+    expect(detailPath('judul miring')).toBe('/detail/judul%20miring');
   });
 
-  it('parseHash memecah path dan query', () => {
-    (globalThis as any).location.hash = '#/anime/abc?provider=otakudesu&slug=abc';
-    const r = parseHash();
-    expect(r.parts).toEqual(['anime', 'abc']);
-    expect(r.q.provider).toBe('otakudesu');
-    expect(r.q.slug).toBe('abc');
-    expect(r.path).toBe('/anime/abc');
+  it('searchPath membentuk query pencarian', () => {
+    expect(searchPath('jujutsu kaisen')).toBe('/search?q=jujutsu%20kaisen');
+    expect(searchPath('')).toBe('/search?q=');
+  });
+});
+
+describe('kode OAuth dari callback', () => {
+  it('mengekstrak ?code= dari deep-link APK', () => {
+    expect(extractAuthCode('nanime://auth-callback?code=abc')).toBe('abc');
   });
 
-  it('parseHash mendecode bagian path', () => {
-    (globalThis as any).location.hash = '#/genre/genre-28?title=Action';
-    const r = parseHash();
-    expect(r.parts[1]).toBe('genre-28');
-    expect(r.q.title).toBe('Action');
+  it('mengekstrak ?code= dari URL web ber-hash', () => {
+    expect(extractAuthCode('https://nanime.app/#/auth/callback?code=xyz')).toBe('xyz');
   });
 
-  it('hash kosong jatuh ke /home', () => {
-    (globalThis as any).location.hash = '';
-    expect(parseHash().path).toBe('/home');
+  it('mengembalikan null bila tidak ada kode', () => {
+    expect(extractAuthCode('nanime://auth-callback')).toBeNull();
   });
 
-  it('detailHref dan watchHref membentuk tautan lengkap', () => {
-    expect(detailHref('abc', 'otakudesu', 'abc')).toBe('#/anime/abc?provider=otakudesu&slug=abc');
-    expect(watchHref('abc', 'otakudesu', '3', 'ep3', '', 'abc')).toContain('#/watch/abc/3?provider=otakudesu');
+  it('mengekstrak pesan galat callback', () => {
+    expect(extractAuthError('nanime://auth-callback?error_description=akses%20ditolak')).toBe('akses ditolak');
+    expect(extractAuthError('nanime://auth-callback?code=abc')).toBeNull();
+  });
+});
+
+describe('shareOrCopy', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
-  it('go menyetel location.hash', () => {
-    go('/schedule');
-    expect((globalThis as any).location.hash).toBe('#/schedule');
+  it('memakai lembar berbagi sistem saat tersedia', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { share });
+    expect(await shareOrCopy('Satu', 'https://nanime.app/watch/a/1')).toBe(false);
+    expect(share).toHaveBeenCalledOnce();
+  });
+
+  it('menyalin ke papan klip saat berbagi tidak tersedia', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    expect(await shareOrCopy('Satu', 'https://nanime.app/watch/a/1')).toBe(true);
+    expect(writeText).toHaveBeenCalledWith('https://nanime.app/watch/a/1');
   });
 });

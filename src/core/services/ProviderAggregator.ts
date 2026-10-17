@@ -1,11 +1,11 @@
 import type { AnimeProvider } from '../../providers/types';
 import { searchProviders, allProviders } from '../../providers/registry';
 import { markHealth } from '../../providers/registry';
-import type { Card, SourceResult } from '../types';
-import { cached } from '../client';
+import type { Card, ScheduleGroup, ScheduleItem, SourceResult } from '../types';
+import { CacheManager, TTL } from './CacheManager';
 import { matchScore } from '../utils/fuzzyMatch';
 
-/** Jalankan promise dengan batas waktu agar satu provider lambat tak menahan semua. */
+/** Jalankan promise dengan batas waktu agar satu penyedia lambat tak menahan semua. */
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('timeout')), ms);
@@ -22,12 +22,50 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+const DAY_KEYS = [
+  ['minggu', 'sunday', 'sun'],
+  ['senin', 'monday', 'mon'],
+  ['selasa', 'tuesday', 'tue'],
+  ['rabu', 'wednesday', 'wed'],
+  ['kamis', 'thursday', 'thu'],
+  ['jumat', 'jum', 'friday', 'fri'],
+  ['sabtu', 'saturday', 'sat']
+];
+
+/** Indeks hari (0=Minggu … 6=Sabtu) dari nama hari apa pun; -1 bila tak dikenali. */
+export function dayIndex(raw: string): number {
+  const s = String(raw || '').toLowerCase();
+  for (let i = 0; i < DAY_KEYS.length; i++) {
+    if (DAY_KEYS[i].some(k => s.indexOf(k) > -1)) return i;
+  }
+  return -1;
+}
+
+/** Ubah jam tayang ("20:00", "20.00 WIB") menjadi menit; tak dikenal → paling akhir. */
+export function timeToMinutes(raw: string): number {
+  const s = String(raw || '');
+  const m = s.match(/(\d{1,2})[:.](\d{2})/);
+  if (m) return Number(m[1]) * 60 + Number(m[2]);
+  const h = s.match(/^(\d{1,2})\s*$/);
+  if (h) return Number(h[1]) * 60;
+  return 24 * 60 + 59;
+}
+
+export interface HomeFeedRaw {
+  newUpdate: Card[];
+  completed: Card[];
+  donghua: Card[];
+  movie: Card[];
+  sources: SourceResult[];
+}
+
 /**
- * ProviderAggregator — menjalankan semua provider secara paralel
+ * ProviderAggregator — menjalankan semua penyedia secara paralel
  * (Promise.allSettled) dan melaporkan status per sumber.
+ * Nama penyedia TIDAK PERNAH keluar ke UI; hanya dipakai internal.
  */
 export const ProviderAggregator = {
-  /** Pencarian paralel dari semua provider yang mendukung pencarian. */
+  /** Pencarian paralel dari semua penyedia yang mendukung pencarian. */
   async search(query: string, opts: { timeout?: number; max?: number } = {}): Promise<SourceResult[]> {
     const q = String(query || '').trim();
     if (!q) return [];
@@ -37,7 +75,7 @@ export const ProviderAggregator = {
     const settled = await Promise.allSettled(
       providers.map(p =>
         withTimeout(
-          cached<Card[]>('search:' + p.id + ':' + q.toLowerCase(), 5 * 60 * 1000, () => p.search(q)),
+          CacheManager.search(p.id, q, () => p.search(q)),
           timeout
         ).then(items => ({ p, items }))
       )
@@ -61,26 +99,26 @@ export const ProviderAggregator = {
     });
   },
 
-  /** Ambil beranda semua provider stream, digabung tanpa duplikat judul. */
-  async home(opts: { timeout?: number } = {}): Promise<{
-    ongoing: Card[];
-    completed: Card[];
-    movie: Card[];
-    sources: SourceResult[];
-  }> {
+  /**
+   * Beranda mentah dari seluruh penyedia, dipisah per rail:
+   * update baru / selesai / donghua / movie. Penggabungan kanonik
+   * (satu judul = satu kartu) dilakukan oleh lapisan katalog.
+   */
+  async homeFeed(opts: { timeout?: number } = {}): Promise<HomeFeedRaw> {
     const timeout = opts.timeout || 15000;
-    const providers = allProviders().filter(p => p.active && !p.movieOnly);
+    const providers = allProviders().filter(p => p.active && !p.downloadOnly);
     const settled = await Promise.allSettled(
       providers.map(p =>
         withTimeout(
-          cached('home:' + p.id, 10 * 60 * 1000, () => p.home()),
+          CacheManager.home(p.id, () => p.home()),
           timeout
         ).then(data => ({ p, data }))
       )
     );
 
-    const ongoing: Card[] = [];
+    const newUpdate: Card[] = [];
     const completed: Card[] = [];
+    const donghua: Card[] = [];
     const movie: Card[] = [];
     const sources: SourceResult[] = [];
 
@@ -88,21 +126,101 @@ export const ProviderAggregator = {
       const p = providers[i];
       if (r.status === 'fulfilled') {
         const d = r.value.data;
-        ongoing.push(...(d.ongoing || []));
-        completed.push(...(d.completed || []));
-        movie.push(...(d.movie || []));
+        const items = (d.ongoing || []).concat(d.completed || []).concat(d.movie || []).map(c => ({
+          ...c,
+          provider: c.provider || p.id
+        }));
+        if (p.movieOnly) {
+          movie.push(...(d.movie || items));
+        } else if (p.content === 'donghua') {
+          donghua.push(...items);
+        } else {
+          newUpdate.push(...(d.ongoing || []));
+          completed.push(...(d.completed || []));
+          movie.push(...(d.movie || []));
+        }
         markHealth(p.id, true);
-        sources.push({ id: p.id, ok: true, count: (d.ongoing || []).length + (d.completed || []).length, items: [] });
+        sources.push({
+          id: p.id,
+          ok: true,
+          count: (d.ongoing || []).length + (d.completed || []).length,
+          items: []
+        });
       } else {
         markHealth(p.id, false, String((r.reason && r.reason.message) || r.reason || 'error'));
-        sources.push({ id: p.id, ok: false, count: 0, items: [], error: String((r.reason && r.reason.message) || '') });
+        sources.push({
+          id: p.id,
+          ok: false,
+          count: 0,
+          items: [],
+          error: String((r.reason && r.reason.message) || '')
+        });
       }
     });
 
-    return { ongoing: dedupe(ongoing), completed: dedupe(completed), movie: dedupe(movie), sources };
+    return { newUpdate, completed, donghua, movie, sources };
   },
 
-  /** Health check ringan: cukup panggil home() provider dan catat hasilnya. */
+  /**
+   * Jadwal rilis gabungan seluruh penyedia yang mendukung.
+   * Setiap hari diurutkan dari jam terkecil ke terbesar.
+   */
+  async schedule(opts: { timeout?: number } = {}): Promise<{ groups: ScheduleGroup[]; ok: number }> {
+    const timeout = opts.timeout || 15000;
+    const providers = allProviders().filter(p => p.active && typeof p.schedule === 'function');
+    const settled = await Promise.allSettled(
+      providers.map(p =>
+        withTimeout(
+          CacheManager.get('sched', p.id, TTL.schedule, () => p.schedule!()),
+          timeout
+        ).then(days => ({ p, days }))
+      )
+    );
+
+    const buckets: Record<number, ScheduleItem[]> = {};
+    let ok = 0;
+    settled.forEach((r, i) => {
+      const p = providers[i];
+      if (r.status !== 'fulfilled') return;
+      ok++;
+      for (const g of r.value.days || []) {
+        const idx = dayIndex(g.day);
+        if (idx < 0) continue;
+        for (const item of g.items || []) {
+          (buckets[idx] = buckets[idx] || []).push({ ...item, provider: item.provider || p.id });
+        }
+      }
+    });
+
+    for (const idx of Object.keys(buckets)) {
+      buckets[Number(idx)].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+    }
+
+    const names = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const groups: ScheduleGroup[] = [];
+    for (let i = 0; i < 7; i++) {
+      if (buckets[i] && buckets[i].length) groups.push({ day: names[i], items: buckets[i] });
+    }
+    return { groups, ok };
+  },
+
+  /** Alias kompatibilitas: beranda gabungan berbentuk lama. */
+  async home(opts: { timeout?: number } = {}): Promise<{
+    ongoing: Card[];
+    completed: Card[];
+    movie: Card[];
+    sources: SourceResult[];
+  }> {
+    const r = await this.homeFeed(opts);
+    return {
+      ongoing: dedupe(r.newUpdate),
+      completed: dedupe(r.completed),
+      movie: dedupe(r.movie),
+      sources: r.sources
+    };
+  },
+
+  /** Health check ringan: cukup panggil home() penyedia dan catat hasilnya. */
   async check(provider: AnimeProvider): Promise<boolean> {
     try {
       await withTimeout(provider.home(), 12000);

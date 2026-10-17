@@ -1,33 +1,91 @@
-/* ═══════ Reset, tokens, base — palet Wibuku ═══════ */
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{
-/* Background */
---bg:#0A0A0D;--bg2:#0D0D10;--panel:#121218;--panel2:#16161D;--panel3:#181821;
-/* Teks */
---txt:#F5F5F7;--mut:#9CA3AF;--dim:#6B7280;
-/* Aksen utama merah Wibuku + sekunder biru dongker */
---acc:#E50914;--acc2:#1E88E5;--acc-soft:rgba(229,9,20,.14);
---love:#E50914;--ok:#10B981;--warn:#F59E0B;--err:#EF4444;
---grad:linear-gradient(100deg,#FFFFFF 0%,#F5F5F7 60%,#D7D9E0 100%);
---grad2:#E50914;
---line:rgba(255,255,255,.06);--line2:rgba(255,255,255,.13);
---glass:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012));
-/* Radius Wibuku: 8px seragam */
---r1:8px;--r2:8px;--r3:8px;--r4:8px;--r5:8px;--r6:8px;
---sh1:0 2px 8px rgba(0,0,0,.3);--sh2:0 4px 16px rgba(0,0,0,.4);--sh3:0 8px 24px rgba(0,0,0,.45);
---ease:cubic-bezier(.4,0,.2,1);--spring:cubic-bezier(.4,0,.2,1);
---nav-h:62px;--side-w:250px;--top-h:58px;--maxw:1280px;
+/* ═══════════════════════════════════════════════════════════════════════════
+   Nanime v2 — Design Tokens
+   Palet resmi, tipografi, radius, elevasi, gerak. JANGAN tambah warna baru
+   di luar token ini.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Warna ── */
+  --bg-primary: #0e0f14;
+  --bg-card: #161821;
+  --bg-card-hover: #1c1f2b;
+  --bg-elevated: #1e2230;
+  --bg-press: #13151d;
+
+  --accent-primary: #2563eb;
+  --accent-primary-hover: #1d4ed8;
+  --accent-primary-soft: rgba(37, 99, 235, 0.14);
+
+  --accent-gold: #f5c518;
+  --accent-red: #ef4444;
+  --accent-green: #10b981;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --border-subtle: rgba(148, 163, 184, 0.1);
+  --border-strong: rgba(148, 163, 184, 0.22);
+
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.25);
+  --shadow-float: 0 10px 40px rgba(37, 99, 235, 0.15);
+  --shadow-sheet: 0 -12px 48px rgba(0, 0, 0, 0.5);
+
+  --overlay: rgba(6, 7, 10, 0.72);
+
+  /* ── Radius ── */
+  --r-lg: 20px;
+  --r-md: 16px;
+  --r-btn: 14px;
+  --r-input: 18px;
+  --r-poster: 14px;
+  --r-pill: 999px;
+
+  /* ── Spasi ── */
+  --pad-x: 16px;
+  --pad-top: 24px;
+  --section-gap: 40px;
+  --nav-h: 72px;
+  --tap: 48px;
+
+  /* ── Tipografi ── */
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fs-hero: 42px;
+  --fs-title: 32px;
+  --fs-card: 15px;
+  --fs-body: 14px;
+  --fs-small: 12px;
+  --fs-label: 11px;
+
+  /* ── Gerak (semua GPU-only: transform + opacity) ── */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-micro: 130ms;
+  --t-enter: 240ms;
+  --t-page: 280ms;
+  --t-hover: 200ms;
+  --t-slow: 800ms;
 }
-html{scroll-behavior:smooth;background:var(--bg);height:100%;overflow:hidden}
-body{min-height:100dvh;overflow-x:hidden;overflow-y:hidden;color:var(--txt);background:var(--bg);font-family:Inter,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:15px;line-height:1.6;letter-spacing:-.006em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;height:100%}
-h1,h2,h3,h4{font-family:Inter,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;letter-spacing:-.022em;margin:0}
-a{color:inherit;text-decoration:none}
-button,input,select,textarea{font:inherit;color:inherit}
-button{background:none;border:0;cursor:pointer}
-img{display:block;max-width:100%}
-svg:not([width]):not([height]){width:18px;height:18px;flex:none}
-::-webkit-scrollbar{width:8px;height:8px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,.09);border-radius:8px;border:2px solid transparent;background-clip:content-box}
-::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18);background-clip:content-box}
-:focus-visible{outline:2px solid var(--acc2);outline-offset:3px;border-radius:8px}
+
+/* Mode terang opsional (tetap gelap-diutamakan). */
+[data-theme='light'] {
+  --bg-primary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #e8eef7;
+  --bg-elevated: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --overlay: rgba(15, 23, 42, 0.4);
+}
+
+/* Hormati preferensi sistem: kurangi gerak saat diminta. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-micro: 1ms;
+    --t-enter: 1ms;
+    --t-page: 1ms;
+    --t-hover: 1ms;
+    --t-slow: 1ms;
+  }
+}

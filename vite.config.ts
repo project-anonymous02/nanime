@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   base: './',
+  plugins: [react()],
   resolve: {
     alias: {
       '@': new URL('./src', import.meta.url).pathname
@@ -14,7 +16,18 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id: string) {
-          if (id.includes('node_modules')) return 'vendor';
+          if (!id.includes('node_modules')) return;
+          if (
+            id.includes('react-dom') ||
+            id.includes('/react/') ||
+            id.includes('react-router') ||
+            id.includes('zustand') ||
+            id.includes('scheduler')
+          )
+            return 'vendor-react';
+          if (id.includes('@supabase')) return 'vendor-supabase';
+          if (id.includes('hls.js')) return 'hls';
+          return 'vendor';
         }
       }
     }

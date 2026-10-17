@@ -1,0 +1,9 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Nanime v2 — stylesheet utama.
+   Urutan penting: token → base → animasi → komponen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@import './tokens.css';
+@import './base.css';
+@import './animations.css';
+@import './components.css';

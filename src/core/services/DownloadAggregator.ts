@@ -1,7 +1,7 @@
 import type { AnimeProvider } from '../../providers/types';
 import { downloadProviders, getProvider } from '../../providers/registry';
 import type { Card, DownloadLink } from '../types';
-import { cached } from '../client';
+import { CacheManager } from './CacheManager';
 import { matchScore } from '../utils/fuzzyMatch';
 import { findByEpisode, mergeDownloads } from './EpisodeMatcher';
 
@@ -83,7 +83,7 @@ async function collectOne(p: AnimeProvider, q: DownloadQuery): Promise<DownloadL
   if (typeof p.downloads !== 'function') return [];
   const isSource = q.preferred === p.id && !!q.episodeId;
   const key = q.title + ':' + (q.episode || q.episodeId || q.animeSlug || '');
-  return cached('dlagg:' + p.id + ':' + key, 30 * 60 * 1000, () => {
+  return CacheManager.downloads(p.id, key, () => {
     if (isSource) {
       return p.downloads!({
         animeId: q.animeId,

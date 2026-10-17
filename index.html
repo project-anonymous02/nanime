@@ -2,68 +2,45 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0A0A0D">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0E0F14">
 <meta name="color-scheme" content="dark">
-<meta name="description" content="Nanime — streaming anime subtitle Indonesia tanpa backend, jalan langsung di browser & APK Android.">
+<meta name="description" content="Nanime — platform anime, donghua & movie untuk komunitas Indonesia.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Nanime">
-<title>Nanime — Premium Anime Streaming</title>
+<title>Nanime</title>
 <link rel="icon" href="logo.jpg">
 <link rel="apple-touch-icon" href="logo.jpg">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/inter/index.css">
+<style>
+/* Splash kritis — tampil sebelum bundle React dieksekusi (tanpa layout shift). */
+:root { color-scheme: dark; }
+html, body { margin: 0; padding: 0; background: #0E0F14; }
+#boot {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 18px; background: #0E0F14; z-index: 9999;
+}
+#boot .ring {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 3px solid rgba(37, 99, 235, 0.18); border-top-color: #2563EB;
+  animation: bootspin 0.9s linear infinite; will-change: transform;
+}
+#boot .name { font: 800 15px/1 Inter, system-ui, sans-serif; letter-spacing: 0.18em; color: #94A3B8; }
+@keyframes bootspin { to { transform: rotate(360deg); } }
+#boot.done { opacity: 0; transition: opacity 240ms ease-out; pointer-events: none; }
+</style>
 </head>
 <body>
-<div id="bg"></div>
-<div class="topgrad" id="topgrad"></div>
-<div id="app">
-<aside id="sidebar">
-<a class="sb-brand" href="#/home">
-<span class="lbox"><img src="logo.jpg" alt="Logo" width="44" height="44"></span>
-<span><span class="wm">NANIME</span><span class="sub">Streaming</span></span>
-</a>
-<nav class="sb-nav" id="sbNav"></nav>
-<div class="sb-foot">
-<div class="sb-status" id="sbStatus"></div>
-<button class="btn ghost sm" data-act="open-settings" style="width:100%">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-1 1.47V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.47-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.6 1.6 0 0 0 9 4.6a1.6 1.6 0 0 0 1-1.47V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.6 1.6 0 0 0 19.4 9v0a1.6 1.6 0 0 0 1.47 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
-Pengaturan
-</button>
+<div id="root"></div>
+<div id="boot">
+  <div class="ring"></div>
+  <div class="name">NANIME</div>
 </div>
-</aside>
-
-<header id="topbar">
-<button class="ibtn" id="tbBack" data-act="back" style="display:none">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-</button>
-<a class="tb-logo" href="#/home" id="tbBrand">
-<img src="logo.jpg" alt="" width="28" height="28">
-<span>NANIME</span>
-</a>
-<span class="spacer"></span>
-<span id="tbStatus"></span>
-<button class="ibtn" data-act="goto" data-to="#/search" aria-label="Cari">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>
-</button>
-<button class="ibtn" data-act="open-palette" aria-label="Pintasan papan ketik">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M7 10h.01M11 10h.01M15 10h.01M17 10h.01M7 14h10"/></svg>
-</button>
-<button class="ibtn" data-act="open-settings" aria-label="Pengaturan">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-1 1.47V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.47-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.6 1.6 0 0 0 9 4.6a1.6 1.6 0 0 0 1-1.47V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.6 1.6 0 0 0 19.4 9v0a1.6 1.6 0 0 0 1.47 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
-</button>
-</header>
-
-<main id="view" role="main"></main>
-<nav id="tabbar"></nav>
-</div>
-
-<div id="toasts" aria-live="polite"></div>
-<div id="sheet-root" role="dialog" aria-modal="true"></div>
-
-<script type="module" src="/src/main.ts"></script>
+<noscript>Aktifkan JavaScript untuk memakai Nanime.</noscript>
+<script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

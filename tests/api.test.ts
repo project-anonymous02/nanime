@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { dayIndex } from '../src/core/api';
-import { PROVIDERS, isMovieSource, searchLabel, TTL } from '../src/core/config';
+import { dayIndex, timeToMinutes } from '../src/core/services/ProviderAggregator';
+import { TTL } from '../src/core/services/CacheManager';
+import { QUALITY_ORDER } from '../src/core/types';
 
-describe('konfigurasi & jadwal', () => {
+describe('jadwal — indeks hari & jam tayang', () => {
   it('dayIndex mengenali nama hari Indonesia & Inggris', () => {
     expect(dayIndex('Minggu')).toBe(0);
     expect(dayIndex('monday')).toBe(1);
@@ -15,18 +16,26 @@ describe('konfigurasi & jadwal', () => {
     expect(dayIndex('tengah pekan')).toBe(-1);
   });
 
-  it('provider utama aktif & kusonime ditandai movie', () => {
-    expect(PROVIDERS.otakudesu.active).toBe(true);
-    expect(PROVIDERS.oploverz.active).toBe(true);
-    expect(PROVIDERS.kuramanime.active).toBe(true);
-    expect(isMovieSource('kusonime')).toBe(true);
-    expect(isMovieSource('otakudesu')).toBe(false);
-    expect(searchLabel('kusonime')).toBe('Movie');
+  it('timeToMinutes membaca format jam yang umum', () => {
+    expect(timeToMinutes('20:00')).toBe(1200);
+    expect(timeToMinutes('19.30 WIB')).toBe(1170);
+    expect(timeToMinutes('21')).toBe(1260);
+    expect(timeToMinutes('-')).toBe(24 * 60 + 59);
   });
+});
 
-  it('TTL punya nilai masuk akal', () => {
-    expect(TTL.home).toBeGreaterThan(TTL.search);
-    expect(TTL.episode).toBeGreaterThan(0);
-    expect(TTL.genre).toBeGreaterThanOrEqual(TTL.detail);
+describe('TTL cache', () => {
+  it('stream paling pendek, pencarian paling panjang (relatif)', () => {
+    expect(TTL.stream).toBeLessThan(TTL.download);
+    expect(TTL.download).toBeLessThan(TTL.detail);
+    expect(TTL.detail).toBeLessThanOrEqual(TTL.search);
+    expect(TTL.home).toBeLessThan(TTL.schedule);
+    expect(TTL.stream).toBeGreaterThan(0);
+  });
+});
+
+describe('urutan kualitas tetap', () => {
+  it('selalu 1080p → 720p → 480p → 360p', () => {
+    expect(QUALITY_ORDER).toEqual(['1080p', '720p', '480p', '360p']);
   });
 });

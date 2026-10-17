@@ -1,48 +1,10 @@
-import { useCallback, useRef, useState, type CSSProperties } from 'react';
-import { signInGoogle } from '../state/auth';
+import { useCallback, useRef, useState } from 'react';
+import { signInGoogle, useAuth } from '../state/auth';
 import { useApp } from '../state/app';
 import { toast } from '../state/ui';
-import { BrandMark, GoogleLogo, Icon } from '../ui/icons';
+import { GoogleLogo, Icon } from '../ui/icons';
 
-/** Pengenalan awal (3 slide) + gerbang masuk Google — wajib sebelum konten. */
-
-interface Slide {
-  lines: string[];
-  gold?: boolean;
-  sub: string;
-  points: string[];
-}
-
-const SLIDES: Slide[] = [
-  {
-    lines: ['Nonton', 'Anime Tanpa', 'Ribet'],
-    sub: 'Streaming ringan dan cepat, dirancang untuk koneksi Indonesia.',
-    points: ['4 pilihan kualitas di setiap episode', 'Lanjut menonton tersimpan otomatis']
-  },
-  {
-    lines: ['Semua', 'Tayangan.', 'Satu Tempat.'],
-    gold: true,
-    sub: 'Anime, donghua, hingga movie — semuanya dalam satu aplikasi.',
-    points: ['Pencarian instan lintas katalog', 'Jadwal rilis harian selalu segar']
-  },
-  {
-    lines: ['Masuk untuk', 'Mulai'],
-    sub: 'Simpan favorit dan riwayat menontonmu agar tidak pernah hilang.',
-    points: []
-  }
-];
-
-function HeroChars({ text, offset = 0 }: { text: string; offset?: number }) {
-  return (
-    <>
-      {text.split('').map((ch, i) => (
-        <span key={i} className="ob-char" style={{ '--ci': i + offset } as CSSProperties}>
-          {ch === ' ' ? '\u00A0' : ch}
-        </span>
-      ))}
-    </>
-  );
-}
+/** Pengenalan awal (3 slide geser ke atas) + gerbang masuk Google — sesuai map-anibiplay.md. */
 
 function GoogleButton({ busy, onClick, shake }: { busy: boolean; onClick: () => void; shake: boolean }) {
   return (
@@ -57,8 +19,37 @@ function GoogleButton({ busy, onClick, shake }: { busy: boolean; onClick: () => 
       ) : (
         <GoogleLogo size={22} />
       )}
-      Masuk dengan Google
+      Lanjut dengan Google
     </button>
+  );
+}
+
+function LoginBlock({
+  busy,
+  shake,
+  signIn,
+  tester
+}: {
+  busy: boolean;
+  shake: boolean;
+  signIn: () => void;
+  tester: () => void;
+}) {
+  return (
+    <div className="ob-login">
+      <GoogleButton busy={busy} shake={shake} onClick={signIn} />
+      <div className="ob-or">atau</div>
+      <button type="button" className="ob-tester" onClick={tester}>
+        <Icon name="logout" size={18} />
+        Masuk sebagai Tester
+      </button>
+      <p className="ob-foot">
+        Dengan masuk, kamu menyetujui ketentuan layanan Nanime.
+        <br />
+        Aplikasi ini tidak mengunggah atau mendistribusikan konten media.
+      </p>
+      <p className="ob-dev">Developer: Nata</p>
+    </div>
   );
 }
 
@@ -70,18 +61,10 @@ export function Onboarding() {
   const [shake, setShake] = useState(false);
   const trackRef = useRef<HTMLDivElement | null>(null);
 
-  const goTo = useCallback((i: number) => {
-    const el = trackRef.current;
-    if (!el) return;
-    const n = Math.max(0, Math.min(SLIDES.length - 1, i));
-    el.scrollTo({ left: n * el.clientWidth, behavior: 'smooth' });
-    setIdx(n);
-  }, []);
-
   const onScroll = useCallback(() => {
     const el = trackRef.current;
     if (!el) return;
-    setIdx(Math.max(0, Math.min(SLIDES.length - 1, Math.round(el.scrollLeft / Math.max(1, el.clientWidth)))));
+    setIdx(Math.max(0, Math.min(2, Math.round(el.scrollTop / Math.max(1, el.clientHeight)))));
   }, []);
 
   const signIn = useCallback(async () => {
@@ -107,93 +90,109 @@ export function Onboarding() {
     setBusy(false);
   }, [busy, markOnboarded, onboarded]);
 
-  /* Setelah pernah mengikuti pengenalan: layar masuk ringkas. */
+  const tester = useCallback(() => {
+    if (!onboarded) markOnboarded();
+    useAuth.setState({
+      ready: true,
+      signedIn: true,
+      user: { id: 'tester', email: 'tester@nanime.test', name: 'Tester', avatar: null }
+    });
+  }, [markOnboarded, onboarded]);
+
+  /* Setelah pernah mengikuti pengenalan: layar masuk ringkas (gaya sama). */
   if (onboarded) {
     return (
       <div className="onboard">
-        <div className="ob-version">NANIME · V2</div>
-        <div className="ob-dev">Developer: Nata</div>
-        <div className="ob-slide" style={{ flex: 1, justifyContent: 'center' }}>
-          <BrandMark size={72} />
-          <h1 className="ob-hero anim-up" style={{ marginTop: 18 }}>
-            Masuk untuk Melanjutkan
-          </h1>
-          <p className="ob-sub anim-up">Konten Nanime hanya tersedia setelah masuk dengan akun Google.</p>
-          <div className="anim-up" style={{ marginTop: 8 }}>
-            <GoogleButton busy={busy} shake={shake} onClick={() => void signIn()} />
+        <div className="ob-version">Nanime v2.0.0</div>
+        <div className="ob-slide" style={{ justifyContent: 'center' }}>
+          <div className="ob-center">
+            <h1 className="ob-display gold">
+              SIAP MULAI<span className="ob-free">FREE</span>
+            </h1>
+            <p className="ob-sub">Masuk untuk sinkronisasi riwayat dan preferensi tontonan kamu.</p>
           </div>
-          <p className="ob-foot">Dengan masuk, kamu menyetujui ketentuan layanan Nanime.</p>
+          <div style={{ height: '32dvh' }} />
+          <LoginBlock busy={busy} shake={shake} signIn={() => void signIn()} tester={tester} />
         </div>
       </div>
     );
   }
 
-  const last = SLIDES.length - 1;
-  let charOffset = 0;
-
   return (
     <div className="onboard">
-      <div className="ob-version">NANIME · V2</div>
-      <div className="ob-dev">Developer: Nata</div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 10 }}>
-        {idx < last ? (
-          <button type="button" className="section-link" onClick={() => goTo(last)}>
-            Lewati
-            <Icon name="right" size={14} strokeWidth={2.4} />
-          </button>
-        ) : (
-          <span style={{ height: 30 }} />
-        )}
-      </div>
+      <div className="ob-version">Nanime v2.0.0</div>
 
-      <div className="ob-slides no-scrollbar" ref={trackRef} onScroll={onScroll}>
-        {SLIDES.map((s, si) => {
-          const base = charOffset;
-          charOffset += s.lines.join('').length + 4;
-          return (
-            <section key={si} className="ob-slide">
-              {si === 0 ? <BrandMark size={58} /> : null}
-              <h1 className={'ob-hero' + (s.gold ? ' gold' : '')}>
-                {s.lines.map((line, li) => (
-                  <span key={li} style={{ display: 'block' }}>
-                    <HeroChars text={line} offset={base + li * 2} />
-                  </span>
-                ))}
-              </h1>
-              <p className="ob-sub">{s.sub}</p>
-              {s.points.length ? (
-                <div className="ob-points">
-                  {s.points.map((p, pi) => (
-                    <span key={pi} className="ob-point">
-                      {p}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          );
-        })}
-      </div>
-
-      <div className="ob-dots" aria-hidden="true">
-        {SLIDES.map((_, i) => (
+      <div className="ob-rail" aria-hidden="true">
+        {[0, 1, 2].map(i => (
           <span key={i} className={'ob-dot' + (i === idx ? ' active' : '')} />
         ))}
       </div>
 
-      {idx === last ? (
-        <div className="anim-up" style={{ display: 'grid', gap: 10 }}>
-          <GoogleButton busy={busy} shake={shake} onClick={() => void signIn()} />
-          <p className="ob-foot">Dengan masuk, kamu menyetujui ketentuan layanan Nanime.</p>
-        </div>
-      ) : (
-        <>
-          <button type="button" className="btn primary block lg" onClick={() => goTo(idx + 1)}>
-            Lanjut
-          </button>
-          <p className="ob-hint">GESER UNTUK MELIHAT SELENGKAPNYA</p>
-        </>
-      )}
+      <div className="ob-track" ref={trackRef} onScroll={onScroll}>
+        <section className="ob-slide">
+          <div className="ob-center">
+            <h1 className="ob-display anim-up">WELCOME</h1>
+            <p className="ob-sub anim-up">
+              Platform anime, donghua &amp; movie
+              <br />
+              untuk komunitas Indonesia.
+            </p>
+          </div>
+          <div className="ob-hint anim-fade">
+            <Icon name="up" size={22} strokeWidth={2.4} />
+            <span>Geser ke atas</span>
+          </div>
+        </section>
+
+        <section className="ob-slide">
+          <div className="ob-center">
+            <span className="ob-chip anim-up">Disclaimer</span>
+            <h1 className="ob-display anim-up">Ketentuan Layanan</h1>
+            <ul className="ob-points">
+              <li className="ob-point">
+                <b>Aplikasi tidak resmi</b>
+                <span>
+                  Nanime adalah aplikasi pihak ketiga. Semua merek dagang dan hak cipta menjadi milik
+                  pemiliknya masing-masing.
+                </span>
+              </li>
+              <li className="ob-point">
+                <b>Tidak mengunggah konten</b>
+                <span>
+                  Aplikasi ini tidak mengunggah, menyimpan, atau mendistribusikan konten media. Semua
+                  konten bersumber dari tautan yang tersedia secara publik di internet.
+                </span>
+              </li>
+              <li className="ob-point">
+                <b>Pelanggaran hak cipta</b>
+                <span>
+                  Jika kamu adalah pemilik hak cipta dan merasa kontenmu digunakan secara tidak tepat,
+                  hubungi pengembang aplikasi.
+                </span>
+              </li>
+            </ul>
+          </div>
+          <div className="ob-hint anim-fade">
+            <Icon name="up" size={22} strokeWidth={2.4} />
+            <span>Geser ke atas</span>
+          </div>
+        </section>
+
+        <section className="ob-slide">
+          <div className="ob-center">
+            <h1 className="ob-display gold anim-up">
+              SIAP MULAI<span className="ob-free">FREE</span>
+            </h1>
+            <p className="ob-sub anim-up">
+              Masuk untuk sinkronisasi riwayat
+              <br />
+              dan preferensi tontonan kamu.
+            </p>
+          </div>
+          <div className="ob-spacer" />
+          <LoginBlock busy={busy} shake={shake} signIn={() => void signIn()} tester={tester} />
+        </section>
+      </div>
     </div>
   );
 }

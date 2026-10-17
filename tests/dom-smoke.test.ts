@@ -61,7 +61,7 @@ beforeAll(async () => {
     root.render(createElement(HashRouter, null, createElement(App)));
   });
   await waitFor(() => {
-    expect(container.textContent).toContain('NANIME');
+    expect(container.textContent).toContain('Nanime');
   });
 });
 
@@ -75,8 +75,8 @@ afterAll(async () => {
 describe('smoke test aplikasi React', () => {
   it('gerbang masuk tampil sebelum ada sesi (tanpa navigasi bawah)', () => {
     expect(container.querySelector('.bottom-nav')).toBeNull();
-    expect(container.textContent).toContain('Lanjut');
-    expect(container.textContent).toContain('GESER UNTUK MELIHAT SELENGKAPNYA');
+    expect(container.textContent).toContain('WELCOME');
+    expect(container.textContent).toContain('Geser ke atas');
     expect(container.textContent).toContain('Developer: Nata');
   });
 
@@ -92,9 +92,9 @@ describe('smoke test aplikasi React', () => {
       expect(container.querySelector('.bottom-nav')).not.toBeNull();
       const text = container.textContent || '';
       expect(text).toContain('Beranda');
-      expect(text).toContain('Cari');
       expect(text).toContain('Jadwal');
       expect(text).toContain('Favorit');
+      expect(text).toContain('Riwayat');
       expect(text).toContain('Profil');
     });
   });

@@ -38,6 +38,12 @@ const P: Record<string, ReactNode> = {
       <path d="M12 7.2V12l3.2 2" />
     </>
   ),
+  camera: (
+    <>
+      <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.8l1.4-2h6.6l1.4 2h1.8A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" />
+      <circle cx="12" cy="12.4" r="3.4" />
+    </>
+  ),
   user: (
     <>
       <circle cx="12" cy="8.2" r="4" />
@@ -54,6 +60,24 @@ const P: Record<string, ReactNode> = {
     <>
       <path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6" />
       <path d="M13.7 20a2 2 0 0 1-3.4 0" />
+    </>
+  ),
+  bellFill: (
+    <>
+      <path
+        d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6z"
+        fill="currentColor"
+        stroke="none"
+      />
+      <path d="M13.7 20a2 2 0 0 1-3.4 0" fill="currentColor" stroke="none" />
+    </>
+  ),
+  grid: (
+    <>
+      <rect x="3.6" y="3.6" width="7" height="7" rx="1.6" />
+      <rect x="13.4" y="3.6" width="7" height="7" rx="1.6" />
+      <rect x="3.6" y="13.4" width="7" height="7" rx="1.6" />
+      <rect x="13.4" y="13.4" width="7" height="7" rx="1.6" />
     </>
   ),
   play: <path d="M7 4.8v14.4a.7.7 0 0 0 1.07.6l11.4-7.2a.7.7 0 0 0 0-1.2L8.07 4.2A.7.7 0 0 0 7 4.8z" fill="currentColor" stroke="none" />,

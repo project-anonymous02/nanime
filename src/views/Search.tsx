@@ -2,21 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Catalog } from '../core/services/Catalog';
 import type { AggregatedCard } from '../core/types';
-import { AnimeCard, Chip, Grid } from '../ui/Cards';
+import { Grid, UpdateCard } from '../ui/Cards';
 import { EmptyState, ErrorState, ListSkel } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 import { useDebounced } from '../ui/hooks';
 import { detailPath } from '../lib/nav';
 
 /** Pencarian lintas katalog — satu judul = satu kartu, tanpa label sumber. */
-
-type SortKey = 'relevance' | 'title' | 'rating';
-
-const SORTS: { key: SortKey; label: string }[] = [
-  { key: 'relevance', label: 'Relevansi' },
-  { key: 'title', label: 'A–Z' },
-  { key: 'rating', label: 'Rating' }
-];
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -49,7 +41,6 @@ export function Search() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState(params.get('q') || '');
-  const [sort, setSort] = useState<SortKey>('relevance');
   const [items, setItems] = useState<AggregatedCard[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -82,7 +73,7 @@ export function Search() {
     let alive = true;
     setLoading(true);
     setError(false);
-    Catalog.search(dq, { sort })
+    Catalog.search(dq, { sort: 'relevance' })
       .then(r => {
         if (alive) setItems(r.items);
       })
@@ -95,13 +86,16 @@ export function Search() {
     return () => {
       alive = false;
     };
-  }, [dq, sort]);
+  }, [dq]);
 
   const openCard = (c: AggregatedCard) => navigate(detailPath(c.canonicalId, c.title));
 
   return (
     <>
-      <header className="topbar">
+      <header className="topbar search-topbar">
+        <button type="button" className="ibtn back-btn ripple-host" aria-label="Kembali" onClick={() => navigate(-1)}>
+          <Icon name="left" />
+        </button>
         <div className="input-wrap" style={{ flex: 1 }}>
           <Icon name="search" />
           <input
@@ -109,7 +103,7 @@ export function Search() {
             type="search"
             inputMode="search"
             enterKeyHint="search"
-            placeholder="Cari anime, donghua, movie…"
+            placeholder="Mencari anime"
             value={q}
             onChange={e => setQ(e.target.value)}
             aria-label="Kotak pencarian"
@@ -131,16 +125,8 @@ export function Search() {
         </div>
       </header>
 
-      <div className="chip-row no-scrollbar" role="tablist" aria-label="Urutkan">
-        {SORTS.map(s => (
-          <Chip key={s.key} active={sort === s.key} onClick={() => setSort(s.key)}>
-            {s.label}
-          </Chip>
-        ))}
-      </div>
-
       {loading && !items ? <ListSkel count={4} /> : null}
-      {error && !loading ? <ErrorState onRetry={() => setSort(s => s)} /> : null}
+      {error && !loading ? <ErrorState onRetry={() => setQ(v => v)} /> : null}
 
       {!loading && !error && items && items.length === 0 ? (
         <EmptyState
@@ -151,30 +137,17 @@ export function Search() {
       ) : null}
 
       {items && items.length ? (
-        <>
-          <p style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, margin: '14px 0 10px' }}>
-            {items.length} hasil untuk “{dq}”
-          </p>
-          <Grid>
-            {items.map((c, i) => (
-              <AnimeCard
-                key={c.canonicalId}
-                card={c}
-                index={i}
-                onOpen={openCard}
-                titleNode={<Highlight text={c.title} q={dq} />}
-              />
-            ))}
-          </Grid>
-        </>
-      ) : null}
-
-      {!items && !loading && !error ? (
-        <EmptyState
-          icon="search"
-          title="Cari tayangan favoritmu"
-          sub="Ketik minimal 2 huruf — kami mencari di seluruh katalog sekaligus."
-        />
+        <Grid>
+          {items.map((c, i) => (
+            <UpdateCard
+              key={c.canonicalId}
+              card={c}
+              index={i}
+              onOpen={openCard}
+              titleNode={<Highlight text={c.title} q={dq} />}
+            />
+          ))}
+        </Grid>
       ) : null}
     </>
   );

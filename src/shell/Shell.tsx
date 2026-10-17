@@ -14,9 +14,9 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: '/home', icon: 'home', label: 'Beranda' },
-  { to: '/search', icon: 'search', label: 'Cari' },
   { to: '/schedule', icon: 'calendar', label: 'Jadwal' },
-  { to: '/favorites', icon: 'heart', label: 'Favorit', alias: ['/history'] },
+  { to: '/favorites', icon: 'heart', label: 'Favorit' },
+  { to: '/history', icon: 'clock', label: 'Riwayat' },
   { to: '/profile', icon: 'user', label: 'Profil', alias: ['/settings'] }
 ];
 

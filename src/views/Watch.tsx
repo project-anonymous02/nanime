@@ -5,10 +5,11 @@ import type { DetailBundle, QualityLabel, StreamBundle } from '../core/types';
 import { useApp } from '../state/app';
 import { usePlayer } from '../state/player';
 import { useSettings } from '../state/settings';
+import { toast } from '../state/ui';
 import { ErrorState, Skel } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
-import { Tabs } from '../ui/Tabs';
-import { watchPath } from '../lib/nav';
+import { SmartImage } from '../ui/SmartImage';
+import { detailPath, shareOrCopy, watchPath } from '../lib/nav';
 
 /**
  * Halaman pemutar — video TIDAK dirender di sini. GlobalPlayer memegang satu
@@ -30,7 +31,9 @@ export function Watch() {
   const [stream, setStream] = useState<StreamBundle | null>(null);
   const [detail, setDetail] = useState<DetailBundle | null>(null);
   const [error, setError] = useState(false);
-  const [tab, setTab] = useState('server');
+  const [panel, setPanel] = useState<'quality' | 'download' | null>(null);
+  const [expand, setExpand] = useState(false);
+  const [epsOpen, setEpsOpen] = useState(true);
 
   const reqRef = useRef(0);
   const detailRef = useRef<DetailBundle | null>(null);
@@ -100,21 +103,18 @@ export function Watch() {
   const primaryProvider = stream?.servers[0]?.providerRef;
   const serverList = (stream?.servers || []).filter(s => mode === 'multi' || s.providerRef === primaryProvider);
 
-  const tabs = useMemo(() => {
-    const list = [{ key: 'server', label: 'Server' }];
-    if (stream?.downloads.length) list.push({ key: 'download', label: 'Unduh' });
-    if (episodes.length) list.push({ key: 'episode', label: 'Episode' });
-    if (detail?.synopsis) list.push({ key: 'info', label: 'Info' });
-    return list;
-  }, [stream?.downloads.length, episodes.length, detail?.synopsis]);
-
-  /* ── Pemilih kualitas & server (delegasi ke store pemutar) ── */
   const pickQuality = (label: QualityLabel) => {
     const st = usePlayer.getState();
     st.setServerRef(null);
     st.setQuality(label);
   };
   const pickServer = (ref: string) => usePlayer.getState().setServerRef(ref);
+
+  const onShare = async () => {
+    const url = location.origin + location.pathname + '#' + watchPath(id, String(stream?.episode ?? episode), title);
+    const ok = await shareOrCopy(title, url);
+    if (ok) toast('Tautan disalin', 'ok');
+  };
 
   if (error) {
     return (
@@ -135,82 +135,119 @@ export function Watch() {
       {/* Ruang untuk GlobalPlayer yang menempel di atas selama di halaman ini. */}
       <div className="watch-slot" aria-hidden="true" />
 
-      <div style={{ padding: '16px var(--pad-x) 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.01em' }} className="clamp-2">
-              {title}
-            </h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 12.5, fontWeight: 600, marginTop: 4 }}>
-              Episode {stream?.episode ?? episode} • 4 Kualitas
-            </p>
-          </div>
-          <div className="mode-fab" style={{ position: 'static', animation: 'none' }} role="group" aria-label="Mode sumber">
-            <button
-              type="button"
-              className={'mode-opt' + (mode === 'single' ? ' active' : '')}
-              onClick={() => setMode('single')}
-            >
-              SINGLE
-            </button>
-            <button
-              type="button"
-              className={'mode-opt' + (mode === 'multi' ? ' active' : '')}
-              onClick={() => setMode('multi')}
-            >
-              MULTI
-            </button>
-          </div>
+      <div className="wp">
+        <div className="wp-info">
+          <button type="button" className="wp-thumb" onClick={() => navigate(detailPath(id, title))} aria-label={title}>
+            <SmartImage src={stream?.poster || detail?.poster} alt={title} />
+          </button>
+          <span className="wp-id">
+            <span className="wp-title clamp-2">{title}</span>
+            <span className="wp-sub">
+              Episode {stream?.episode ?? episode}
+              {qualityDef.length ? ` • ${qualityDef.length} kualitas` : ''}
+            </span>
+          </span>
         </div>
 
-        <div className="quality-row" style={{ marginTop: 14 }}>
-          {qualityDef.map(q => {
-            const active = !serverRef && quality === q.label;
-            const dot = !q.source ? 'gray' : q.approx ? 'gold' : 'green';
-            return (
-              <button
-                key={q.label}
-                type="button"
-                className={'quality-btn' + (active ? ' active' : '')}
-                disabled={!q.source}
-                onClick={() => pickQuality(q.label)}
-              >
-                <span className={'q-dot ' + dot} />
-                {q.label}
+        {detail?.synopsis ? (
+          <div className="wp-syn">
+            <p className={'wp-syn-text' + (expand ? '' : ' clamp-2')}>{detail.synopsis}</p>
+            {detail.synopsis.length > 100 ? (
+              <button type="button" className="wp-syn-link" onClick={() => setExpand(v => !v)}>
+                {expand ? 'Tutup' : 'Selengkapnya'}
+                <Icon name="right" size={12} strokeWidth={2.6} />
               </button>
-            );
-          })}
-        </div>
-
-        <Tabs tabs={tabs} active={tab} onChange={setTab} />
-
-        {tab === 'server' && stream ? (
-          <div className="tab-panel" style={{ display: 'grid', gap: 8, marginTop: 14 }}>
-            {serverList.map(s => {
-              const active = serverRef === s.ref || (!serverRef && !!s.isDefault);
-              return (
-                <button
-                  key={s.ref}
-                  type="button"
-                  className={'server-item' + (active ? ' active' : '')}
-                  onClick={() => pickServer(s.ref)}
-                >
-                  <Icon name="server" size={18} />
-                  <span className="ellipsis" style={{ flex: 1 }}>
-                    {s.label}
-                  </span>
-                  {serverRef === s.ref ? <Icon name="check" size={16} /> : null}
-                </button>
-              );
-            })}
-            {!serverList.length ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Daftar server mengikuti mode sumber.</p>
             ) : null}
           </div>
         ) : null}
 
-        {tab === 'download' && stream ? (
-          <div className="tab-panel" style={{ marginTop: 14 }}>
+        <div className="wp-actions no-scrollbar">
+          <button
+            type="button"
+            className={'wp-chip' + (panel === 'quality' ? ' on' : '')}
+            onClick={() => setPanel(p => (p === 'quality' ? null : 'quality'))}
+          >
+            <Icon name="settings" size={14} strokeWidth={2.2} />
+            Kualitas
+          </button>
+          <button
+            type="button"
+            className={'wp-chip' + (panel === 'download' ? ' on' : '')}
+            onClick={() => setPanel(p => (p === 'download' ? null : 'download'))}
+          >
+            <Icon name="download" size={14} strokeWidth={2.2} />
+            Download
+          </button>
+          <button type="button" className="wp-chip" onClick={() => void onShare()}>
+            <Icon name="share" size={14} strokeWidth={2.2} />
+            Share
+          </button>
+        </div>
+
+        {panel === 'quality' && stream ? (
+          <div className="wp-panel">
+            <div className="wp-panel-head">
+              <span className="wp-panel-title">Pilihan Kualitas</span>
+              <div className="mode-fab" style={{ position: 'static', animation: 'none' }} role="group" aria-label="Mode sumber">
+                <button
+                  type="button"
+                  className={'mode-opt' + (mode === 'single' ? ' active' : '')}
+                  onClick={() => setMode('single')}
+                >
+                  SINGLE
+                </button>
+                <button
+                  type="button"
+                  className={'mode-opt' + (mode === 'multi' ? ' active' : '')}
+                  onClick={() => setMode('multi')}
+                >
+                  MULTI
+                </button>
+              </div>
+            </div>
+            <div className="quality-row">
+              {qualityDef.map(q => {
+                const active = !serverRef && quality === q.label;
+                const dot = !q.source ? 'gray' : q.approx ? 'gold' : 'green';
+                return (
+                  <button
+                    key={q.label}
+                    type="button"
+                    className={'quality-btn' + (active ? ' active' : '')}
+                    disabled={!q.source}
+                    onClick={() => pickQuality(q.label)}
+                  >
+                    <span className={'q-dot ' + dot} />
+                    {q.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+              {serverList.map(s => {
+                const active = serverRef === s.ref || (!serverRef && !!s.isDefault);
+                return (
+                  <button
+                    key={s.ref}
+                    type="button"
+                    className={'server-item' + (active ? ' active' : '')}
+                    onClick={() => pickServer(s.ref)}
+                  >
+                    <Icon name="server" size={18} />
+                    <span className="ellipsis" style={{ flex: 1 }}>
+                      {s.label}
+                    </span>
+                    {serverRef === s.ref ? <Icon name="check" size={16} /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        {panel === 'download' && stream ? (
+          <div className="wp-panel">
+            <span className="wp-panel-title">Pilihan Download</span>
             {stream.downloads.map(g => (
               <div className="download-group" key={g.quality}>
                 <div className="dg-head">
@@ -218,14 +255,7 @@ export function Watch() {
                   <span className="dg-quality">{g.quality}</span>
                 </div>
                 {g.items.map((d, i) => (
-                  <a
-                    key={i}
-                    className="dl-link"
-                    href={d.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                  >
+                  <a key={i} className="dl-link" href={d.url} target="_blank" rel="noopener noreferrer" download>
                     <span className="dl-name ellipsis">{d.name || d.quality || 'Unduh'}</span>
                     <Icon name="download" />
                   </a>
@@ -238,32 +268,35 @@ export function Watch() {
           </div>
         ) : null}
 
-        {tab === 'episode' ? (
-          <div className="tab-panel" style={{ marginTop: 14 }}>
-            <div className="ep-grid">
-              {episodes.map(ep => (
-                <button
-                  key={ep.num + ep.id}
-                  type="button"
-                  className={'ep-cell ripple-host' + (String(stream?.episode) === ep.num ? ' current' : '')}
-                  onClick={() => navigate(watchPath(id, ep.num, title), { replace: true })}
-                >
-                  {ep.num}
-                </button>
-              ))}
+        {episodes.length ? (
+          <section className="wp-eps">
+            <div className="wp-eps-head">
+              <h2 className="dt-h2">Daftar Episode</h2>
+              <button
+                type="button"
+                className={'wp-collapse' + (epsOpen ? ' open' : '')}
+                aria-label={epsOpen ? 'Sembunyikan episode' : 'Tampilkan episode'}
+                aria-expanded={epsOpen}
+                onClick={() => setEpsOpen(o => !o)}
+              >
+                <Icon name={epsOpen ? 'up' : 'down'} size={15} strokeWidth={2.8} />
+              </button>
             </div>
-          </div>
-        ) : null}
-
-        {tab === 'info' && detail ? (
-          <div className="tab-panel" style={{ marginTop: 14, display: 'grid', gap: 12 }}>
-            <div className="hero-meta">
-              {[detail.year, detail.type, detail.status, detail.duration, detail.studio].filter(Boolean).map((t, i) => (
-                <span key={i}>{t}</span>
-              ))}
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 13.5, lineHeight: 1.6 }}>{detail.synopsis}</p>
-          </div>
+            {epsOpen ? (
+              <div className="wp-epgrid">
+                {episodes.map(ep => (
+                  <button
+                    key={ep.num + ep.id}
+                    type="button"
+                    className={'wp-epchip ripple-host' + (String(stream?.episode) === ep.num ? ' on' : '')}
+                    onClick={() => navigate(watchPath(id, ep.num, title), { replace: true })}
+                  >
+                    {ep.num}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </section>
         ) : null}
 
         {!stream && !error ? (

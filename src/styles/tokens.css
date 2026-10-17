@@ -1,44 +1,51 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Nanime v2 — Design Tokens
-   Palet resmi, tipografi, radius, elevasi, gerak. JANGAN tambah warna baru
+   Nanime — Design Tokens (mengikuti map-anibiplay.md PERSIS)
+   Palet, tipografi, radius, elevasi, gerak. JANGAN tambah warna baru
    di luar token ini.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Warna ── */
-  --bg-primary: #0e0f14;
-  --bg-card: #161821;
-  --bg-card-hover: #1c1f2b;
-  --bg-elevated: #1e2230;
-  --bg-press: #13151d;
+  /* ── Warna (dari referensi AnibiPlay) ── */
+  --bg-primary: #0c0e16;
+  --bg-card: #151a28;
+  --bg-card-hover: #1b2130;
+  --bg-elevated: #1b2130;
+  --bg-press: #10141f;
+  --bg-sheet: #11151f;
 
-  --accent-primary: #2563eb;
-  --accent-primary-hover: #1d4ed8;
-  --accent-primary-soft: rgba(37, 99, 235, 0.14);
+  --accent-primary: #2e7dff;
+  --accent-primary-hover: #1e6fff;
+  --accent-primary-soft: rgba(46, 125, 255, 0.16);
+  --accent-cyan: #45c4ff;
+  --accent-pink: #f472b6;
+  --accent-orange: #f59e0b;
 
   --accent-gold: #f5c518;
   --accent-red: #ef4444;
-  --accent-green: #10b981;
+  --accent-green: #22c55e;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #ffffff;
+  --text-secondary: #9aa3b2;
+  --text-muted: #6b7280;
 
-  --border-subtle: rgba(148, 163, 184, 0.1);
-  --border-strong: rgba(148, 163, 184, 0.22);
+  --border-subtle: rgba(154, 163, 178, 0.12);
+  --border-strong: rgba(154, 163, 178, 0.26);
 
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.25);
-  --shadow-float: 0 10px 40px rgba(37, 99, 235, 0.15);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --shadow-float: 0 10px 40px rgba(0, 0, 0, 0.45);
   --shadow-sheet: 0 -12px 48px rgba(0, 0, 0, 0.5);
 
   --overlay: rgba(6, 7, 10, 0.72);
 
+  /* Gradasi maroon header Home */
+  --home-glow: rgba(60, 26, 40, 0.55);
+
   /* ── Radius ── */
-  --r-lg: 20px;
-  --r-md: 16px;
-  --r-btn: 14px;
-  --r-input: 18px;
-  --r-poster: 14px;
+  --r-lg: 24px;
+  --r-md: 20px;
+  --r-btn: 999px;
+  --r-input: 999px;
+  --r-poster: 16px;
   --r-pill: 999px;
 
   /* ── Spasi ── */

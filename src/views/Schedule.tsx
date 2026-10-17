@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Catalog } from '../core/services/Catalog';
 import type { ScheduleGroup } from '../core/types';
-import { DayPill, ScheduleCard } from '../ui/Cards';
-import { EmptyState, ErrorState, ListSkel, OfflineBar } from '../ui/Feedback';
+import { ErrorState, ListSkel, OfflineBar } from '../ui/Feedback';
+import { Icon } from '../ui/icons';
 import { usePullToRefresh } from '../ui/hooks';
+import { SmartImage } from '../ui/SmartImage';
 import { detailPath } from '../lib/nav';
 
-/** Jadwal rilis mingguan — dikelompokkan per hari, urut jam tayang. */
+/** Jadwal tayang — timeline gold per hari, scroll menerus, pil navigasi hari melayang. */
 
 const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
@@ -17,7 +18,9 @@ export function Schedule() {
   const [stale, setStale] = useState(false);
   const [error, setError] = useState(false);
   const todayIdx = new Date().getDay();
-  const [dayIdx, setDayIdx] = useState(todayIdx);
+  const [viewDay, setViewDay] = useState(todayIdx);
+
+  const dayRefs = useRef<Record<number, HTMLElement | null>>({});
 
   const load = async () => {
     setError(false);
@@ -40,14 +43,22 @@ export function Schedule() {
     () =>
       Array.from({ length: 7 }, (_, i) => {
         const idx = (todayIdx + i) % 7;
-        const label = i === 0 ? 'Hari Ini' : i === 1 ? 'Besok' : DAYS[idx];
-        return { idx, label, name: DAYS[idx] };
+        const name = DAYS[idx];
+        const label = i === 0 ? 'Hari Ini' : i === 1 ? 'Besok' : name;
+        const g = groups?.find(x => x.day.toLowerCase() === name.toLowerCase());
+        return { idx, name, label, items: g?.items || [] };
       }),
-    [todayIdx]
+    [groups, todayIdx]
   );
 
-  const group = groups?.find(g => g.day.toLowerCase() === DAYS[dayIdx].toLowerCase());
-  const items = group?.items || [];
+  const goDay = (delta: number) => {
+    const next = (viewDay + delta + 7) % 7;
+    setViewDay(next);
+    dayRefs.current[next]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const prevLabel = DAYS[(viewDay - 1 + 7) % 7];
+  const nextLabel = DAYS[(viewDay + 1) % 7];
 
   return (
     <>
@@ -55,42 +66,75 @@ export function Schedule() {
         <span className="ptr-ring" />
       </div>
 
-      <h1 className="tb-title" style={{ padding: '4px 0 14px' }}>
-        Jadwal Rilis
-      </h1>
+      <h1 className="sch-title">Jadwal Tayang</h1>
+      <div className="sch-divider" />
 
-      <div className="day-picker no-scrollbar" role="tablist" aria-label="Pilih hari">
-        {days.map(d => (
-          <DayPill key={d.idx} label={d.label} active={d.idx === dayIdx} onClick={() => setDayIdx(d.idx)} />
-        ))}
-      </div>
+      <OfflineBar show={stale} />
 
-      <div style={{ marginTop: 18 }}>
-        <OfflineBar show={stale} />
+      {error && !groups ? <ErrorState onRetry={() => void load()} /> : null}
+      {!groups && !error ? <ListSkel count={5} /> : null}
 
-        {error && !groups ? <ErrorState onRetry={() => void load()} /> : null}
-        {!groups && !error ? <ListSkel count={5} /> : null}
+      {days.map(d => (
+        <section
+          className="sch-day"
+          key={d.idx}
+          ref={el => {
+            dayRefs.current[d.idx] = el;
+          }}
+        >
+          <button
+            type="button"
+            className={'sch-day-head' + (d.idx === todayIdx ? ' active' : '')}
+            onClick={() => setViewDay(d.idx)}
+          >
+            <span className="sch-day-name">{d.label}</span>
+            <span className="sch-count">{d.items.length} Anime</span>
+          </button>
 
-        {groups && items.length ? (
-          <div className="timeline" key={dayIdx}>
-            {items.map((it, i) => (
-              <div key={it.provider + it.id + i} className="tl-item" style={{ '--i': i } as React.CSSProperties}>
-                <span className="tl-time">{it.time || '—'}</span>
-                <span className="tl-dot" />
-                <ScheduleCard item={it} onOpen={s => navigate(detailPath(s.id, s.title))} />
-              </div>
-            ))}
-          </div>
-        ) : null}
+          {d.items.length ? (
+            d.items.map((it, j) => (
+              <button
+                type="button"
+                className="sch-item"
+                key={it.provider + it.id + j}
+                onClick={() => navigate(detailPath(it.id, it.title))}
+                aria-label={it.title}
+              >
+                <span className="sch-rail">
+                  {j > 0 ? <span className="sch-line" /> : null}
+                  <span className="sch-time">{it.time || '—'}</span>
+                  <span className="sch-dot" />
+                </span>
+                <span className="sch-card">
+                  <span className="sch-thumb">
+                    <SmartImage src={it.poster} alt={it.title} eager={d.idx === todayIdx && j < 3} />
+                  </span>
+                  <span className="sch-body">
+                    <span className="sch-name clamp-2">{it.title}</span>
+                    {it.episode ? <span className="sch-ep">{it.episode}</span> : null}
+                    <span className="sch-wait">Menunggu Update</span>
+                  </span>
+                </span>
+              </button>
+            ))
+          ) : (
+            <p className="sch-empty">Belum ada jadwal rilis.</p>
+          )}
+        </section>
+      ))}
 
-        {groups && !items.length ? (
-          <EmptyState
-            icon="calendar"
-            title={`Tidak ada rilis di ${DAYS[dayIdx]}`}
-            sub="Belum ada jadwal untuk hari ini. Coba pilih hari lain."
-          />
-        ) : null}
-      </div>
+      {groups ? (
+        <div className="sch-nav">
+          <button type="button" className="sch-nav-pill" onClick={() => goDay(-1)}>
+            <Icon name="left" size={14} strokeWidth={2.6} />
+            {prevLabel}
+          </button>
+          <button type="button" className="sch-nav-pill" onClick={() => goDay(1)}>
+            {nextLabel}
+            <Icon name="right" size={14} strokeWidth={2.6} />
+          </button>
+        </div>
+      ) : null}
     </>
   );
 }

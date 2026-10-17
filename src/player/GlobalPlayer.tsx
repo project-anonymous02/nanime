@@ -132,6 +132,7 @@ export function GlobalPlayer() {
   const [drag, setDrag] = useState(false);
   const [seekPct, setSeekPct] = useState(0);
   const [hint, setHint] = useState<{ side: 'left' | 'right'; key: number } | null>(null);
+  const [locked, setLocked] = useState(false);
   const [tapIcon, setTapIcon] = useState<'play' | 'pause' | null>(null);
   const [showClose, setShowClose] = useState(false);
   const [overClose, setOverClose] = useState(false);
@@ -545,7 +546,14 @@ export function GlobalPlayer() {
   }, []);
 
   /* ── Interaksi permukaan docked: tap tampil kontrol, double-tap ±10s ── */
+  const seekBy = (delta: number) => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.currentTime = Math.max(0, Math.min(v.duration || Number.MAX_SAFE_INTEGER, v.currentTime + delta));
+  };
+
   const onSurfaceTap = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (locked) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -800,6 +808,10 @@ export function GlobalPlayer() {
                 <Icon name="x" size={15} strokeWidth={2.4} />
               </button>
             ) : null}
+            <div className="gp-mini-footer">
+              <span className="gp-mini-title ellipsis">{title}</span>
+              <span className="gp-mini-sub">Episode {session.episode}</span>
+            </div>
           </>
         ) : (
           <>
@@ -811,7 +823,7 @@ export function GlobalPlayer() {
             />
 
             {controls && stream ? (
-              <div className={'gp-controls' + (visible ? '' : ' gp-hidden')}>
+              <div className={'gp-controls' + (visible && !locked ? '' : ' gp-hidden')}>
                 {/* Top bar */}
                 <div className="gp-top">
                   <button type="button" className="gp-ibtn" aria-label="Kembali" onClick={() => navigate(-1)}>
@@ -829,6 +841,9 @@ export function GlobalPlayer() {
                   >
                     <Icon name={fit === 'contain' ? 'expand' : 'collapse'} size={15} />
                     <span>{fit === 'contain' ? 'Fit' : 'Fill'}</span>
+                  </button>
+                  <button type="button" className="gp-ibtn" aria-label="Kunci layar" onClick={() => setLocked(true)}>
+                    <Icon name="lock" size={20} strokeWidth={2.2} />
                   </button>
                   <button type="button" className="gp-ibtn" aria-label="Layar penuh" onClick={toggleFs}>
                     <Icon name="fullscreen" size={24} />
@@ -877,12 +892,30 @@ export function GlobalPlayer() {
                   </button>
                   <button
                     type="button"
+                    className="gp-skip sm"
+                    aria-label="Mundur 10 detik"
+                    onPointerUp={e => e.stopPropagation()}
+                    onClick={() => seekBy(-10)}
+                  >
+                    <Icon name="seekBack" size={22} />
+                  </button>
+                  <button
+                    type="button"
                     className="gp-play"
                     aria-label={playing ? 'Jeda' : 'Putar'}
                     onPointerUp={e => e.stopPropagation()}
                     onClick={togglePlay}
                   >
                     <Icon name={playing ? 'pause' : 'play'} size={30} />
+                  </button>
+                  <button
+                    type="button"
+                    className="gp-skip sm"
+                    aria-label="Maju 10 detik"
+                    onPointerUp={e => e.stopPropagation()}
+                    onClick={() => seekBy(10)}
+                  >
+                    <Icon name="seekFwd" size={22} />
                   </button>
                   <button
                     type="button"
@@ -962,7 +995,7 @@ export function GlobalPlayer() {
             ) : null}
 
             {/* Native-controls / iframe: top bar ringkas */}
-            {(!controls || !stream) && stream ? (
+            {(!controls || !stream) && stream && !locked ? (
               <div className="gp-top minimal">
                 <button type="button" className="gp-ibtn" aria-label="Kembali" onClick={() => navigate(-1)}>
                   <Icon name="back" size={26} />
@@ -971,6 +1004,19 @@ export function GlobalPlayer() {
                   <span className="gp-title ellipsis">{title}</span>
                   <span className="gp-sub">Episode {session.episode}</span>
                 </div>
+              </div>
+            ) : null}
+
+            {locked ? (
+              <div className="gp-locklayer" onPointerUp={e => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="gp-lockbtn"
+                  aria-label="Buka kunci layar"
+                  onClick={() => setLocked(false)}
+                >
+                  <Icon name="lock" size={22} strokeWidth={2.2} />
+                </button>
               </div>
             ) : null}
           </>
@@ -986,7 +1032,14 @@ export function GlobalPlayer() {
 
       <Sheet open={sheet === 'quality'} onClose={() => setSheet(null)} title="Kualitas Video">
         {(stream?.qualities || []).map(q => {
-          const dot = !q.source ? 'gray' : q.approx ? 'gold' : 'green';
+          const tier: Record<string, { name: string; tone: string; desc: string }> = {
+            '1080p': { name: 'Premium', tone: 'gold', desc: 'Kualitas paling tinggi untuk tampilan maksimal, terbaik di jaringan cepat.' },
+            '720p': { name: 'Bagus', tone: 'orange', desc: 'Gambar lebih tajam dan nyaman ditonton jika internet kamu cukup stabil.' },
+            '480p': { name: 'Standar', tone: 'green', desc: 'Pilihan aman untuk harian, cukup jernih dan tetap hemat data.' },
+            '360p': { name: 'Hemat', tone: 'gray', desc: 'Ringan untuk kuota dan cepat diputar di koneksi yang tidak stabil.' }
+          };
+          const t = tier[q.label];
+          const selected = serverRef === null && quality === q.label;
           return (
             <SheetItem
               key={q.label}
@@ -997,9 +1050,17 @@ export function GlobalPlayer() {
                 setSheet(null);
               }}
             >
-              <span className={'q-dot ' + dot} style={{ marginRight: 10 }} />
-              <span style={{ flex: 1 }}>{q.label}</span>
-              {serverRef === null && quality === q.label ? <Icon name="check" size={16} /> : null}
+              <span className="qs-row">
+                <span className="qs-check">{selected ? <Icon name="check" size={15} strokeWidth={3} /> : null}</span>
+                <span className="qs-body">
+                  <span className={'qs-title ' + (t?.tone || 'gray')}>
+                    {q.label}
+                    {t ? ` (${t.name})` : ''}
+                  </span>
+                  <span className="qs-desc">{t?.desc || 'Kualitas video dari sumber.'}</span>
+                </span>
+                {!q.source ? <span className="qs-off">—</span> : null}
+              </span>
             </SheetItem>
           );
         })}

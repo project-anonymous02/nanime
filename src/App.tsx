@@ -12,6 +12,7 @@ import { AuthCallback } from './views/AuthCallback';
 import { Detail } from './views/Detail';
 import { Favorites } from './views/Favorites';
 import { History } from './views/History';
+import { Notifications } from './views/Notifications';
 import { Home } from './views/Home';
 import { Onboarding } from './views/Onboarding';
 import { Profile } from './views/Profile';
@@ -51,6 +52,7 @@ function Gate() {
         <Route path="/history" element={<History />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/notifications" element={<Notifications />} />
         <Route path="/detail/:id" element={<Detail />} />
         <Route path="/watch/:id/:episode" element={<Watch />} />
         <Route path="*" element={<Navigate to="/home" replace />} />

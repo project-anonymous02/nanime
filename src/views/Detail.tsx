@@ -4,14 +4,13 @@ import { Catalog } from '../core/services/Catalog';
 import type { AggregatedCard, DetailBundle } from '../core/types';
 import { useLibrary } from '../state/library';
 import { toast } from '../state/ui';
-import { AnimeCard, Grid } from '../ui/Cards';
-import { Badge, ErrorState, SectionHead, Skel } from '../ui/Feedback';
+import { Grid, UpdateCard } from '../ui/Cards';
+import { ErrorState, Skel } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
-import { Button } from '../ui/Button';
 import { SmartImage } from '../ui/SmartImage';
 import { detailPath, shareOrCopy, watchPath } from '../lib/nav';
 
-/** Detail tayangan — hero, sinopsis, episode, dan rekomendasi. */
+/** Detail anime ala referensi — hero, chip, synopsis, related, daftar episode list/grid. */
 
 export function Detail() {
   const { id = '' } = useParams();
@@ -22,6 +21,9 @@ export function Detail() {
   const [bundle, setBundle] = useState<DetailBundle | null>(null);
   const [error, setError] = useState(false);
   const [expand, setExpand] = useState(false);
+  const [epMode, setEpMode] = useState<'list' | 'grid'>('list');
+  const [epQuery, setEpQuery] = useState('');
+  const [stuck, setStuck] = useState(false);
 
   const favorites = useLibrary(s => s.favorites);
   const toggleFavorite = useLibrary(s => s.toggleFavorite);
@@ -40,6 +42,12 @@ export function Detail() {
     window.scrollTo(0, 0);
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const onScroll = () => setStuck(window.scrollY > window.innerHeight * 0.4);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const isFav = favorites.some(f => f.id === id);
   const episodes = bundle?.episodeList || [];
@@ -62,6 +70,12 @@ export function Detail() {
     if (entries) return entries.episode;
     return episodes[0]?.num || '';
   }, [history, id, episodes]);
+
+  const filteredEps = useMemo(() => {
+    const q = epQuery.trim().toLowerCase();
+    if (!q) return episodes;
+    return episodes.filter(ep => (ep.num + ' ' + (ep.title || '')).toLowerCase().includes(q));
+  }, [episodes, epQuery]);
 
   const onWatch = () => {
     if (!resumeEp) {
@@ -105,27 +119,33 @@ export function Detail() {
 
   if (!bundle) {
     return (
-      <div className="detail-hero" style={{ minHeight: 260 }}>
-        <div className="hero-bg">
+      <div className="dt-hero">
+        <div className="dt-hero-bg">
           <Skel className="poster" style={{ height: '100%', borderRadius: 0 }} />
         </div>
-        <div className="hero-shade" />
-        <div className="hero-body">
-          <Skel className="line w60" style={{ height: 22 }} />
-          <Skel className="line w40" style={{ marginTop: 12 }} />
-        </div>
+        <div className="dt-hero-shade" />
       </div>
     );
   }
 
   return (
     <>
-      <div className="detail-hero">
-        <div className="hero-bg">
+      <div className={'dt-sticky' + (stuck ? ' show' : '')}>
+        <button type="button" className="ibtn ripple-host" aria-label="Kembali" onClick={() => navigate(-1)}>
+          <Icon name="back" />
+        </button>
+        <span className="dt-sticky-title ellipsis">{bundle.title}</span>
+        <button type="button" className="ibtn ripple-host" aria-label="Bagikan" onClick={() => void onShare()}>
+          <Icon name="share" />
+        </button>
+      </div>
+
+      <div className="dt-hero">
+        <div className="dt-hero-bg">
           <SmartImage src={bundle.poster} alt={bundle.title} eager />
         </div>
-        <div className="hero-shade" />
-        <div className="hero-top">
+        <div className="dt-hero-shade" />
+        <div className="dt-hero-top">
           <button type="button" className="ibtn ripple-host" aria-label="Kembali" onClick={() => navigate(-1)}>
             <Icon name="back" />
           </button>
@@ -138,105 +158,167 @@ export function Detail() {
             className="ibtn ripple-host"
             aria-label={isFav ? 'Hapus dari favorit' : 'Tambah ke favorit'}
             aria-pressed={isFav}
-            style={isFav ? { color: 'var(--accent-red)' } : undefined}
+            style={isFav ? { color: 'var(--accent-pink)' } : undefined}
             onClick={onFav}
           >
             <Icon name={isFav ? 'heartFill' : 'heart'} />
           </button>
         </div>
-        <div className="hero-body">
-          {bundle.score ? (
-            <Badge tone="gold">
-              <Icon name="starFill" size={12} strokeWidth={0} />
-              {bundle.score}
-            </Badge>
-          ) : null}
-          <h1 className="hero-title">{bundle.title}</h1>
-          <div className="hero-meta">
-            {[bundle.year, bundle.type, bundle.status, bundle.duration, bundle.episodes ? `${bundle.episodes} eps` : '']
-              .filter(Boolean)
-              .map((t, i) => (
-                <span key={i}>{t}</span>
-              ))}
-            <Badge tone="blue">4 Kualitas</Badge>
-          </div>
-        </div>
       </div>
 
-      <div className="detail-info">
-        <div className="di-poster">
-          <SmartImage src={bundle.poster} alt={bundle.title} />
+      <div className="dt-body">
+        {bundle.alt ? <p className="dt-alt clamp-1">{bundle.alt}</p> : null}
+        <h1 className="dt-title clamp-2">{bundle.title}</h1>
+
+        <p className="dt-status">
+          <Icon name="calendar" size={14} strokeWidth={2.2} />
+          {bundle.status || 'Sedang Tayang'}
+        </p>
+
+        <div className="dt-chips">
+          {bundle.score && bundle.score !== '-' ? (
+            <span className="dt-chip gold">
+              <Icon name="starFill" size={11} strokeWidth={0} />
+              {bundle.score}
+            </span>
+          ) : null}
+          {bundle.year ? <span className="dt-chip">{bundle.year}</span> : null}
+          {bundle.type ? <span className="dt-chip">{bundle.type}</span> : null}
+          {bundle.episodes ? <span className="dt-chip">{bundle.episodes} eps</span> : null}
+          {bundle.duration ? <span className="dt-chip">{bundle.duration}</span> : null}
         </div>
-        <div className="di-body">
-          {bundle.synopsis ? (
-            <>
-              <p className={'di-synopsis' + (expand ? '' : ' clamp-3')}>{bundle.synopsis}</p>
+
+        <div className="dt-actions">
+          <button type="button" className="dt-btn primary" onClick={onWatch}>
+            <Icon name="play" size={16} strokeWidth={0} />
+            {resumeEp && progressMap.get(resumeEp) ? `Lanjut Eps ${resumeEp}` : 'Tonton Sekarang'}
+          </button>
+          <button type="button" className={'dt-btn ghost' + (isFav ? ' on' : '')} onClick={onFav}>
+            <Icon name={isFav ? 'bellFill' : 'bell'} size={16} strokeWidth={2} />
+            {isFav ? 'Tersimpan' : 'Favorit'}
+          </button>
+        </div>
+
+        {bundle.genres.length ? (
+          <div className="dt-chips" style={{ marginTop: 0 }}>
+            {bundle.genres.slice(0, 5).map(g => (
+              <span key={g} className="dt-chip dim">
+                {g}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        {bundle.synopsis ? (
+          <div className="dt-syn">
+            <div className="dt-syn-head">
+              <h2 className="dt-h2">Synopsis</h2>
               {bundle.synopsis.length > 120 ? (
-                <button type="button" className="section-link" onClick={() => setExpand(v => !v)}>
-                  {expand ? 'Sembunyikan' : 'Baca selengkapnya'}
+                <button type="button" className="dt-syn-toggle" onClick={() => setExpand(v => !v)}>
+                  {expand ? 'Tutup' : 'Selengkapnya'}
+                  <Icon name={expand ? 'up' : 'down'} size={13} strokeWidth={2.6} />
                 </button>
               ) : null}
-            </>
-          ) : null}
-          {bundle.genres.length ? (
-            <div className="chip-row no-scrollbar" style={{ gap: 6 }}>
-              {bundle.genres.slice(0, 6).map(g => (
-                <span key={g} className="badge gray">
-                  {g}
-                </span>
-              ))}
             </div>
-          ) : null}
-          {bundle.studio ? <p className="di-synopsis">Studio: {bundle.studio}</p> : null}
-        </div>
-      </div>
-
-      <div className="detail-actions">
-        <Button variant="primary" size="lg" className="watch" icon={<Icon name="play" size={18} />} onClick={onWatch}>
-          {resumeEp && progressMap.get(resumeEp) ? `Lanjut Eps ${resumeEp}` : 'Tonton Sekarang'}
-        </Button>
-        <Button
-          variant="ghost"
-          size="lg"
-          className="icon-only"
-          aria-label={isFav ? 'Hapus dari favorit' : 'Tambah ke favorit'}
-          onClick={onFav}
-        >
-          <Icon name={isFav ? 'heartFill' : 'heart'} />
-        </Button>
-      </div>
-
-      {episodes.length ? (
-        <section className="section" style={{ marginTop: 30 }}>
-          <SectionHead title={`Episode (${episodes.length})`} />
-          <div className="ep-grid">
-            {episodes.map(ep => {
-              const pr = progressMap.get(ep.num);
-              return (
-                <button
-                  key={ep.num + ep.id}
-                  type="button"
-                  className={'ep-cell ripple-host' + (resumeEp === ep.num && pr ? ' current' : '') + (pr?.completed ? ' watched' : '')}
-                  onClick={() => navigate(watchPath(id, ep.num, bundle.title))}
-                >
-                  {ep.num}
-                </button>
-              );
-            })}
+            <p className={'dt-syn-text' + (expand ? '' : ' clamp-2')}>{bundle.synopsis}</p>
           </div>
-        </section>
-      ) : null}
+        ) : null}
 
-      {bundle.recommendations.length ? (
-        <section className="section" style={{ marginTop: 30 }}>
-          <SectionHead title="Rekomendasi" />
-          <Grid>
-            {bundle.recommendations.map((c, i) => (
-              <AnimeCard key={c.canonicalId} card={c} index={i} onOpen={openCard} />
-            ))}
-          </Grid>
-        </section>
-      ) : null}
+        {bundle.recommendations.length ? (
+          <section className="section" style={{ marginTop: 24 }}>
+            <h2 className="dt-h2">Related Anime</h2>
+            <Grid>
+              {bundle.recommendations.slice(0, 9).map((c, i) => (
+                <UpdateCard key={c.canonicalId} card={c} index={i} onOpen={openCard} />
+              ))}
+            </Grid>
+          </section>
+        ) : null}
+
+        {episodes.length ? (
+          <section className="section" style={{ marginTop: 26 }}>
+            <h2 className="dt-h2">Daftar Episode</h2>
+            <div className="dt-ep-controls">
+              <div className="input-wrap" style={{ flex: 1, height: 44 }}>
+                <Icon name="search" size={16} strokeWidth={2.2} />
+                <input
+                  type="search"
+                  placeholder="Cari episode…"
+                  value={epQuery}
+                  onChange={e => setEpQuery(e.target.value)}
+                  aria-label="Cari episode"
+                />
+              </div>
+              <button type="button" className="dt-sq" aria-label="Urutan episode" onClick={() => setEpQuery('')}>
+                <Icon name={epQuery ? 'x' : 'down'} size={16} strokeWidth={2.4} />
+              </button>
+              <button
+                type="button"
+                className={'dt-sq' + (epMode === 'grid' ? ' on' : '')}
+                aria-label="Mode grid"
+                aria-pressed={epMode === 'grid'}
+                onClick={() => setEpMode(m => (m === 'grid' ? 'list' : 'grid'))}
+              >
+                <Icon name="grid" size={16} strokeWidth={2.2} />
+              </button>
+            </div>
+
+            {epMode === 'list' ? (
+              <div className="dt-eplist">
+                {filteredEps.map(ep => {
+                  const pr = progressMap.get(ep.num);
+                  const active = resumeEp === ep.num && pr;
+                  return (
+                    <div className={'dt-eprow' + (active ? ' on' : '')} key={ep.num + ep.id}>
+                      <button type="button" className="dt-epl-main" onClick={() => navigate(watchPath(id, ep.num, bundle.title))}>
+                        <span className="dt-epl-num">
+                          Episode {ep.num}
+                          {pr?.completed ? <span className="dt-epl-done">Selesai</span> : null}
+                        </span>
+                        {ep.date ? <span className="dt-epl-date">{ep.date}</span> : null}
+                      </button>
+                      <button
+                        type="button"
+                        className="dt-epl-play"
+                        aria-label={'Tonton episode ' + ep.num}
+                        onClick={() => navigate(watchPath(id, ep.num, bundle.title))}
+                      >
+                        <Icon name="play" size={14} strokeWidth={0} />
+                      </button>
+                    </div>
+                  );
+                })}
+                {!filteredEps.length ? <p className="dt-ep-empty">Episode tidak ditemukan.</p> : null}
+              </div>
+            ) : (
+              <>
+                <div className="dt-epgrid">
+                  {filteredEps.map(ep => {
+                    const pr = progressMap.get(ep.num);
+                    const active = resumeEp === ep.num && pr;
+                    return (
+                      <div className={'dt-epcell' + (active ? ' on' : '')} key={ep.num + ep.id}>
+                        <button type="button" className="dt-epcell-num" onClick={() => navigate(watchPath(id, ep.num, bundle.title))}>
+                          Eps {ep.num}
+                        </button>
+                        <button
+                          type="button"
+                          className="dt-epl-play"
+                          aria-label={'Tonton episode ' + ep.num}
+                          onClick={() => navigate(watchPath(id, ep.num, bundle.title))}
+                        >
+                          <Icon name="play" size={13} strokeWidth={0} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {!filteredEps.length ? <p className="dt-ep-empty">Episode tidak ditemukan.</p> : null}
+              </>
+            )}
+          </section>
+        ) : null}
+      </div>
     </>
   );
 }

@@ -86,6 +86,116 @@ export function WeeklyCard({
   );
 }
 
+/* ── Kartu gaya AnibiPlay (map-anibiplay.md) ── */
+
+function mmss(sec: number): string {
+  const s = Math.max(0, Math.floor(sec || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Kartu poster 3 kolom: badge sudut + rating + overlay status + views + judul. */
+export function UpdateCard({
+  card,
+  index = 0,
+  onOpen,
+  badge,
+  titleNode
+}: {
+  card: AggregatedCard;
+  index?: number;
+  onOpen: (card: AggregatedCard) => void;
+  badge?: string;
+  titleNode?: ReactNode;
+}) {
+  const score = card.score && card.score !== '-' ? card.score : '';
+  const overlay = card.epLabel || card.status || '';
+  const style: CSSProperties = index ? ({ '--i': index } as CSSProperties) : {};
+  return (
+    <button type="button" className="up-card anim-up" style={style} onClick={() => onOpen(card)} aria-label={card.title}>
+      <span className="up-poster">
+        <SmartImage src={card.poster} alt={card.title} eager={index < 6} />
+        {badge ? <span className="up-badge">{badge}</span> : null}
+        {score ? (
+          <span className="up-rating">
+            <Icon name="starFill" size={11} strokeWidth={0} />
+            {score}
+          </span>
+        ) : null}
+        {overlay ? <span className="up-ep">{overlay}</span> : null}
+      </span>
+      {card.views ? (
+        <span className="up-views">
+          <Icon name="play" size={10} strokeWidth={0} />
+          {card.views}
+        </span>
+      ) : null}
+      <span className="up-title clamp-2">{titleNode ?? card.title}</span>
+    </button>
+  );
+}
+
+/** Kartu besar 2 kolom: badge rank gold + rating + "N Eps" dalam gambar. */
+export function RankCard({
+  card,
+  index = 0,
+  onOpen
+}: {
+  card: AggregatedCard;
+  index?: number;
+  onOpen: (card: AggregatedCard) => void;
+}) {
+  const score = card.score && card.score !== '-' ? card.score : '';
+  const style: CSSProperties = index ? ({ '--i': index } as CSSProperties) : {};
+  return (
+    <button type="button" className="rank-card anim-up" style={style} onClick={() => onOpen(card)} aria-label={card.title}>
+      <span className="rk-img">
+        <SmartImage src={card.poster} alt={card.title} />
+        {card.rank ? <span className="rk-badge">#{card.rank}</span> : null}
+        {score ? (
+          <span className="rk-rating">
+            <Icon name="starFill" size={11} strokeWidth={0} />
+            {score}
+          </span>
+        ) : null}
+        {card.epLabel ? <span className="rk-eps">{card.epLabel}</span> : null}
+      </span>
+      {card.views ? (
+        <span className="rk-views">
+          <Icon name="play" size={10} strokeWidth={0} />
+          {card.views} views
+        </span>
+      ) : null}
+      <span className="rk-title clamp-2">{card.title}</span>
+    </button>
+  );
+}
+
+/** Kartu horizontal "Terakhir Ditonton": gambar 16:9 + jam. */
+export function ContinueRailCard({
+  item,
+  onOpen
+}: {
+  item: HistoryItem;
+  onOpen: (item: HistoryItem) => void;
+}) {
+  const time =
+    item.durationSec > 0 ? `${mmss(item.positionSec)} / ${mmss(item.durationSec)}` : `Episode ${item.episode}`;
+  return (
+    <button type="button" className="cr-card anim-up" onClick={() => onOpen(item)} aria-label={item.title}>
+      <span className="cr-img">
+        <SmartImage src={item.poster} alt={item.title} />
+        <span className="cr-eps">Eps {item.episode}</span>
+      </span>
+      <span className="cr-title clamp-2">{item.title}</span>
+      <span className="cr-meta">
+        <Icon name="clock" size={12} strokeWidth={2} />
+        {time}
+      </span>
+    </button>
+  );
+}
+
+
 export function ContinueCard({
   item,
   onOpen,

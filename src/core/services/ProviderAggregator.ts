@@ -182,7 +182,11 @@ export const ProviderAggregator = {
       } catch (e) {
         results[i] = { p, ok: false, error: String((e as Error)?.message || e) };
       }
-      opts.onUpdate?.(snapshot());
+      const result = results[i];
+      if (result?.ok && result.data &&
+        ((result.data.ongoing?.length || 0) + (result.data.completed?.length || 0) + (result.data.movie?.length || 0) > 0)) {
+        opts.onUpdate?.(snapshot());
+      }
     });
 
     // Tunggu semua ATAU batas waktu habis — yang penting UI bisa lanjut.

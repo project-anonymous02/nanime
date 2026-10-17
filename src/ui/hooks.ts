@@ -127,6 +127,7 @@ export interface PullState {
 export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabled = true) {
   const [state, setState] = useState<PullState>({ pull: 0, refreshing: false });
   const startY = useRef<number | null>(null);
+  const startX = useRef<number | null>(null);
   const pullRef = useRef(0);
   const refreshingRef = useRef(false);
 
@@ -141,6 +142,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
       if (refreshingRef.current) return;
       if ((window.scrollY || document.documentElement.scrollTop) !== 0) return;
       startY.current = e.touches[0]?.clientY ?? null;
+      startX.current = e.touches[0]?.clientX ?? null;
     };
     const onMove = (e: TouchEvent) => {
       if (startY.current == null || refreshingRef.current) return;
@@ -149,7 +151,17 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
         setPull(0);
         return;
       }
-      const dy = (e.touches[0]?.clientY ?? 0) - startY.current;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const dx = touch.clientX - (startX.current ?? touch.clientX);
+      const dy = touch.clientY - startY.current;
+      // Swipe carousel atau gerak diagonal bukan gestur pull-to-refresh.
+      if (Math.abs(dx) > Math.abs(dy)) {
+        startY.current = null;
+        startX.current = null;
+        setPull(0);
+        return;
+      }
       if (dy <= 0) {
         setPull(0);
         return;
@@ -159,6 +171,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
     const onEnd = async () => {
       if (startY.current == null) return;
       startY.current = null;
+      startX.current = null;
       const dist = pullRef.current;
       setPull(0);
       if (dist < 80 || refreshingRef.current) return;
@@ -177,6 +190,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
     // scroll native. Itu bukan intent refresh, jadi batalkan tarikan saja.
     const onCancel = () => {
       startY.current = null;
+      startX.current = null;
       setPull(0);
     };
     window.addEventListener('touchstart', onStart, { passive: true });

@@ -109,6 +109,8 @@ export const Catalog = {
   ): Promise<HomeFeed> {
     if (opts.fresh) CacheManager.invalidate('feed', 'home');
     let updateRevision = 0;
+    let updateTimer: ReturnType<typeof setTimeout> | null = null;
+    let pendingRaw: Awaited<ReturnType<typeof ProviderAggregator.homeFeed>> | null = null;
     const transform = async (raw: Awaited<ReturnType<typeof ProviderAggregator.homeFeed>>): Promise<Omit<HomeFeed, 'stale'>> => {
       const newUpdate = (await SearchEngineMerge(raw.newUpdate)).slice(0, 24);
       const completed = (await SearchEngineMerge(raw.completed)).slice(0, 24);
@@ -129,16 +131,24 @@ export const Catalog = {
         onUpdate: raw => {
           if (!opts.onFresh) return;
           if (!raw.newUpdate.length && !raw.completed.length && !raw.donghua.length && !raw.movie.length) return;
-          const revision = ++updateRevision;
-          // Jika seluruh sumber belum selesai pada deadline, tampilkan hasil
-          // yang sudah datang lalu tambahkan sumber berikutnya di latar.
-          void transform(raw).then(d => {
-            if (revision !== updateRevision) return;
-            remember([...d.newUpdate, ...d.completed, ...d.donghua, ...d.movie]);
-            opts.onFresh!({ ...d, stale: false });
-          }).catch(() => {
-            /* snapshot kosong sementara sumber lain masih memuat */
-          });
+          // Sumber sering selesai berdekatan. Debounce penggabungan katalog
+          // agar satu batch respons hanya menghasilkan satu kerja CPU berat.
+          pendingRaw = raw;
+          if (updateTimer) clearTimeout(updateTimer);
+          updateTimer = setTimeout(() => {
+            updateTimer = null;
+            const latest = pendingRaw;
+            pendingRaw = null;
+            if (!latest) return;
+            const revision = ++updateRevision;
+            void transform(latest).then(d => {
+              if (revision !== updateRevision) return;
+              remember([...d.newUpdate, ...d.completed, ...d.donghua, ...d.movie]);
+              opts.onFresh!({ ...d, stale: false });
+            }).catch(() => {
+              /* snapshot kosong sementara sumber lain masih memuat */
+            });
+          }, 400);
         }
       }).then(transform);
     const onFresh = opts.onFresh

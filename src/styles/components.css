@@ -3033,7 +3033,9 @@
 .car-track {
   display: flex;
   overflow-x: auto;
-  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  scroll-snap-type: x proximity;
   border-radius: var(--r-lg);
 }
 

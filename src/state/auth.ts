@@ -108,12 +108,20 @@ export async function initAuth(): Promise<void> {
     useAuth.setState({ ready: true, configured: false });
     return;
   }
-  try {
-    const { data } = await sb.auth.getSession();
-    await applySession(data.session);
-  } catch {
-    /* tidak ada sesi tersimpan */
-  }
+  // Sesi tersimpan dibaca cepat; refresh token yang butuh jaringan DIBATASI waktu
+  // agar layar awal tidak menggantung pada koneksi lambat. Bila lewat batas,
+  // aplikasi tetap lanjut — langganan onAuthStateChange menyusul hasilnya.
+  await Promise.race([
+    (async () => {
+      try {
+        const { data } = await sb.auth.getSession();
+        await applySession(data.session);
+      } catch {
+        /* tidak ada sesi tersimpan */
+      }
+    })(),
+    new Promise(r => setTimeout(r, 4000))
+  ]);
   useAuth.setState({ ready: true });
   try {
     const { data: sub } = sb.auth.onAuthStateChange((_e, session) => {

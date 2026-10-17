@@ -59,6 +59,19 @@ export interface HomeFeedRaw {
   sources: SourceResult[];
 }
 
+/** Jalankan tugas dengan batas konkurensi (urutan masuk dipertahankan). */
+async function runPool<T>(items: T[], limit: number, job: (item: T) => Promise<void>): Promise<void> {
+  const queue = items.slice();
+  const workers = Array.from({ length: Math.max(1, Math.min(limit, queue.length)) }, async () => {
+    for (;;) {
+      const item = queue.shift();
+      if (item === undefined) return;
+      await job(item);
+    }
+  });
+  await Promise.all(workers);
+}
+
 /**
  * ProviderAggregator — menjalankan semua penyedia secara paralel
  * (Promise.allSettled) dan melaporkan status per sumber.
@@ -103,18 +116,39 @@ export const ProviderAggregator = {
    * Beranda mentah dari seluruh penyedia, dipisah per rail:
    * update baru / selesai / donghua / movie. Penggabungan kanonik
    * (satu judul = satu kartu) dilakukan oleh lapisan katalog.
+   *
+   * Cepat: maksimal 6 scraping serentak (radio HP lebih sehat) dan ada
+   * `deadline` — begitu waktunya habis, hasil yang sudah masuk langsung
+   * dipakai; penyedia yang belum selesai tetap berjalan di latar dan
+   * mengisi cache per-penyedia untuk panggilan berikutnya.
    */
-  async homeFeed(opts: { timeout?: number } = {}): Promise<HomeFeedRaw> {
+  async homeFeed(opts: { timeout?: number; deadline?: number; concurrency?: number } = {}): Promise<HomeFeedRaw> {
     const timeout = opts.timeout || 15000;
-    const providers = allProviders().filter(p => p.active && !p.downloadOnly);
-    const settled = await Promise.allSettled(
-      providers.map(p =>
-        withTimeout(
+    const deadline = opts.deadline ?? 10000;
+    const concurrency = opts.concurrency ?? 6;
+    const providers = allProviders()
+      .filter(p => p.active && !p.downloadOnly)
+      .sort((a, b) => a.priority - b.priority);
+
+    const results: Array<{ p: AnimeProvider; ok: boolean; data?: Awaited<ReturnType<AnimeProvider['home']>>; error?: string }> =
+      new Array(providers.length);
+
+    // Maksimal `concurrency` scraping serentak — urutan prioritas dipertahankan.
+    const running = runPool(providers, concurrency, async p => {
+      const i = providers.indexOf(p);
+      try {
+        const data = await withTimeout(
           CacheManager.home(p.id, () => p.home()),
           timeout
-        ).then(data => ({ p, data }))
-      )
-    );
+        );
+        results[i] = { p, ok: true, data };
+      } catch (e) {
+        results[i] = { p, ok: false, error: String((e as Error)?.message || e) };
+      }
+    });
+
+    // Tunggu semua ATAU batas waktu habis — yang penting UI bisa lanjut.
+    await Promise.race([running, new Promise(r => setTimeout(r, deadline))]);
 
     const newUpdate: Card[] = [];
     const completed: Card[] = [];
@@ -122,10 +156,11 @@ export const ProviderAggregator = {
     const movie: Card[] = [];
     const sources: SourceResult[] = [];
 
-    settled.forEach((r, i) => {
-      const p = providers[i];
-      if (r.status === 'fulfilled') {
-        const d = r.value.data;
+    results.forEach(r => {
+      if (!r) return;
+      const p = r.p;
+      if (r.ok && r.data) {
+        const d = r.data;
         const items = (d.ongoing || []).concat(d.completed || []).concat(d.movie || []).map(c => ({
           ...c,
           provider: c.provider || p.id
@@ -147,13 +182,13 @@ export const ProviderAggregator = {
           items: []
         });
       } else {
-        markHealth(p.id, false, String((r.reason && r.reason.message) || r.reason || 'error'));
+        markHealth(p.id, false, r.error || 'timeout');
         sources.push({
           id: p.id,
           ok: false,
           count: 0,
           items: [],
-          error: String((r.reason && r.reason.message) || '')
+          error: r.error || ''
         });
       }
     });

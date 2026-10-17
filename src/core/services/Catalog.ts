@@ -98,28 +98,44 @@ function sortSources(entry: IndexedEntry): IndexedEntry['sources'] {
 }
 
 export const Catalog = {
-  /** Beranda lengkap (8 rail) — hasil gabungan seluruh penyedia, sudah kanonik. */
-  async home(): Promise<HomeFeed> {
-    const { data, stale } = await CacheManager.getOrStale<Omit<HomeFeed, 'stale'>>(
+  /**
+   * Beranda lengkap (8 rail) — hasil gabungan seluruh penyedia, sudah kanonik.
+   * Stale-while-revalidate: salinan lama langsung dikembalikan agar UI tampil
+   * seketika; hasil segar menyusul lewat `onFresh` (tanpa memutus scroll).
+   * `fresh: true` memaksa muat ulang penuh (dipakai tarik-untuk-menyegarkan).
+   */
+  async home(
+    opts: { onFresh?: (feed: HomeFeed) => void; fresh?: boolean } = {}
+  ): Promise<HomeFeed> {
+    if (opts.fresh) CacheManager.invalidate('feed', 'home');
+    const build = async (): Promise<Omit<HomeFeed, 'stale'>> => {
+      const raw = await ProviderAggregator.homeFeed();
+      const newUpdate = (await SearchEngineMerge(raw.newUpdate)).slice(0, 24);
+      const completed = (await SearchEngineMerge(raw.completed)).slice(0, 24);
+      const donghua = (await SearchEngineMerge(raw.donghua)).slice(0, 24);
+      const movie = (await SearchEngineMerge(raw.movie)).slice(0, 24);
+      if (!newUpdate.length && !completed.length && !donghua.length && !movie.length) {
+        throw new Error('empty');
+      }
+      const weekly = newUpdate
+        .slice()
+        .sort((a, b) => (parseFloat(b.score) || 0) - (parseFloat(a.score) || 0))
+        .slice(0, 6)
+        .map((c, i) => ({ ...c, rank: i + 1 }));
+      return { newUpdate, weekly, completed, donghua, movie, sources: raw.sources };
+    };
+    const onFresh = opts.onFresh
+      ? (d: Omit<HomeFeed, 'stale'>) => {
+          remember([...d.newUpdate, ...d.completed, ...d.donghua, ...d.movie]);
+          opts.onFresh!({ ...d, stale: false });
+        }
+      : undefined;
+    const { data, stale } = await CacheManager.getSWR<Omit<HomeFeed, 'stale'>>(
       'feed',
       'home',
       TTL.home,
-      async () => {
-        const raw = await ProviderAggregator.homeFeed();
-        const newUpdate = (await SearchEngineMerge(raw.newUpdate)).slice(0, 24);
-        const completed = (await SearchEngineMerge(raw.completed)).slice(0, 24);
-        const donghua = (await SearchEngineMerge(raw.donghua)).slice(0, 24);
-        const movie = (await SearchEngineMerge(raw.movie)).slice(0, 24);
-        if (!newUpdate.length && !completed.length && !donghua.length && !movie.length) {
-          throw new Error('empty');
-        }
-        const weekly = newUpdate
-          .slice()
-          .sort((a, b) => (parseFloat(b.score) || 0) - (parseFloat(a.score) || 0))
-          .slice(0, 6)
-          .map((c, i) => ({ ...c, rank: i + 1 }));
-        return { newUpdate, weekly, completed, donghua, movie, sources: raw.sources };
-      }
+      build,
+      onFresh
     );
     if (!data) throw new Error(GENERIC_ERROR);
     remember([...data.newUpdate, ...data.completed, ...data.donghua, ...data.movie]);

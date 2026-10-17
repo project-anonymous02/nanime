@@ -29,7 +29,9 @@ describe('TTL cache', () => {
     expect(TTL.stream).toBeLessThan(TTL.download);
     expect(TTL.download).toBeLessThan(TTL.detail);
     expect(TTL.detail).toBeLessThanOrEqual(TTL.search);
-    expect(TTL.home).toBeLessThan(TTL.schedule);
+    // Beranda pakai stale-while-revalidate: salinan lama sengaja bertahan lama
+    // (UI tampil seketika, kesegaran datang dari revalidasi latar).
+    expect(TTL.home).toBeGreaterThanOrEqual(TTL.schedule);
     expect(TTL.stream).toBeGreaterThan(0);
   });
 });

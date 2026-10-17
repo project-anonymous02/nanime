@@ -28,10 +28,11 @@ export function Home() {
 
   const carRef = useRef<HTMLDivElement | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (fresh = false) => {
     setError(false);
     try {
-      setFeed(await Catalog.home());
+      // Tampil seketika dari cache lama (stale); hasil segar menyusul diam-diam.
+      setFeed(await Catalog.home({ fresh, onFresh: f => setFeed(f) }));
     } catch {
       setError(true);
     }
@@ -41,7 +42,7 @@ export function Home() {
     void load();
   }, [load]);
 
-  const pull = usePullToRefresh(load);
+  const pull = usePullToRefresh(() => load(true));
 
   const continueList = useMemo(
     () =>

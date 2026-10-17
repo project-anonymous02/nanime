@@ -1,4 +1,4 @@
-import { idbGet, idbGetStale, idbSet, idbClear, idbStats, idbPrune } from '../../lib/idb';
+import { idbGet, idbGetStale, idbSet, idbDel, idbClear, idbStats, idbPrune } from '../../lib/idb';
 
 /**
  * CacheManager — cache 3 lapisan:
@@ -19,8 +19,8 @@ export const TTL = {
   download: 600 * 1000,
   /** Profil pengguna: 7200 detik. */
   profile: 7200 * 1000,
-  /** Beranda: 600 detik. */
-  home: 600 * 1000,
+  /** Beranda: 24 jam (kesegaran datang dari revalidasi latar, bukan blocking). */
+  home: 24 * 60 * 60 * 1000,
   /** Daftar episode: 1800 detik. */
   episode: 1800 * 1000,
   /** Jadwal rilis: 6 jam. */
@@ -35,8 +35,11 @@ export type TTLKey = keyof typeof TTL;
 
 const MAX_BYTES = 50 * 1024 * 1024;
 
-const mem = new Map<string, { data: unknown; expiresAt: number }>();
+const mem = new Map<string, { data: unknown; expiresAt: number; at?: number }>();
 const inflight = new Map<string, Promise<unknown>>();
+
+/** Jendela revalidasi lembut: data di memori lebih tua dari ini disegarkan di latar. */
+const SOFT_REVALIDATE = 10 * 60 * 1000;
 
 async function run<T>(full: string, ttl: number, fn: () => Promise<T>): Promise<T> {
   const hit = mem.get(full);
@@ -47,17 +50,36 @@ async function run<T>(full: string, ttl: number, fn: () => Promise<T>): Promise<
   const job = (async () => {
     const persisted = await idbGet<T>(full);
     if (persisted != null) {
-      mem.set(full, { data: persisted, expiresAt: Date.now() + Math.min(ttl, 60 * 1000) });
+      mem.set(full, { data: persisted, expiresAt: Date.now() + Math.min(ttl, 60 * 1000), at: Date.now() });
       return persisted;
     }
     const data = await fn();
     const expiresAt = Date.now() + ttl;
-    mem.set(full, { data, expiresAt });
+    mem.set(full, { data, expiresAt, at: Date.now() });
     void idbSet(full, data, ttl);
     void idbPrune(MAX_BYTES);
     return data;
   })();
 
+  inflight.set(full, job);
+  job.then(
+    () => inflight.delete(full),
+    () => inflight.delete(full)
+  );
+  return job;
+}
+
+/** Hitung ulang memaksa (lewati memori), tetap dedup via `inflight`. */
+function refresh<T>(full: string, ttl: number, fn: () => Promise<T>): Promise<T> {
+  const running = inflight.get(full);
+  if (running) return running as Promise<T>;
+  const job = (async () => {
+    const data = await fn();
+    mem.set(full, { data, expiresAt: Date.now() + ttl, at: Date.now() });
+    void idbSet(full, data, ttl);
+    void idbPrune(MAX_BYTES);
+    return data;
+  })();
   inflight.set(full, job);
   job.then(
     () => inflight.delete(full),
@@ -92,6 +114,71 @@ export const CacheManager = {
       if (old != null) return { data: old, stale: true };
       throw e;
     }
+  },
+
+  /**
+   * Stale-while-revalidate: salinan lama (IndexedDB, walau kedaluwarsa) langsung
+   * dikembalikan agar UI tampil seketika; penyegaran berjalan di latar dan
+   * hasil barunya dikirim lewat `onFresh`. Bila tak ada salinan sama sekali,
+   * menunggu hasil segar seperti biasa.
+   */
+  async getSWR<T>(
+    ns: string,
+    key: string,
+    ttl: number,
+    fn: () => Promise<T>,
+    onFresh?: (data: T) => void
+  ): Promise<{ data: T | null; stale: boolean }> {
+    const full = ns + ':' + key;
+    const hit = mem.get(full);
+    if (hit && hit.expiresAt > Date.now()) {
+      const age = Date.now() - (hit.at || 0);
+      if (onFresh && age > SOFT_REVALIDATE) {
+        hit.at = Date.now(); // cegah banjir permintaan segar serentak
+        void refresh(full, ttl, fn).then(
+          d => {
+            try {
+              onFresh(d as T);
+            } catch {
+              /* noop */
+            }
+          },
+          () => {
+            /* tetap tampilkan data lama */
+          }
+        );
+      }
+      return { data: hit.data as T, stale: false };
+    }
+
+    const old = await idbGetStale<T>(full);
+    if (old != null) {
+      if (onFresh) {
+        void refresh(full, ttl, fn).then(
+          d => {
+            try {
+              onFresh(d as T);
+            } catch {
+              /* noop */
+            }
+          },
+          () => {
+            /* tetap tampilkan data lama */
+          }
+        );
+      }
+      return { data: old, stale: true };
+    }
+
+    return { data: await run(full, ttl, fn), stale: false };
+  },
+
+  /** Buang satu entri (memori + IndexedDB) — dipakai "muat ulang" manual. */
+  invalidate(ns: string, key: string): void {
+    const full = ns + ':' + key;
+    mem.delete(full);
+    inflight.delete(full);
+    void idbDel(full);
   },
 
   /* ── Pembungkus TTL bernama ── */

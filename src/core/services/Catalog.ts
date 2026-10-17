@@ -1,7 +1,7 @@
 import { getProvider, allProviders } from '../../providers/registry';
 import { legacyResolveServer } from '../../providers/legacy';
 import { ProviderAggregator } from './ProviderAggregator';
-import { searchAggregated, mergeCards } from './SearchEngine';
+import { searchAggregated, mergeCardsAsync } from './SearchEngine';
 import { FallbackEngine } from './FallbackEngine';
 import { DownloadAggregator } from './DownloadAggregator';
 import { TitleIndex, titleFromKey, titleKey, type IndexedEntry } from './TitleIndex';
@@ -105,12 +105,12 @@ export const Catalog = {
    * `fresh: true` memaksa muat ulang penuh (dipakai tarik-untuk-menyegarkan).
    */
   async home(
-    opts: { onFresh?: (feed: HomeFeed) => void; fresh?: boolean } = {}
+    opts: { onFresh?: (feed: HomeFeed) => void; fresh?: boolean; signal?: AbortSignal } = {}
   ): Promise<HomeFeed> {
     if (opts.fresh) CacheManager.invalidate('feed', 'home');
-    let updateRevision = 0;
     let updateTimer: ReturnType<typeof setTimeout> | null = null;
     let pendingRaw: Awaited<ReturnType<typeof ProviderAggregator.homeFeed>> | null = null;
+    let processingUpdate = false;
     const transform = async (raw: Awaited<ReturnType<typeof ProviderAggregator.homeFeed>>): Promise<Omit<HomeFeed, 'stale'>> => {
       const newUpdate = (await SearchEngineMerge(raw.newUpdate)).slice(0, 24);
       const completed = (await SearchEngineMerge(raw.completed)).slice(0, 24);
@@ -126,33 +126,52 @@ export const Catalog = {
         .map((c, i) => ({ ...c, rank: i + 1 }));
       return { newUpdate, weekly, completed, donghua, movie, sources: raw.sources };
     };
+    const publishUpdate = async (raw: Awaited<ReturnType<typeof ProviderAggregator.homeFeed>>) => {
+      try {
+        const d = await transform(raw);
+        if (opts.signal?.aborted) return;
+        remember([...d.newUpdate, ...d.completed, ...d.donghua, ...d.movie]);
+        opts.onFresh?.({ ...d, stale: false });
+      } catch {
+        /* snapshot kosong sementara sumber lain masih memuat */
+      }
+    };
+    const scheduleUpdate = () => {
+      if (opts.signal?.aborted || processingUpdate || updateTimer || !pendingRaw) return;
+      updateTimer = setTimeout(() => {
+        updateTimer = null;
+        if (opts.signal?.aborted) {
+          pendingRaw = null;
+          return;
+        }
+        const latest = pendingRaw;
+        pendingRaw = null;
+        if (!latest) return;
+        processingUpdate = true;
+        void publishUpdate(latest).finally(() => {
+          processingUpdate = false;
+          if (pendingRaw) scheduleUpdate();
+        });
+      }, 800);
+    };
+    const onAbort = () => {
+      if (updateTimer) clearTimeout(updateTimer);
+      updateTimer = null;
+      pendingRaw = null;
+    };
+    opts.signal?.addEventListener('abort', onAbort, { once: true });
     const build = async (): Promise<Omit<HomeFeed, 'stale'>> =>
       ProviderAggregator.homeFeed({
         onUpdate: raw => {
-          if (!opts.onFresh) return;
+          if (!opts.onFresh || opts.signal?.aborted) return;
           if (!raw.newUpdate.length && !raw.completed.length && !raw.donghua.length && !raw.movie.length) return;
-          // Sumber sering selesai berdekatan. Debounce penggabungan katalog
-          // agar satu batch respons hanya menghasilkan satu kerja CPU berat.
           pendingRaw = raw;
-          if (updateTimer) clearTimeout(updateTimer);
-          updateTimer = setTimeout(() => {
-            updateTimer = null;
-            const latest = pendingRaw;
-            pendingRaw = null;
-            if (!latest) return;
-            const revision = ++updateRevision;
-            void transform(latest).then(d => {
-              if (revision !== updateRevision) return;
-              remember([...d.newUpdate, ...d.completed, ...d.donghua, ...d.movie]);
-              opts.onFresh!({ ...d, stale: false });
-            }).catch(() => {
-              /* snapshot kosong sementara sumber lain masih memuat */
-            });
-          }, 400);
+          scheduleUpdate();
         }
       }).then(transform);
     const onFresh = opts.onFresh
       ? (d: Omit<HomeFeed, 'stale'>) => {
+          if (opts.signal?.aborted) return;
           remember([...d.newUpdate, ...d.completed, ...d.donghua, ...d.movie]);
           opts.onFresh!({ ...d, stale: false });
         }
@@ -238,8 +257,8 @@ export const Catalog = {
 
 /* ───────────── implementasi internal ───────────── */
 
-function SearchEngineMerge(cards: AggregatedCard[] | import('../types').Card[]): AggregatedCard[] {
-  return mergeCards(cards as import('../types').Card[], {});
+function SearchEngineMerge(cards: AggregatedCard[] | import('../types').Card[]): Promise<AggregatedCard[]> {
+  return mergeCardsAsync(cards as import('../types').Card[], {});
 }
 
 async function collectEpisodes(

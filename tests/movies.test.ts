@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeCards, scoreCard } from '../src/core/services/SearchEngine';
+import { mergeCards, mergeCardsAsync, scoreCard } from '../src/core/services/SearchEngine';
 import type { Card } from '../src/core/types';
 
 const card = (over: Partial<Card> = {}): Card => ({
@@ -62,6 +62,29 @@ describe('mergeCards — satu judul = satu kartu kanonik', () => {
     ]);
     expect(out).toHaveLength(1);
     expect(out[0].providerCount).toBe(2);
+  });
+
+  it('judul dengan variasi kecil tetap digabung lewat pencocokan fuzzy', () => {
+    const out = mergeCards([
+      card({ provider: 'a', title: 'The Eminence in Shadow' }),
+      card({ provider: 'b', title: 'The Eminence in Shadows' })
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].providerCount).toBe(2);
+  });
+
+  it('merge async memberi kesempatan event loop dan mempertahankan hasil yang sama', async () => {
+    const cards = Array.from({ length: 36 }, (_, i) => card({
+      provider: `provider-${i % 3}`,
+      id: String(i),
+      title: i % 2 ? `Blue Lock Season ${Math.floor(i / 12) + 1}` : `Naruto Shippuden ${i}`
+    }));
+    let timerRan = false;
+    const task = mergeCardsAsync(cards, { query: 'Naruto' });
+    setTimeout(() => { timerRan = true; }, 0);
+    const asyncResult = await task;
+    expect(timerRan).toBe(true);
+    expect(asyncResult).toEqual(mergeCards(cards, { query: 'Naruto' }));
   });
 
   it('musim berbeda TIDAK digabung', () => {

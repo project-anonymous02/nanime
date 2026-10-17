@@ -130,10 +130,22 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
   const startX = useRef<number | null>(null);
   const pullRef = useRef(0);
   const refreshingRef = useRef(false);
+  const pendingPull = useRef(0);
+  const pullRaf = useRef(0);
+  const refreshTimer = useRef<number | null>(null);
 
   const setPull = useCallback((v: number) => {
     pullRef.current = v;
-    setState(s => (s.pull === v ? s : { ...s, pull: v }));
+    pendingPull.current = v;
+    // Touchmove can fire more often than the screen paints. Keep the React
+    // page tree to at most one pull-indicator update per frame.
+    if (!pullRaf.current) {
+      pullRaf.current = requestAnimationFrame(() => {
+        pullRaf.current = 0;
+        const next = pendingPull.current;
+        setState(s => (s.pull === next ? s : { ...s, pull: next }));
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -148,6 +160,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
       if (startY.current == null || refreshingRef.current) return;
       if ((window.scrollY || document.documentElement.scrollTop) !== 0) {
         startY.current = null;
+        startX.current = null;
         setPull(0);
         return;
       }
@@ -180,7 +193,9 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
       try {
         await onRefresh();
       } finally {
-        window.setTimeout(() => {
+        if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
+        refreshTimer.current = window.setTimeout(() => {
+          refreshTimer.current = null;
           refreshingRef.current = false;
           setState(s => ({ ...s, refreshing: false }));
         }, 420);
@@ -202,6 +217,8 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onEnd);
       window.removeEventListener('touchcancel', onCancel);
+      if (pullRaf.current) cancelAnimationFrame(pullRaf.current);
+      if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
     };
   }, [enabled, onRefresh, setPull]);
 

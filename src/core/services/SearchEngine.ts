@@ -7,7 +7,7 @@ import type {
   SourceResult
 } from '../types';
 import { ProviderAggregator } from './ProviderAggregator';
-import { matchScore, similarity } from '../utils/fuzzyMatch';
+import { levenshtein, matchScore, normalizeTitle } from '../utils/fuzzyMatch';
 import { aliasKey, aliasesOf, splitSeason } from '../utils/titleAliases';
 import { titleKey } from './TitleIndex';
 import { allProviders } from '../../providers/registry';
@@ -83,6 +83,8 @@ interface Group {
   priority: number;
   match: number;
   sources: Map<string, SourceRef>;
+  similarityKey: string;
+  alias: string;
 }
 
 function toSourceRef(card: Card): SourceRef {
@@ -94,88 +96,194 @@ function toSourceRef(card: Card): SourceRef {
   };
 }
 
-/** Aturan penggabungan dua kartu menjadi satu anime kanonik. */
-function canMerge(g: Group, card: Card): boolean {
-  const canonical = titleKey(card.title || '');
-  if (canonical && canonical === g.canonical) return true;
+function bigrams(value: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < value.length - 1; i++) out.push(value.slice(i, i + 2));
+  return out;
+}
 
-  const marked = hasSeasonMarker(card.title || '');
+interface PreparedCard {
+  card: Card;
+  canonical: string;
+  base: string;
+  season: number;
+  marked: boolean;
+  alias: string;
+  similarityKey: string;
+  match: number;
+}
+
+/** Aturan penggabungan dua judul; kandidat sudah dipersempit lewat indeks. */
+function canMerge(g: Group, card: PreparedCard): boolean {
+  if (card.canonical && card.canonical === g.canonical) return true;
+
   /* Musim eksplisit tidak boleh tercampur musim lain / tanpa musim. */
-  if (marked !== g.marked) return false;
-  if (marked && g.marked) {
-    const s = splitSeason(card.title || '').season;
-    if (s !== g.season) return false;
-  }
+  if (card.marked !== g.marked) return false;
+  if (card.marked && g.marked && card.season !== g.season) return false;
 
-  const base = splitSeason(card.title || '').base || card.title || '';
-  const aKey = aliasKey(g.base);
-  const bKey = aliasKey(base);
-  if (aKey && bKey && aKey === bKey) return true;
+  if (g.alias && card.alias && g.alias === card.alias) return true;
 
-  return similarity(fullNorm(g.title), fullNorm(card.title || '')) >= 0.85;
+  const a = g.similarityKey;
+  const b = card.similarityKey;
+  if (!a || !b) return false;
+  const maxLength = Math.max(a.length, b.length);
+  const allowedDistance = Math.floor(maxLength * 0.15);
+  if (Math.abs(a.length - b.length) > allowedDistance) return false;
+  return 1 - levenshtein(a, b) / maxLength >= 0.85;
 }
 
 /**
  * Gabungkan kartu-kartu dari berbagai penyedia menjadi daftar kanonik:
  * satu judul = satu kartu (dengan seluruh sumber di dalamnya).
  */
-export function mergeCards(cards: Card[], opts: { query?: string } = {}): AggregatedCard[] {
-  const query = opts.query || '';
-  const groups: Group[] = [];
+interface MergeContext {
+  add(card: Card | null | undefined): void;
+  finish(): AggregatedCard[];
+}
 
-  for (const card of cards) {
-    if (!card || !card.title) continue;
-    const base = splitSeason(card.title).base || card.title;
-    let group = groups.find(g => canMerge(g, card));
+function createMergeContext(query: string): MergeContext {
+  const groups: Group[] = [];
+  const canonicalIndex = new Map<string, number>();
+  const aliasIndex = new Map<string, number[]>();
+  const bigramIndex = new Map<string, number[]>();
+  const shortTitleIndex = new Map<string, number[]>();
+
+  const indexGroup = (group: Group, index: number) => {
+    if (group.canonical && !canonicalIndex.has(group.canonical)) canonicalIndex.set(group.canonical, index);
+    if (group.alias) {
+      const list = aliasIndex.get(group.alias) || [];
+      list.push(index);
+      aliasIndex.set(group.alias, list);
+    }
+    if (group.similarityKey.length < 3) {
+      const list = shortTitleIndex.get(group.similarityKey) || [];
+      list.push(index);
+      shortTitleIndex.set(group.similarityKey, list);
+    } else {
+      for (const gram of new Set(bigrams(group.similarityKey))) {
+        const list = bigramIndex.get(gram) || [];
+        list.push(index);
+        bigramIndex.set(gram, list);
+      }
+    }
+  };
+
+  const add = (card: Card | null | undefined) => {
+    if (!card || !card.title) return;
+    const split = splitSeason(card.title);
+    const prepared: PreparedCard = {
+      card,
+      canonical: titleKey(card.title),
+      base: split.base || card.title,
+      season: split.season,
+      marked: hasSeasonMarker(card.title),
+      alias: aliasKey(split.base || card.title),
+      similarityKey: normalizeTitle(fullNorm(card.title)),
+      match: query ? matchScore(query, card.title) : 0
+    };
+
+    // A title only needs comparison with exact, alias, or fuzzy-neighbour
+    // candidates. This avoids testing every existing group for every card.
+    const candidates = new Set<number>();
+    const exact = canonicalIndex.get(prepared.canonical);
+    if (exact != null) candidates.add(exact);
+    for (const index of aliasIndex.get(prepared.alias) || []) candidates.add(index);
+    if (prepared.similarityKey.length < 3) {
+      for (const index of shortTitleIndex.get(prepared.similarityKey) || []) candidates.add(index);
+    } else {
+      for (const gram of new Set(bigrams(prepared.similarityKey))) {
+        for (const index of bigramIndex.get(gram) || []) candidates.add(index);
+      }
+    }
+
+    let group: Group | undefined;
+    let groupIndex = -1;
+    const orderedCandidates = Array.from(candidates).sort((a, b) => a - b);
+    for (const index of orderedCandidates) {
+      if (canMerge(groups[index], prepared)) {
+        group = groups[index];
+        groupIndex = index;
+        break;
+      }
+    }
     if (!group) {
       group = {
-        canonical: titleKey(card.title),
+        canonical: prepared.canonical,
         title: card.title,
-        base,
-        season: splitSeason(card.title).season,
-        marked: hasSeasonMarker(card.title),
+        base: prepared.base,
+        season: prepared.season,
+        marked: prepared.marked,
         card,
         priority: PRIORITY[card.provider] ?? 999,
-        match: matchScore(query, card.title),
-        sources: new Map()
+        match: prepared.match,
+        sources: new Map(),
+        similarityKey: prepared.similarityKey,
+        alias: prepared.alias
       };
       groups.push(group);
+      groupIndex = groups.length - 1;
+      indexGroup(group, groupIndex);
     }
     const ref = toSourceRef(card);
     if (!group.sources.has(card.provider)) group.sources.set(card.provider, ref);
 
     /* Wakil grup: penyedia paling utama; seri → judul paling cocok dengan query. */
     const prio = PRIORITY[card.provider] ?? 999;
-    const match = matchScore(query, card.title);
+    const match = prepared.match;
     if (prio < group.priority || (prio === group.priority && match > group.match)) {
       group.card = card;
       group.priority = prio;
       group.match = match;
       group.title = card.title;
-      group.base = base;
+      group.base = prepared.base;
+      group.similarityKey = prepared.similarityKey;
+      group.alias = prepared.alias;
+      indexGroup(group, groupIndex);
     }
     group.match = Math.max(group.match, match);
-  }
+  };
 
-  return groups
-    .map(g => {
-      const providerCount = g.sources.size;
-      const lowestOnly = providerCount === 1 && (PRIORITY[g.card.provider] ?? 0) >= 999;
-      const score1000 = scoreCard(query, g.card, { providerCount, lowestOnly });
-      const sources = Array.from(g.sources.values()).sort(
-        (a, b) => (PRIORITY[a.provider] ?? 999) - (PRIORITY[b.provider] ?? 999)
-      );
-      const out: AggregatedCard = {
-        ...g.card,
-        canonicalId: g.canonical || titleKey(g.title),
-        sources,
-        providerCount,
-        score1000,
-        match: Math.round(score1000 / 10)
-      };
-      return out;
-    })
-    .sort((a, b) => b.score1000 - a.score1000 || a.title.localeCompare(b.title));
+  const finish = () => groups
+      .map(g => {
+        const providerCount = g.sources.size;
+        const lowestOnly = providerCount === 1 && (PRIORITY[g.card.provider] ?? 0) >= 999;
+        const score1000 = scoreCard(query, g.card, { providerCount, lowestOnly });
+        const sources = Array.from(g.sources.values()).sort(
+          (a, b) => (PRIORITY[a.provider] ?? 999) - (PRIORITY[b.provider] ?? 999)
+        );
+        const out: AggregatedCard = {
+          ...g.card,
+          canonicalId: g.canonical || titleKey(g.title),
+          sources,
+          providerCount,
+          score1000,
+          match: Math.round(score1000 / 10)
+        };
+        return out;
+      })
+      .sort((a, b) => b.score1000 - a.score1000 || a.title.localeCompare(b.title));
+
+  return { add, finish };
+}
+
+export function mergeCards(cards: Card[], opts: { query?: string } = {}): AggregatedCard[] {
+  const context = createMergeContext(opts.query || '');
+  for (const card of cards) context.add(card);
+  return context.finish();
+}
+
+/**
+ * Main-thread friendly variant for UI flows. It preserves the same grouping
+ * algorithm while yielding between small batches so scroll/tap/navigation
+ * events can be handled during large catalogs.
+ */
+export async function mergeCardsAsync(cards: Card[], opts: { query?: string } = {}): Promise<AggregatedCard[]> {
+  const context = createMergeContext(opts.query || '');
+  for (let i = 0; i < cards.length; i++) {
+    if (i > 0 && i % 12 === 0) await new Promise<void>(resolve => setTimeout(resolve, 0));
+    context.add(cards[i]);
+  }
+  return context.finish();
 }
 
 /** Pencarian gabungan lintas penyedia — hasil sudah kanonik (satu judul satu kartu). */
@@ -193,7 +301,7 @@ export async function searchAggregated(
     for (const c of s.items) flat.push(c);
   }
 
-  let items = mergeCards(flat, { query: q });
+  let items = await mergeCardsAsync(flat, { query: q });
   const minScore = opts.minScore != null ? opts.minScore : 220;
   items = items.filter(i => i.score1000 >= minScore);
 

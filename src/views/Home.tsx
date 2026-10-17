@@ -27,19 +27,27 @@ export function Home() {
   const [slide, setSlide] = useState(0);
 
   const carRef = useRef<HTMLDivElement | null>(null);
+  const homeRequest = useRef<AbortController | null>(null);
 
   const load = useCallback(async (fresh = false) => {
+    homeRequest.current?.abort();
+    const controller = new AbortController();
+    homeRequest.current = controller;
     setError(false);
     try {
       // Tampil seketika dari cache lama (stale); hasil segar menyusul diam-diam.
-      setFeed(await Catalog.home({ fresh, onFresh: f => setFeed(f) }));
+      const result = await Catalog.home({ fresh, signal: controller.signal, onFresh: f => {
+        if (!controller.signal.aborted) setFeed(f);
+      } });
+      if (!controller.signal.aborted) setFeed(result);
     } catch {
-      setError(true);
+      if (!controller.signal.aborted) setError(true);
     }
   }, []);
 
   useEffect(() => {
     void load();
+    return () => homeRequest.current?.abort();
   }, [load]);
 
   const pull = usePullToRefresh(() => load(true));

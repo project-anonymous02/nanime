@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parseHtml } from '../src/core/scraper';
+import { parseHtml, sourcePath } from '../src/core/scraper';
 
 /* HTML mini: meniru struktur asli otakudesu, oploverz, dan kusonime. */
 const ODU_EPISODE = `
@@ -164,5 +164,22 @@ describe('parseHtml — false positive Cloudflare', () => {
     expect(() =>
       parseHtml({ provider: 'otakudesu', action: 'search', query: 'naruto' }, CF_BEACON, 'https://otakudesu.blog/?s=naruto')
     ).not.toThrow();
+  });
+});
+
+describe('Kuramanime routing and card identity', () => {
+  it('builds the live search route and preserves the anime slug for detail navigation', () => {
+    expect(sourcePath({ provider: 'kuramanime', action: 'search', query: 'Naruto Shippuden' })).toBe(
+      '/anime?search=Naruto%20Shippuden'
+    );
+
+    const html = `<div class="product__item"><div class="product__item__pic" data-setbg="/poster.jpg"><span class="ep">Ep 1</span></div><div class="product__item__text"><h5><a href="/anime/3/boruto-naruto-next-generations">Boruto: Naruto Next Generations</a></h5><ul><a>TV</a><a>1080p</a></ul></div></div>`;
+    const result = parseHtml({ provider: 'kuramanime', action: 'search', query: 'Boruto' }, html, 'https://v20.kuramanime.ing/anime?search=Boruto');
+    const card = result.data.animeList[0];
+    expect(card.animeId).toBe('3');
+    expect(card.animeSlug).toBe('boruto-naruto-next-generations');
+    expect(sourcePath({ provider: 'kuramanime', action: 'detail', id: card.animeId, animeId: card.animeId, animeSlug: card.animeSlug })).toBe(
+      '/anime/3/boruto-naruto-next-generations'
+    );
   });
 });

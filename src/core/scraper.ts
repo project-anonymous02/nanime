@@ -66,6 +66,7 @@ export function sourcePath(task: ScrapeTask): string {
   }
   if (provider === 'kuramanime') {
     if (action === 'home') return '/';
+    if (action === 'search') return `/anime?search=${encodeURIComponent(task.query || '')}`;
     if (action === 'schedule') return '/schedule?day=all';
     if (action === 'ongoing' || action === 'completed') return `/anime?status=${action}&page=${page}`;
     if (action === 'detail') return `/anime/${encodeURIComponent(task.animeId || id)}/${encodeURIComponent(task.animeSlug || task.slug || id)}`;
@@ -106,8 +107,12 @@ function parseCards(provider: Source, doc: Document, base: string): any[] {
   if (provider === 'kuramanime') return nodes(doc, '#animeList .product__item, .trending__product .product__item').map(el => {
     const a = el.querySelector('.product__item__text h5 a');
     const href = abs(base, attr(a, 'href'));
+    const route = (() => {
+      try { return new URL(href).pathname.split('/').filter(Boolean); } catch { return []; }
+    })();
     const pic = el.querySelector('.product__item__pic');
     return card(txt(el.querySelector('.product__item__text h5')), abs(base, attr(pic, 'data-setbg')), href, {
+      animeId: route[1] || '', animeSlug: route[2] || '', slug: route[2] || '',
       quality: txt(el.querySelector('.product__item__text ul a:nth-child(2)')),
       type: txt(el.querySelector('.product__item__text ul a:nth-child(1)')),
       highlight: txt(pic?.querySelector('.ep')), episodes: (txt(pic?.querySelector('.ep')).match(/Ep\s*([^\s/]+)/i) || [])[1] || '',
@@ -240,12 +245,15 @@ export function parseHtml(task: ScrapeTask, html: string, pageUrl: string): any 
       const searchCards = nodes(doc, '.product__item, .trending__product .product__item, .animpos li').map(el => {
         const a = el.querySelector('.product__item__text h5 a, a[href*="/anime/"]');
         const href = abs(pageUrl, attr(a, 'href'));
+        const route = (() => {
+          try { return new URL(href).pathname.split('/').filter(Boolean); } catch { return []; }
+        })();
         const pic = el.querySelector('.product__item__pic, .animpos-img');
         return card(
           txt(el.querySelector('.product__item__text h5, .animpos-title')),
           abs(pageUrl, attr(pic, 'data-setbg')),
           href,
-          { quality: txt(el.querySelector('.product__item__text ul a:nth-child(2)')), type: txt(el.querySelector('.product__item__text ul a:nth-child(1)')), highlight: txt(pic?.querySelector('.ep')), episodes: (txt(pic?.querySelector('.ep')).match(/Ep\s*([^\s/]+)/i) || [])[1] || '', totalEpisodes: (txt(pic?.querySelector('.ep')).match(/\/\s*([^\s]+)/) || [])[1] || '', kuramanimeUrl: href }
+          { animeId: route[1] || '', animeSlug: route[2] || '', slug: route[2] || '', quality: txt(el.querySelector('.product__item__text ul a:nth-child(2)')), type: txt(el.querySelector('.product__item__text ul a:nth-child(1)')), highlight: txt(pic?.querySelector('.ep')), episodes: (txt(pic?.querySelector('.ep')).match(/Ep\s*([^\s/]+)/i) || [])[1] || '', totalEpisodes: (txt(pic?.querySelector('.ep')).match(/\/\s*([^\s]+)/) || [])[1] || '', kuramanimeUrl: href }
         );
       }).filter(x => x.title && x.href);
       return { data: { animeList: searchCards, listAnime: searchCards.map(c => ({ title: c.title, thumbnail: c.poster, url: c.href, endpoint: c.href })) } };

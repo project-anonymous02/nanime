@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 /** Native activity PiP gate controlled by the active Nanime media session. */
@@ -27,7 +28,7 @@ public final class PictureInPicturePlugin extends Plugin {
         plugin.notifyListeners("modeChanged", data);
     }
 
-    @com.getcapacitor.annotation.PluginMethod
+    @PluginMethod
     public void setActive(PluginCall call) {
         boolean active = call.getBoolean("active", false);
         SharedPreferences prefs = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);

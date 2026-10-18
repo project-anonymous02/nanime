@@ -9,6 +9,7 @@ import { ErrorState, Skel } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
 import { detailPath, shareOrCopy, watchPath } from '../lib/nav';
+import { Comments } from './Comments';
 
 /** Detail anime ala referensi — hero, chip, synopsis, related, daftar episode list/grid. */
 
@@ -318,6 +319,7 @@ export function Detail() {
             )}
           </section>
         ) : null}
+        <Comments animeId={id} />
       </div>
     </>
   );

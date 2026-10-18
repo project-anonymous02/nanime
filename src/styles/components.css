@@ -120,6 +120,27 @@
   box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
 }
 
+.community-page { padding: 24px var(--pad-x) 120px; }
+.community-compose, .community-card, .comment-card, .community-leaderboard { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--r-md); padding: 16px; margin: 14px 0; }
+.community-compose { display: grid; gap: 10px; }
+.community-compose input, .community-compose textarea, .community-comments textarea, .community-replies input { width: 100%; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 12px; font: inherit; }
+.community-compose textarea, .community-comments textarea { min-height: 84px; resize: vertical; }
+.community-card h2 { margin: 8px 0; font-size: 17px; }
+.community-card p, .comment-card p { color: var(--text-secondary); white-space: pre-wrap; margin: 8px 0; }
+.community-card small, .comment-card small { color: var(--text-muted); }
+.community-user { font-weight: 700; }
+.community-replies { margin-top: 12px; border-top: 1px solid var(--border-subtle); padding-top: 10px; }
+.community-reply { padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
+.community-reply p { margin: 4px 0; }
+.community-replies form { display: flex; gap: 8px; margin-top: 10px; }
+.community-comments { margin-top: 28px; }
+.community-comments form { display: grid; gap: 8px; margin-bottom: 14px; }
+.comment-card { margin: 10px 0; }
+.comment-card button + button { margin-left: 12px; }
+.leader-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
+.leader-row span:last-child { margin-left: auto; color: var(--text-secondary); }
+.community-empty { color: var(--text-secondary); padding: 12px 0; }
+
 .bottom-nav .nav-item {
   flex: 1;
   display: flex;

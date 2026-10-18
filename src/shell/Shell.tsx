@@ -17,6 +17,7 @@ const NAV: NavItem[] = [
   { to: '/schedule', icon: 'calendar', label: 'Jadwal' },
   { to: '/favorites', icon: 'heart', label: 'Favorit' },
   { to: '/history', icon: 'clock', label: 'Riwayat' },
+  { to: '/community', icon: 'globe', label: 'Komunitas' },
   { to: '/profile', icon: 'user', label: 'Profil', alias: ['/settings'] }
 ];
 

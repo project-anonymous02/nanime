@@ -23,6 +23,7 @@ import { Schedule } from './views/Schedule';
 import { Search } from './views/Search';
 import { Settings } from './views/Settings';
 import { Watch } from './views/Watch';
+import { Community } from './views/Community';
 
 /** Akar aplikasi: inisialisasi sesi, deep-link, lalu gerbang masuk. */
 
@@ -56,6 +57,7 @@ function Gate() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/notifications" element={<Notifications />} />
+        <Route path="/community" element={<Community />} />
         <Route path="/detail/:id" element={<Detail />} />
         <Route path="/watch/:id/:episode" element={<Watch />} />
         <Route path="*" element={<Navigate to="/home" replace />} />

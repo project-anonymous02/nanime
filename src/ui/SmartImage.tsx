@@ -74,8 +74,12 @@ export function SmartImage({ src, animeId, alt, className = '', style, eager, fa
             if (animeId && !fallbackRequested.current) {
               fallbackRequested.current = true;
               void resolveAnimeImages(animeId).then(images => {
-                setCandidates(unique([validImageUrl(src), ...images].filter(Boolean)));
-                setIndex(1);
+                const primary = validImageUrl(src);
+                const next = unique([primary, ...images].filter(Boolean));
+                setCandidates(next);
+                // If the primary URL is absent, the first resolved artwork is
+                // index 0; never skip a valid alternative by assuming one exists.
+                setIndex(primary ? 1 : 0);
               });
               return;
             }

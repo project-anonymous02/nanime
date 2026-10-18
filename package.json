@@ -3,7 +3,7 @@
   "private": true,
   "version": "2.0.0",
   "type": "module",
-  "description": "Nanime — streaming anime premium, pure client (tanpa backend) untuk web & Android APK.",
+  "description": "Nanime — streaming anime dan komunitas dengan Supabase untuk akun, sinkronisasi, sosial, Nobar, dan AniGames Nanime.",
   "engines": {
     "node": ">=22.22.2"
   },
@@ -16,8 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "android:add": "cap add android",
-    "android:sync": "npm run build && cap sync android",
-    "android:apk": "npm run android:sync && bash scripts/setup-firebase-android.sh && bash scripts/setup-android-deeplink.sh && cd android && ./gradlew assembleDebug"
+    "android:sync": "npm run build && cap sync android && bash scripts/setup-android-pip.sh && bash scripts/setup-android-deeplink.sh",
+    "android:apk": "npm run android:sync && bash scripts/setup-firebase-android.sh && cd android && ./gradlew assembleDebug"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",

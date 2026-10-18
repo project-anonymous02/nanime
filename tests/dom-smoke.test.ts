@@ -78,9 +78,10 @@ describe('smoke test aplikasi React', () => {
       const text = container.textContent || '';
       expect(text).toContain('Beranda');
       expect(text).toContain('Jadwal');
-      expect(text).toContain('Favorit');
+      expect(text).toContain('Subscribed');
       expect(text).toContain('Riwayat');
-      expect(text).toContain('Profil');
+      expect(text).toContain('SocialLine');
+      expect(container.querySelector('[aria-label="Buka profil"]')).not.toBeNull();
     });
   });
 
@@ -104,6 +105,44 @@ describe('smoke test aplikasi React', () => {
       expect(container.textContent).toContain('Riwayat');
     });
     expect(container.textContent).not.toMatch(SOURCE_NAMES);
+  });
+
+  it('rute Nobar Nanime menampilkan alur buat atau gabung room', async () => {
+    await goto('#/watch-party');
+    await waitFor(() => {
+      expect(container.textContent).toContain('Nobar bareng');
+      expect(container.textContent).toContain('Gabung Nobar');
+    });
+    expect(container.querySelector('[aria-label="Masukkan kode room"]')).toBeNull();
+    expect(container.querySelector('#watch-party-code')).not.toBeNull();
+  });
+
+  it('halaman AniGames Nanime menyediakan hub Crystal dan clan', async () => {
+    await goto('#/games');
+    await waitFor(() => {
+      expect(container.textContent).toContain('Permainan & Clan');
+      expect(container.textContent).toContain('CRYSTAL NANIME');
+    });
+  });
+
+  it('halaman Afinitas Nanime menampilkan kegagalan layanan dengan retry', async () => {
+    await goto('#/affinity');
+    await waitFor(() => {
+      expect(container.textContent).toContain('Bangun ikatan, selesaikan misi, dan kumpulkan XP bersama teman.');
+      expect(container.textContent).toContain('Coba lagi');
+    });
+    expect(container.querySelector('.affinity-page')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Cari teman untuk Afinitas"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Privasi Afinitas"]')).toBeNull();
+  });
+
+  it('rute profil publik Nanime menampilkan error dan retry dari layanan akun', async () => {
+    await goto('#/profile/00000000-0000-0000-0000-000000000001');
+    await waitFor(() => {
+      expect(container.textContent).toContain('Profil publik dan koneksi komunitas.');
+      expect(container.textContent).toContain('Profil belum dapat dimuat. Periksa koneksi lalu coba lagi.');
+      expect(container.textContent).toContain('Coba lagi');
+    });
   });
 
   it('rute tak dikenal dialihkan kembali ke beranda', async () => {

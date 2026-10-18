@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DetailBundle, StreamBundle } from '../src/core/types';
 
@@ -11,6 +11,9 @@ vi.mock('../src/core/services/Catalog', async importOriginal => {
   return { ...original, Catalog: { ...original.Catalog, detail: api.detail, stream: api.stream } };
 });
 import { Detail } from '../src/views/Detail';
+import { PlayerOverlay } from '../src/ui/PlayerOverlay';
+import { usePlayer } from '../src/state/player';
+import { useWatchParty } from '../src/state/watchParty';
 
 const episode = (num: string) => ({ num, id: `provider-ep-${num}`, slug: `ep-${num}`, date: '', sources: [{ provider: 'provider', id: `provider-ep-${num}`, slug: `ep-${num}` }] });
 function bundle(): DetailBundle {
@@ -28,8 +31,15 @@ async function until(assertion: () => void) {
   while (Date.now() < end) { try { assertion(); return; } catch { await act(async () => { await sleep(10); }); } }
   assertion();
 }
-async function renderDetail() {
-  await act(async () => root.render(createElement(MemoryRouter, { initialEntries: ['/detail/anime-a'] }, createElement(Routes, null, createElement(Route, { path: '/detail/:id', element: createElement(Detail) })))));
+async function renderDetail(path = '/detail/anime-a') {
+  await act(async () => root.render(createElement(MemoryRouter, { initialEntries: [path] }, createElement('div', null,
+    createElement(Routes, null,
+      createElement(Route, { path: '/detail/:id', element: createElement(Detail) }),
+      createElement(Route, { path: '/home', element: createElement('div', null, 'Home') })
+    ),
+    createElement(Link, { to: '/home', 'aria-label': 'Home' }, 'Home'),
+    createElement(PlayerOverlay)
+  ))));
   await until(() => expect(host.querySelector('.dt-eplist')).not.toBeNull());
 }
 async function clickEpisode(num: string) {
@@ -42,7 +52,7 @@ beforeEach(() => {
   host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
   api.detail.mockResolvedValue(bundle());
 });
-afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.clearAllMocks(); });
+afterEach(async () => { await act(async () => root.unmount()); usePlayer.getState().close(); useWatchParty.getState().clear(); host.remove(); vi.clearAllMocks(); });
 
 describe('episode playback flow', () => {
   it('episode click immediately opens loading UI, resolves the selected provider episode, and renders a validated media URL', async () => {
@@ -54,6 +64,14 @@ describe('episode playback flow', () => {
     expect(api.stream).toHaveBeenCalledWith('anime-a', '1', { title: 'Anime A', episodeProvider: 'provider', episodeId: 'provider-ep-1', episodeSlug: 'ep-1' });
     await act(async () => resolve(stream('1')));
     await until(() => expect(host.querySelector<HTMLVideoElement>('video')?.src).toBe('https://cdn.test/episode-1.mp4'));
+  });
+
+  it('opens the episode specified by a watch party deep link after the catalog loads', async () => {
+    useWatchParty.getState().set({ id: 'party-a', invite_code: 'invite', host_id: 'host-a', anime_id: 'anime-a', title: 'Anime A', poster: null, episode: '2', position_seconds: 0, is_playing: false, updated_at: new Date().toISOString(), created_at: new Date().toISOString() });
+    api.stream.mockResolvedValue(stream('2'));
+    await renderDetail('/detail/anime-a?title=Anime%20A&episode=1&partyId=party-a');
+    await until(() => expect(api.stream).toHaveBeenCalledWith('anime-a', '2', expect.objectContaining({ episodeId: 'provider-ep-2' })));
+    await until(() => expect(host.querySelector<HTMLVideoElement>('video')?.src).toBe('https://cdn.test/episode-2.mp4'));
   });
 
   it('shows the provider reason and retry control when the resolver returns no source', async () => {
@@ -81,5 +99,29 @@ describe('episode playback flow', () => {
     await act(async () => (host.querySelector('[aria-label="Tutup pemutar"]') as HTMLButtonElement).click());
     expect(host.querySelector('h1')?.textContent).toBe('Anime A');
     expect(host.querySelector('.dt-eplist')).not.toBeNull();
+  });
+
+  it('keeps the same video element alive in mini mode across route changes', async () => {
+    api.stream.mockResolvedValue(stream('1'));
+    await renderDetail(); await clickEpisode('1');
+    await until(() => expect(host.querySelector<HTMLVideoElement>('video')?.src).toBe('https://cdn.test/episode-1.mp4'));
+    const video = host.querySelector('video');
+    await act(async () => (host.querySelector('[aria-label="Home"]') as HTMLAnchorElement).click());
+    await until(() => expect(host.querySelector('.episode-player-backdrop')?.classList.contains('mini')).toBe(true));
+    expect(host.querySelector('video')).toBe(video);
+    await act(async () => (host.querySelector('[aria-label="Buka pemutar"]') as HTMLButtonElement).click());
+    expect(host.querySelector('video')).toBe(video);
+    expect(host.querySelector('.episode-player-backdrop')?.classList.contains('mini')).toBe(false);
+  });
+
+  it('renders direct-media playback controls for seeking, fit, and fullscreen', async () => {
+    api.stream.mockResolvedValue(stream('1'));
+    await renderDetail(); await clickEpisode('1');
+    await until(() => expect(host.querySelector('[aria-label="Posisi video"]')).not.toBeNull());
+    expect(host.querySelector('[aria-label="Mundur 10 detik"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Maju 10 detik"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Layar penuh"]')).not.toBeNull();
+    await act(async () => (host.querySelector('[aria-label="Penuhi video"]') as HTMLButtonElement).click());
+    expect(host.querySelector('[aria-label="Sesuaikan video"]')).not.toBeNull();
   });
 });

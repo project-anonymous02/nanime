@@ -48,7 +48,9 @@ export function AppUsageTracker() {
       if (!endingId) return;
       // Account for the active interval up to the transition, then close the
       // server session so background time cannot accumulate.
-      await client.rpc('record_app_usage_heartbeat', { p_session_id: endingId });
+      // The RPC requires p_active. Mark the interval inactive while recording
+      // its final server-timed duration before closing the session.
+      await client.rpc('record_app_usage_heartbeat', { p_session_id: endingId, p_active: false });
       await client.rpc('end_app_usage_session', { p_session_id: endingId });
       if (sessionId === endingId) sessionId = null;
     };
@@ -83,7 +85,7 @@ export function AppUsageTracker() {
       if (!trackingActive || stopped) return;
       enqueue(async () => {
         if (sessionId) {
-          await client.rpc('record_app_usage_heartbeat', { p_session_id: sessionId });
+          await client.rpc('record_app_usage_heartbeat', { p_session_id: sessionId, p_active: true });
         } else {
           await startSession();
         }

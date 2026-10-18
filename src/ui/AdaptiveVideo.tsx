@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import type { Ref } from 'react';
 
 export interface AdaptiveVideoProps {
   src: string;
@@ -6,15 +7,28 @@ export interface AdaptiveVideoProps {
   onTimeUpdate?: React.ReactEventHandler<HTMLVideoElement>;
   onPause?: React.ReactEventHandler<HTMLVideoElement>;
   onEnded?: React.ReactEventHandler<HTMLVideoElement>;
+  onPlay?: React.ReactEventHandler<HTMLVideoElement>;
+  volume?: number;
+  videoElementRef?: Ref<HTMLVideoElement>;
+  fit?: 'contain' | 'cover';
   onError: () => void;
 }
 
 /** Native MP4 playback with a lazy HLS chunk and browser-native DASH where available. */
-export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onError }: AdaptiveVideoProps) {
+export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onPlay, onError, volume = 1, videoElementRef, fit = 'contain' }: AdaptiveVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hls = /\.m3u8(?:[?#]|$)/i.test(src);
   const dash = /\.mpd(?:[?#]|$)/i.test(src);
   const adaptive = hls || dash;
+  const attachRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (typeof videoElementRef === 'function') videoElementRef(node);
+    else if (videoElementRef) (videoElementRef as { current: HTMLVideoElement | null }).current = node;
+  }, [videoElementRef]);
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.volume = Math.max(0, Math.min(1, volume));
+  }, [volume]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -61,15 +75,17 @@ export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onE
   }, [src, adaptive, hls, onError]);
 
   return <video
-    ref={videoRef}
+    ref={attachRef}
     src={adaptive ? undefined : src}
     poster={poster}
-    controls
+    controls={false}
     playsInline
     autoPlay
     onTimeUpdate={onTimeUpdate}
     onPause={onPause}
     onEnded={onEnded}
+    onPlay={onPlay}
     onError={adaptive ? undefined : onError}
+    style={{ objectFit: fit }}
   />;
 }

@@ -235,6 +235,131 @@ Kartu radius 24, tinggi ±470 px, bg maroon gelap. **3 halaman**, dots di bawah 
 
 ## 5. PENCARIAN / HASIL
 
+## 11. CATATAN REVERSE ENGINEERING LANJUTAN (hasil JADX)
+
+Sumber dekompilasi lokal berada di `/tmp/Anibiplay-decompiled`. Kelas aplikasi
+utama banyak dipetakan JADX ke `defpackage`, tetapi metadata Kotlin masih
+menyimpan nama paket/layar dan DTO aplikasi berada di
+`sources/com/hxcorp/anibiplay/data/remote/dto/`.
+
+- Navigasi sosial punya pola rute terpisah `friends?tab={tab}` dan
+  `chat/{friendId}?friendName={friendName}&avatarUrl={avatarUrl}`. DTO
+  `FriendRequest*`, `FriendsListResponseDto`, `ChatConversation*`, dan
+  `ChatMessage*` membuktikan layar pertemanan, permintaan, daftar percakapan,
+  serta percakapan langsung adalah bagian alur data nyata.
+- Nobar bukan sekadar halaman statis: `defpackage/vb7.java` membangun socket
+  di `/chat/socket.io`, memakai token, dan memasang event `watchparty:list`,
+  `watchparty:state`, `watchparty:started`, `watchparty:playback`,
+  `watchparty:episode:changed`, `watchparty:chat:new`,
+  `watchparty:presence:update`, `watchparty:closed`, dan `watchparty:error`.
+  Aksi yang terlihat mencakup `watchparty:join` dengan `clanId`/`partyId`,
+  `watchparty:leave`, dan `watchparty:close`. `WatchPartyUiState` memuat party,
+  role, user ID, pesan, sinkron playback, jumlah penonton, koneksi, error, dan
+  stream. Data partai membawa clan, host, series, episode, playback, waktu
+  mulai/akhir, dan auto-close. Karena alur ini terikat identitas clan/token dan
+  socket AniBiPlay, Nanime tidak memakai server tersebut; padanan fitur room
+  undangan dan chat memakai backend Supabase Nanime. Tautan room membawa ID
+  anime, ID room, dan episode; halaman Detail menyelesaikan episode lewat
+  katalog Nanime secara otomatis. Pilihan episode host disimpan atomik bersama
+  reset playhead, lalu peserta yang membuka Detail mengikuti perubahan episode
+  dan status playback. Player langsung Nanime menyinkronkan posisi/status lewat
+  Supabase Realtime dengan polling cadangan. Iframe sematan tidak dapat
+  dikendalikan lintas origin dan menampilkan status keterbatasannya.
+- AniBiGames jauh lebih luas dari game tunggal: konstanta endpoint terdekompilasi
+  mencakup `/anibi-games`, clan, role, view clan, join request, activity,
+  treasury shop, gacha, colors, banners, wallpaper gacha, avatar decorations,
+  profile effects, serta watch party. Ini menunjukkan ekonomi AniCrystal dan
+  fitur clan saling terhubung; Nanime membangun padanan dengan Supabase sendiri
+  dan tidak memakai endpoint atau kredensial AniBiPlay.
+- Fitur tambahan di luar daftar game terlihat dari resource dan route: `defpackage/aw.java`
+  membangun `profile/affinity?userId=…&bondId=…&inbox=…&name=…&avatar=…`,
+  sedangkan `defpackage/bw.java` memberi halaman leaderboard Afinitas. DTO
+  `AffinityBondDetail*`, `AffinityDailyMissionDto`, `AffinityMilestoneDto`,
+  `AffinityPropose*`, `AffinityRespond*`, `AffinityBreak*`, `AffinityPrivacy*`,
+  `AffinityCooldown*`, `AffinitySlotDto`, dan `AffinityXpProgressDto`
+  membuktikan alur berpasangan yang menyimpan proposal/persetujuan, privasi,
+  slot, XP, misi, milestone, dan cooldown. Resource `affinity_{pasangan,
+  sahabat,saudara,confidant}` dan `profile_level_{stone,…,eternal}` menjadi
+  bukti visual tambahan. Nanime kini menyediakan halaman `/affinity` dan
+  leaderboard dengan proposal/terima/tolak/batal/putus, privacy, XP, misi
+  terverifikasi dari riwayat Supabase, level, cooldown, serta penampilan ikatan
+  pada profil publik. Slot tier 1/4/4/5 berasal dari `defpackage/dd.java`;
+  nominal XP Nanime sengaja konfigurasi baru sebab angka runtime AniBiPlay tidak
+  ada di dekompilasi lokal. Migrasi add-only `012_affinity_bonds.sql` belum
+  diterapkan pada Supabase. `defpackage/i03.java` hanya mencatat `AniPetZoo`,
+  sementara APK mengungkap ilustrasi naga `anipetzoo_dragon_red.png`. DTO
+  `AnnouncementFeaturesDto`/`defpackage/wu.java` menambah bukti bahwa
+  `herocard_anipetzoo` adalah flag server untuk item carousel beranda; tidak ada
+  kontrak navigasi, data pet, atau gameplay PetZoo pada hasil source lokal.
+  Karena itu PetZoo belum direkonstruksi tanpa mengarang perilaku. Banner/
+  wallpaper gacha, dekorasi avatar, dan profile effects belum direkonstruksi.
+- DTO `HomeAniCrystalDto` memodelkan `balance`; DTO klaim harian clan membawa
+  reward, waktu bergabung, waktu klaim berikutnya, minimum jam bergabung, status
+  klaim, dan `canClaim`. Nanime sekarang punya halaman Games dengan wallet dan
+  ledger Crystal, jelajah/buat clan, permintaan gabung yang disetujui pemimpin,
+  keluar/tutup clan, serta klaim 10 Crystal sekali per 24 jam setelah minimum
+  24 jam sebagai anggota. Mutasi
+  saldo dan ledger berjalan atomik lewat RPC Supabase dengan RLS. Gacha warna,
+  donasi treasury, dan kosmetik warna clan kini juga terintegrasi di bawah.
+  Level clan, leaderboard clan, gacha banner, wallpaper pengguna, dan avatar
+  decorations masih belum direkonstruksi.
+  Reverse-engineering `ClanChatMessageDto`, `ClanChatHistoryResponseDto`,
+  `ClanChatUserDto`, serta `defpackage/uq0.java` membuktikan AniBiPlay juga
+  memuat histori pesan beridentitas pengguna, reply target, giveaway, cursor
+  `beforeMessageId` dan `hasMore`; pengiriman socket menghasilkan ack dan
+  meminta sinkronisasi histori ulang. Nanime kini punya chat teks privat di
+  clan aktif dengan polling histori 5 detik, profil publik pengirim, retry
+  koneksi, batas pesan 2000 karakter, dan RLS anggota melalui migrasi aditif
+  `010_clan_chat.sql`. API Nanime belum mengimplementasikan reply-to, hadiah
+  clan, pagination histori, atau socket push seperti server sumber.
+- Reverse engineering kontrak `ClanColorGachaConfigDto`,
+  `ClanGachaPityConfigDto`, `ClanColorGachaPayloadDto`,
+  `ClanColorGachaItemDto`, dan `ClanColorPaletteDto` membuktikan gacha warna
+  clan memakai biaya single/ten, konfigurasi bobot rarity, pity rarity,
+  treasury clan, inventory, konversi duplicate menjadi essence, serta palet
+  aktif. Nanime sekarang mengimplementasikan alur itu lewat konfigurasi dan
+  katalog server Supabase, atomic RPC donasi/pull/equip, hasil pull yang
+  disimpan ke inventory, dan UI koleksi/pity/odds di Games. Seed katalog dan
+  tuning Nanime (25 Crystal single, 220 ten; 60.5/24/12/3/0.5% rarity; pity
+  10/30/60/90) adalah konten server Nanime yang eksplisit, bukan nilai API
+  AniBiPlay; APK tidak berisi nilai katalog/tuning live.
+- Subscribed Anime di Nanime saat ini berbasis koleksi favorit yang disimpan
+  lokal dan disinkronkan melalui Supabase. DTO AniBiPlay yang ditemukan
+  (`UserFavoritesResponseDto`, `UserFavoriteStatusResponseDto`) mengonfirmasi
+  sistem asli punya lapisan server dan status tersendiri; `defpackage/ko.java`
+  juga memuat field `subscribed` pada model anime beserta paginasi episode.
+  Nanime perlu terus menyelaraskan status chip detail dan layar Subscribed
+  dengan hasil server, bukan mengandalkan cache lokal setelah upsert gagal.
+  Reverse engineering `defpackage/wk6.java` menunjukkan layar sumber meminta
+  batch 30 entri, mempertahankan total/offset dan `meta.total`, mendukung
+  pemuatan bertahap, cache berumur pendek, serta state error yang menyebut
+  kegagalan memuat subscribed. `UserFavoriteEntryDto` memetakan ID, series ID/
+  URL, judul, poster, rating, views, jumlah episode, dan waktu dibuat;
+  `UserFavoriteStatusDto` memberi `isFavorite` terpisah. Nanime mempertahankan
+  cache lokal/offline tetapi kini membaca seluruh rentang Supabase per 500
+  baris, memeriksa error operasi baca/tulis, dan menunjukkan status/retry
+  sinkronisasi pada layar Subscribed supaya cache gagal tidak tampil sebagai
+  data server yang lengkap.
+- Rute `defpackage/dx.java` menghasilkan `profile?userId={id}` (ID nonpositif
+  menjadi sentinel `-1`), sehingga layar Profile AniBiPlay punya mode profil
+  pengguna lain. DTO komentar `defpackage/wz1.java` memuat `parentCommentId`,
+  `replyToCommentId`, metadata profil/clan, dan `l02.java` memisahkan komentar
+  tingkat atas dari balasan yang dikelompokkan menurut parent. Nanime sekarang
+  memiliki `/profile/:userId` publik dengan nama/avatar/rank dari RPC aman,
+  status pertemanan, aksi tambah teman/chat, dan pesan eksplisit bahwa favorit
+  serta histori bersifat privat. Komentar anime kini mendukung balasan satu
+  tingkat, edit/hapus milik sendiri, loading/error/empty/retry. Migrasi aditif
+  `009_threaded_anime_comments.sql` menambahkan parent dan memvalidasi bahwa
+  balasan mengarah ke komentar utama di anime yang sama.
+
+Nanime kini mengintegrasikan rute Teman & Chat menggunakan migrasi Supabase
+Nanime yang aditif, pencarian profil, permintaan masuk/keluar, RLS untuk pesan,
+status baca, langganan realtime Supabase dengan polling cadangan, dan pengiriman
+pesan langsung. Aksesnya tersedia dari SocialLine. Padanan Nobar Nanime memakai
+kode undangan acak, keanggotaan dan chat ber-RLS, sinkronisasi state host melalui
+baris room realtime/polling, dan player lokal tiap peserta untuk anime serta
+episode yang sama. Migrasi aditifnya ada di `supabase/migrations/007_watch_parties.sql`.
+
 ### 5.1 Halaman pencarian kosong (…-110940)
 - Top bar: panah kembali `←` putih (kiri, ±44 px) + search pill memanjang (ikon kaca + placeholder `Mencari anime` + kursor).
 - Isi: kosong gelap (hasil muncul saat mengetik).
@@ -440,3 +565,32 @@ Beberapa fitur di referensi tidak ada datanya di Nanime; pertahankan **posisi & 
 Aturan yang TIDAK boleh dilanggar (invarian Nanime): nama provider tidak pernah tampil, pesan error tunggal
 `"Gagal memuat data, silakan periksa koneksi internet dan coba lagi nanti."`, login Google wajib,
 ikon bukan emoji, logo `public/logo.jpg`, dan video tidak pernah hilang (mini player persisten).
+
+## 16. STATUS IMPLEMENTASI NANIME (checkpoint 2026-10-18)
+
+- Rute React saat ini mencakup Home, Search, Schedule, Favorites/Subscribed,
+  History, Profile/Public Profile, Settings, Notifications, Community,
+  Friends/DM, Affinity, Watch Party, Nanime Games, Detail, serta OAuth callback.
+- Navigasi bawah sekarang hanya dirender pada tab utama. Detail anime, pengaturan,
+  notifikasi, profil publik, chat, Games, Afinitas, dan Nobar tidak menampilkan
+  bottom nav seperti layar non-tab pada referensi.
+- Pengelolaan Supabase untuk teman/DM (006), Nobar (007), Games/clan (008),
+  reply komentar (009), chat clan (010), kosmetik clan (011), Afinitas (012),
+  dan role/pesan developer (013) tersedia sebagai migration aditif. Migration
+  006–013 belum diterapkan di proyek Supabase produksi.
+- Migration 013 menetapkan badge developer dari email Auth yang sudah
+  terkonfirmasi `kusumanata767@gmail.com`, level tampilan 9999 dan rank
+  `developer`; ID akun Supabase tetap UUID. `#1` adalah tag UI.
+- Sumber dekompilasi menunjukkan DTO fitur friend/chat, Nobar, clan/games,
+  Afinitas, profile customization, dan wallpaper/decorations. Untuk
+  AniPetZoo, bukti yang tersedia hanya flag home
+  `herocard_anipetzoo`/label; tidak ditemukan model pet, rute, kontrak API,
+  ataupun resource visual. Detail profile cosmetics AniBiPlay juga masih
+  sebatas inventaris DTO karena pemanggil endpoint dan artwork tidak tersedia.
+- Cuplikan UI Nanime ada di `screenshot/`, tetapi berkas screenshot asli
+  AniBiPlay yang dirujuk di atas tidak ikut tersedia di workspace. Karena itu
+  belum ada bukti pixel-diff penuh. APK hasil JADX juga tidak memiliki berkas
+  pada direktori `resources`, dan tidak ada emulator Android yang terhubung.
+- Kode pembanding source dapat dijalankan lewat `node
+  scripts/compare-anibiplay-nanime.mjs`; hasil saat ini ada di
+  `ANIBIPLAY_VS_NANIME.md`.

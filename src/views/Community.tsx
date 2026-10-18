@@ -19,21 +19,23 @@ import { currentAuthUser, useAuth } from '../state/auth';
 import { toast } from '../state/ui';
 import { Icon } from '../ui/icons';
 import { CommunityAvatar } from '../ui/CommunityAvatar';
+import { useNavigate } from 'react-router-dom';
 
 function Identity({ profile, userId }: { profile?: CommunityProfile; userId?: string }) {
+  const navigate = useNavigate();
   const authUser = currentAuthUser();
   const fallback = !userId || userId === authUser?.id ? authUser : null;
   const name = profile?.username || fallback?.name || fallback?.email || 'Profil belum tersinkron';
   const rank = profile ? RANK_META[profile.rank] : null;
   const developer = profile?.rank === 'developer';
   return (
-    <span className="community-identity">
+    <button type="button" className="community-identity community-identity-link" onClick={() => userId && navigate(`/profile/${userId}`)} disabled={!userId} aria-label={`Buka profil ${name}`}>
       <CommunityAvatar name={name} src={profile?.avatar_url} />
       <span className="community-identity-copy">
         <span className={developer ? 'community-user developer' : 'community-user'}>{name}</span>
         {rank ? <span className="community-rank" style={developer ? undefined : { color: rank.color }}>{rank.label}</span> : null}
       </span>
-    </span>
+    </button>
   );
 }
 
@@ -109,6 +111,7 @@ function Replies({ discussion, signedIn, currentId }: { discussion: DiscussionRo
 }
 
 export function Community() {
+  const navigate = useNavigate();
   const signedIn = useAuth(state => state.signedIn);
   const authUser = useAuth(state => state.user);
   const [rows, setRows] = useState<DiscussionRow[]>([]);
@@ -174,7 +177,7 @@ export function Community() {
     <div className="community-page">
       <header className="community-heading">
         <span className="community-kicker"><Icon name="globe" size={15} /> Nanime Community</span>
-        <div className="community-title-row"><div><h1>Diskusi publik</h1><p>Berbagi pendapat dan ngobrol bareng komunitas anime.</p></div><button type="button" className="community-refresh" onClick={() => void load(0, true)} disabled={refreshing} aria-label="Muat ulang diskusi"><Icon name="refresh" size={17} />{refreshing ? 'Memuat' : 'Segarkan'}</button></div>
+        <div className="community-title-row"><div><h1>Diskusi publik</h1><p>Berbagi pendapat dan ngobrol bareng komunitas anime.</p></div><div className="community-head-actions"><button type="button" className="community-secondary" onClick={() => navigate('/friends')}><Icon name="user" size={16} />Teman & chat</button><button type="button" className="community-secondary" onClick={() => navigate('/watch-party')}><Icon name="users" size={16} />Nobar</button><button type="button" className="community-refresh" onClick={() => void load(0, true)} disabled={refreshing} aria-label="Muat ulang diskusi"><Icon name="refresh" size={17} />{refreshing ? 'Memuat' : 'Segarkan'}</button></div></div>
       </header>
 
       {signedIn ? <form className="community-compose" onSubmit={event => void submit(event)}>

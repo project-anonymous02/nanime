@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from '../ui/icons';
 import { useScrollGuard } from '../ui/hooks';
 import { AppUsageTracker } from '../features/AppUsageTracker';
+import { PlayerOverlay } from '../ui/PlayerOverlay';
 
 /** Kerangka aplikasi: konten, navigasi bawah, dan tumpukan toast. */
 
@@ -16,10 +17,9 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: '/home', icon: 'home', label: 'Beranda' },
   { to: '/schedule', icon: 'calendar', label: 'Jadwal' },
-  { to: '/favorites', icon: 'heart', label: 'Favorit' },
+  { to: '/favorites', icon: 'film', label: 'Subscribed' },
   { to: '/history', icon: 'clock', label: 'Riwayat' },
-  { to: '/community', icon: 'globe', label: 'Komunitas' },
-  { to: '/profile', icon: 'user', label: 'Profil', alias: ['/settings'] }
+  { to: '/community', icon: 'chart', label: 'SocialLine' }
 ];
 
 function isActive(pathname: string, item: NavItem): boolean {
@@ -49,6 +49,7 @@ function BottomNav() {
 export function Shell({ children }: { children: ReactNode }) {
   useScrollGuard();
   const { pathname } = useLocation();
+  const mainTab = ['/home', '/schedule', '/favorites', '/history', '/community', '/profile'].includes(pathname);
   return (
     <div className="app-shell">
       <AppUsageTracker />
@@ -57,7 +58,8 @@ export function Shell({ children }: { children: ReactNode }) {
           {children}
         </div>
       </main>
-      <BottomNav />
+      {mainTab ? <BottomNav /> : null}
+      <PlayerOverlay />
     </div>
   );
 }

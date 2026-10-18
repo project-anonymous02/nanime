@@ -20,6 +20,11 @@ import { Schedule } from './views/Schedule';
 import { Search } from './views/Search';
 import { Settings } from './views/Settings';
 import { Community } from './views/Community';
+import { Friends } from './views/Friends';
+import { WatchPartyView } from './views/WatchParty';
+import { Games } from './views/Games';
+import { PublicProfile } from './views/PublicProfile';
+import { Affinity } from './views/Affinity';
 
 /** Akar aplikasi: inisialisasi sesi, deep-link, lalu gerbang masuk. */
 
@@ -51,9 +56,16 @@ function Gate() {
         <Route path="/favorites" element={<Favorites />} />
         <Route path="/history" element={<History />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/:userId" element={<PublicProfile />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/community" element={<Community />} />
+        <Route path="/friends" element={<Friends />} />
+        <Route path="/friends/:friendId" element={<Friends />} />
+        <Route path="/affinity" element={<Affinity />} />
+        <Route path="/watch-party" element={<WatchPartyView />} />
+        <Route path="/watch-party/:id" element={<WatchPartyView />} />
+        <Route path="/games" element={<Games />} />
         <Route path="/detail/:id" element={<Detail />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>

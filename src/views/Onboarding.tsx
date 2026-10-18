@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { signInGoogle, useAuth } from '../state/auth';
+import { signInGoogle } from '../state/auth';
 import { useApp } from '../state/app';
 import { toast } from '../state/ui';
 import { GoogleLogo, Icon } from '../ui/icons';
@@ -27,22 +27,15 @@ function GoogleButton({ busy, onClick, shake }: { busy: boolean; onClick: () => 
 function LoginBlock({
   busy,
   shake,
-  signIn,
-  tester
+  signIn
 }: {
   busy: boolean;
   shake: boolean;
   signIn: () => void;
-  tester: () => void;
 }) {
   return (
     <div className="ob-login">
       <GoogleButton busy={busy} shake={shake} onClick={signIn} />
-      <div className="ob-or">atau</div>
-      <button type="button" className="ob-tester" onClick={tester}>
-        <Icon name="logout" size={18} />
-        Masuk sebagai Tester
-      </button>
       <p className="ob-foot">
         Dengan masuk, kamu menyetujui ketentuan layanan Nanime.
         <br />
@@ -90,15 +83,6 @@ export function Onboarding() {
     setBusy(false);
   }, [busy, markOnboarded, onboarded]);
 
-  const tester = useCallback(() => {
-    if (!onboarded) markOnboarded();
-    useAuth.setState({
-      ready: true,
-      signedIn: true,
-      user: { id: 'tester', email: 'tester@nanime.test', name: 'Tester', avatar: null }
-    });
-  }, [markOnboarded, onboarded]);
-
   /* Setelah pernah mengikuti pengenalan: layar masuk ringkas (gaya sama). */
   if (onboarded) {
     return (
@@ -112,7 +96,7 @@ export function Onboarding() {
             <p className="ob-sub">Masuk untuk sinkronisasi riwayat dan preferensi tontonan kamu.</p>
           </div>
           <div style={{ height: '32dvh' }} />
-          <LoginBlock busy={busy} shake={shake} signIn={() => void signIn()} tester={tester} />
+          <LoginBlock busy={busy} shake={shake} signIn={() => void signIn()} />
         </div>
       </div>
     );
@@ -190,7 +174,7 @@ export function Onboarding() {
             </p>
           </div>
           <div className="ob-spacer" />
-          <LoginBlock busy={busy} shake={shake} signIn={() => void signIn()} tester={tester} />
+          <LoginBlock busy={busy} shake={shake} signIn={() => void signIn()} />
         </section>
       </div>
     </div>

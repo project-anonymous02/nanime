@@ -7,7 +7,8 @@ import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
 import { Sheet } from '../ui/Sheet';
 import { detailPath } from '../lib/nav';
-import { formatWatchDuration, ownAppUsageSeconds } from '../lib/community';
+import { formatWatchDuration, listOwnComments, ownAppUsageSeconds, type OwnCommentRow } from '../lib/community';
+import { isNanimeDeveloper, DEVELOPER_LEVEL, listDeveloperMessages, sendDeveloperMessage, type DeveloperMessage } from '../lib/developer';
 
 /** Profil — banner, statistik, tab Favorit/Histori, dan sheet foto profil ala referensi. */
 
@@ -29,12 +30,21 @@ function mmss(sec: number): string {
 export function Profile() {
   const navigate = useNavigate();
   const user = useAuth(s => s.user);
+  const developer = isNanimeDeveloper(user?.email);
   const favorites = useLibrary(s => s.favorites);
   const history = useLibrary(s => s.history);
 
-  const [tab, setTab] = useState<'fav' | 'hist'>('hist');
+  const [tab, setTab] = useState<'comments' | 'fav' | 'hist'>('comments');
   const [photo, setPhoto] = useState(false);
   const [validatedSeconds, setValidatedSeconds] = useState<number | null>(null);
+  const [comments, setComments] = useState<OwnCommentRow[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState(false);
+  const [developerMessages, setDeveloperMessages] = useState<DeveloperMessage[]>([]);
+  const [developerMessagesError, setDeveloperMessagesError] = useState(false);
+  const [developerMessage, setDeveloperMessage] = useState('');
+  const [developerMessageError, setDeveloperMessageError] = useState('');
+  const [sendingDeveloperMessage, setSendingDeveloperMessage] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -45,13 +55,34 @@ export function Profile() {
     return () => { alive = false; };
   }, [user?.id]);
 
+  useEffect(() => {
+    let alive = true;
+    void listDeveloperMessages().then(rows => { if (alive) { setDeveloperMessages(rows); setDeveloperMessagesError(false); } }).catch(() => { if (alive) setDeveloperMessagesError(true); });
+    return () => { alive = false; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    setCommentsLoading(true);
+    setCommentsError(false);
+    void listOwnComments().then(rows => {
+      if (alive) setComments(rows);
+    }).catch(() => {
+      if (alive) setCommentsError(true);
+    }).finally(() => {
+      if (alive) setCommentsLoading(false);
+    });
+    return () => { alive = false; };
+  }, [user?.id]);
+
   const stats = useMemo(() => {
     const done = history.filter(h => h.completed).length;
     return { favs: favorites.length, hist: history.length, done, seconds: validatedSeconds };
   }, [favorites.length, history, validatedSeconds]);
 
   const initial = (user?.name || user?.email || 'N').trim().charAt(0).toUpperCase();
-  const tag = user?.id ? '#' + user.id.replace(/-/g, '').slice(0, 6) : '';
+  const tag = developer ? '#1' : user?.id ? '#' + user.id.replace(/-/g, '').slice(0, 6) : '';
 
   const favList = useMemo(() => favorites.slice().sort((a, b) => b.addedAt - a.addedAt).slice(0, 30), [favorites]);
   const histList = useMemo(() => history.slice().sort((a, b) => b.watchedAt - a.watchedAt).slice(0, 30), [history]);
@@ -79,6 +110,7 @@ export function Profile() {
       </div>
 
       <div className="prof-chips">
+        {developer ? <span className="prof-chip developer-chip"><Icon name="shield" size={12} strokeWidth={2.2} />Developer · Lvl. {DEVELOPER_LEVEL}</span> : null}
         <span className="prof-chip">
           <Icon name="shield" size={12} strokeWidth={2.2} />
           Akun Google
@@ -88,6 +120,22 @@ export function Profile() {
           Tersinkron
         </span>
       </div>
+
+      <section className="developer-profile-messages" aria-label="Pesan developer">
+        <header><div><span className="eyebrow">NANIME</span><h2>Pesan Developer</h2></div><span className="developer-message-mark">DEV</span></header>
+        <p className="developer-message-intro">Pengumuman dan pesan langsung dari developer Nanime.</p>
+        {developer && <form onSubmit={async event => {
+          event.preventDefault(); setDeveloperMessageError(''); setSendingDeveloperMessage(true);
+          try { await sendDeveloperMessage(developerMessage); setDeveloperMessage(''); setDeveloperMessages(await listDeveloperMessages()); }
+          catch (error) { setDeveloperMessageError(error instanceof Error ? error.message : 'Pesan gagal dikirim.'); }
+          finally { setSendingDeveloperMessage(false); }
+        }} className="developer-message-form">
+          <textarea aria-label="Pesan untuk pengguna Nanime" maxLength={2000} value={developerMessage} onChange={event => setDeveloperMessage(event.target.value)} placeholder="Tulis pesan untuk pengguna Nanime…" />
+          <button type="submit" disabled={sendingDeveloperMessage || !developerMessage.trim()}>{sendingDeveloperMessage ? 'Mengirim…' : 'Kirim pesan'}</button>
+          {developerMessageError ? <p role="alert">{developerMessageError}</p> : null}
+        </form>}
+        {developerMessagesError ? <p className="prof-empty" role="alert">Pesan developer belum dapat dimuat. Terapkan migration Supabase 013 lalu coba lagi. <button type="button" className="prof-comment-link" onClick={() => { setDeveloperMessagesError(false); void listDeveloperMessages().then(setDeveloperMessages).catch(() => setDeveloperMessagesError(true)); }}>Coba lagi</button></p> : developerMessages.length ? <div className="developer-message-list">{developerMessages.map(message => <article key={message.id}><p>{message.content}</p><time>{new Date(message.created_at).toLocaleString('id-ID')}</time></article>)}</div> : <p className="prof-empty">Belum ada pesan developer.</p>}
+      </section>
 
       <div className="prof-stats">
         <div className="prof-stat">
@@ -117,9 +165,20 @@ export function Profile() {
           <Icon name="settings" size={16} strokeWidth={2.2} />
           Pengaturan
         </button>
+        <button type="button" className="prof-action" onClick={() => navigate('/affinity')}>
+          <Icon name="heartFill" size={16} />
+          Afinitas
+        </button>
       </div>
 
       <div className="prof-tabs" role="tablist">
+        <button
+          type="button"
+          className={'prof-tab' + (tab === 'comments' ? ' on' : '')}
+          role="tab"
+          aria-selected={tab === 'comments'}
+          onClick={() => setTab('comments')}
+        >Komentar</button>
         <button
           type="button"
           className={'prof-tab' + (tab === 'fav' ? ' on' : '')}
@@ -140,7 +199,16 @@ export function Profile() {
         </button>
       </div>
 
-      {tab === 'fav'
+      {tab === 'comments' ? <section role="tabpanel" aria-label="Komentar">
+        {commentsLoading ? <p className="prof-empty" role="status">Memuat komentar…</p> : null}
+        {commentsError ? <div className="prof-empty" role="alert">Komentar belum dapat dimuat. <button type="button" className="prof-comment-link" onClick={() => { setCommentsLoading(true); setCommentsError(false); void listOwnComments().then(setComments).catch(() => setCommentsError(true)).finally(() => setCommentsLoading(false)); }}>Coba lagi</button></div> : null}
+        {!commentsLoading && !commentsError && !comments.length ? <p className="prof-empty">Belum ada komentar.</p> : null}
+        {comments.map(comment => <article className="prof-comment" key={comment.id}>
+          <div className="prof-comment-head"><span className="prof-comment-anime">{comment.anime_id}</span><time>{relativeTime(new Date(comment.created_at).getTime())}</time></div>
+          <p>{comment.content}</p>
+          <button type="button" className="prof-comment-link" onClick={() => navigate(detailPath(comment.anime_id, comment.anime_id))}>Buka anime</button>
+        </article>)}
+      </section> : tab === 'fav'
         ? favList.map(f => (
             <button
               type="button"

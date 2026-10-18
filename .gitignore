@@ -1,6 +1,9 @@
 node_modules/
 dist/
 android/
+!native/
+!native/android/
+!native/android/**
 .and-code/
 *.log
 .DS_Store

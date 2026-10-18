@@ -54,7 +54,7 @@ describe('app usage tracking', () => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
     await act(async () => document.dispatchEvent(new Event('visibilitychange')));
     await flush();
-    expect(mocks.rpc).toHaveBeenCalledWith('record_app_usage_heartbeat', { p_session_id: SESSION_ID });
+    expect(mocks.rpc).toHaveBeenCalledWith('record_app_usage_heartbeat', { p_session_id: SESSION_ID, p_active: false });
 
     await act(async () => root!.unmount());
     root = null;
@@ -73,7 +73,7 @@ describe('app usage tracking', () => {
 
     await act(async () => mocks.appStateListener?.({ isActive: false }));
     await flush();
-    expect(mocks.rpc).toHaveBeenCalledWith('record_app_usage_heartbeat', { p_session_id: SESSION_ID });
+    expect(mocks.rpc).toHaveBeenCalledWith('record_app_usage_heartbeat', { p_session_id: SESSION_ID, p_active: false });
 
     await act(async () => mocks.appStateListener?.({ isActive: true }));
     await flush();
@@ -101,6 +101,7 @@ describe('app usage tracking', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
     await flush();
     expect(heartbeatAttempts).toBe(1);
+    expect(mocks.rpc).toHaveBeenCalledWith('record_app_usage_heartbeat', { p_session_id: SESSION_ID, p_active: true });
     await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
     await flush();
     expect(heartbeatAttempts).toBe(2);

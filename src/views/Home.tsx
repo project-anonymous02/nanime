@@ -11,10 +11,18 @@ import { Icon } from '../ui/icons';
 import { usePullToRefresh } from '../ui/hooks';
 import { SmartImage } from '../ui/SmartImage';
 import { detailPath, searchPath } from '../lib/nav';
+import { getClient } from '../lib/supabase';
+import { filterSubscribedUpdates, subscriptionUpdateId } from '../lib/subscriptions';
 
 /** Beranda gaya AnibiPlay: kartu profil, leaderboard carousel, search, lalu rail/grid konten. */
 
-const GENRES = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Isekai', 'Romance', 'School', 'Shounen', 'Slice of Life'];
+const GENRES = [
+  'Action', 'Adult Cast', 'Adventure', 'Avant Garde', 'Award Winning', 'Comedy', 'Demons', 'Drama', 'Ecchi',
+  'Fantasy', 'Game', 'Girls Love', 'Gore', 'Gourmet', 'Harem', 'Historical', 'Horror', 'Isekai', 'Josei', 'Magic',
+  'Martial Arts', 'Mecha', 'Military', 'Music', 'Mystery', 'Mythology', 'Parody', 'Psychological', 'Reincarnation',
+  'Romance', 'Samurai', 'School', 'Sci-Fi', 'Seinen', 'Shoujo', 'Shoujo Ai', 'Shounen', 'Slice Of Life', 'Space',
+  'Sports', 'Super Power', 'Supernatural', 'Suspense', 'Thriller', 'Time Travel', 'Tokusatsu', 'Vampire', 'Movie'
+];
 
 export function Home() {
   const navigate = useNavigate();
@@ -25,6 +33,7 @@ export function Home() {
   const [feed, setFeed] = useState<HomeFeed | null>(null);
   const [error, setError] = useState(false);
   const [slide, setSlide] = useState(0);
+  const [crystals, setCrystals] = useState<number | null>(null);
 
   const carRef = useRef<HTMLDivElement | null>(null);
   const homeRequest = useRef<AbortController | null>(null);
@@ -49,6 +58,16 @@ export function Home() {
     void load();
     return () => homeRequest.current?.abort();
   }, [load]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    const client = getClient();
+    if (!client) return;
+    void Promise.resolve(client.from('nanime_game_wallets').select('crystals').eq('user_id', user.id).maybeSingle())
+      .then(({ data, error: walletError }) => { if (alive && !walletError) setCrystals(Number(data?.crystals || 0)); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [user?.id]);
 
   const pull = usePullToRefresh(() => load(true));
 
@@ -78,11 +97,11 @@ export function Home() {
 
   const openCard = (c: AggregatedCard) => navigate(detailPath(c.canonicalId, c.title));
   const firstName = (user?.name || 'Sobat Anime').split(' ')[0];
-  const fresh = feed?.newUpdate || [];
+  const fresh = useMemo(() => filterSubscribedUpdates(feed?.newUpdate || [], favorites), [feed?.newUpdate, favorites]);
   const notifRead = useNotifications(s => s.read);
   const notifRemoved = useNotifications(s => s.removed);
   const unreadNotifs = useMemo(
-    () => fresh.filter(c => !notifRead.includes(c.canonicalId) && !notifRemoved.includes(c.canonicalId)).length,
+    () => fresh.filter(c => { const id = subscriptionUpdateId(c); return !notifRead.includes(id) && !notifRemoved.includes(id); }).length,
     [fresh, notifRead, notifRemoved]
   );
 
@@ -102,7 +121,7 @@ export function Home() {
 
       <header className="home-hero">
         <div className="uh-top">
-          <div className="uh-left">
+          <button type="button" className="uh-left" aria-label="Buka profil" onClick={() => navigate('/profile')}>
             {user?.avatar ? (
               <img className="uh-avatar" src={user.avatar} alt="" referrerPolicy="no-referrer" />
             ) : (
@@ -117,7 +136,7 @@ export function Home() {
                 {history.length} ditonton
               </span>
             </div>
-          </div>
+          </button>
           <div className="uh-actions">
             <div className="bell-wrap">
               <button type="button" className="ibtn glow ripple-host" aria-label="Notifikasi" onClick={() => navigate('/notifications')}>
@@ -131,14 +150,8 @@ export function Home() {
           </div>
         </div>
         <div className="uh-stats">
-          <span className="uh-stat">
-            <Icon name="clock" size={12} strokeWidth={2.2} />
-            {history.length} riwayat
-          </span>
-          <button type="button" className="uh-fav" onClick={() => navigate('/favorites')}>
-            <Icon name="starFill" size={11} strokeWidth={0} />
-            {favorites.length} favorit
-          </button>
+          <button type="button" className="uh-crystal" onClick={() => navigate('/games')}><Icon name="sparkles" size={12} /> {crystals == null ? 'Crystal' : crystals.toLocaleString('id-ID') + ' Crystal'}</button>
+          <button type="button" className="uh-games" onClick={() => navigate('/games')}><Icon name="sparkles" size={12} /> Nanime Games</button>
         </div>
       </header>
 
@@ -158,12 +171,12 @@ export function Home() {
 
           <button
             type="button"
-            className="premium-banner anim-up"
-            onClick={() => (next ? navigate(detailPath(next.animeId, next.title)) : navigate('/search'))}
+            className="home-next-banner anim-up"
+            onClick={() => (next ? navigate(detailPath(next.animeId, next.title)) : navigate('/games'))}
           >
             <span className="pb-left">
-              <span className="pb-title">{next ? 'LIHAT ANIME TERAKHIR' : 'CARI ANIME'}</span>
-              <span className="pb-sub ellipsis">{next ? next.title : 'Cari anime favoritmu sekarang'}</span>
+              <span className="pb-title">SEMUA FITUR GRATIS</span>
+              <span className="pb-sub ellipsis">{next ? `Lanjutkan ${next.title}` : 'Anime, player, dan fitur komunitas terbuka untuk semua'}</span>
             </span>
             <span className="pb-play">
               <Icon name="right" size={18} strokeWidth={2.4} />

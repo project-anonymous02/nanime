@@ -62,6 +62,13 @@ const P: Record<string, ReactNode> = {
       <path d="M4.8 20.4a7.4 7.4 0 0 1 14.4 0" />
     </>
   ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.8 20a6.2 6.2 0 0 1 12.4 0M16 5a3.5 3.5 0 0 1 0 6.8M17 14a5.2 5.2 0 0 1 4.2 5.1" />
+    </>
+  ),
+  unlock: <><rect x="4.5" y="10" width="15" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 7.4-2" /></>,
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />

@@ -16,6 +16,8 @@ type Tomb = Record<string, number>;
 interface LibraryState {
   favorites: FavAnime[];
   history: HistoryItem[];
+  syncError: string | null;
+  syncing: boolean;
   tombstones: { fav: Tomb; hist: Tomb };
 
   isFavorite(id: string): boolean;
@@ -24,6 +26,7 @@ interface LibraryState {
   removeHistory(keys: { animeId: string; episode: string }[]): void;
   clearHistory(): void;
   reconcile(userId: string): Promise<void>;
+  retrySync(): Promise<void>;
   purge(): void;
 }
 
@@ -34,6 +37,8 @@ export const useLibrary = create<LibraryState>()(
     (set, get) => ({
       favorites: [],
       history: [],
+      syncError: null,
+      syncing: false,
       tombstones: { fav: {}, hist: {} },
 
       isFavorite(id) {
@@ -49,7 +54,7 @@ export const useLibrary = create<LibraryState>()(
             favorites: s.favorites.filter(f => f.id !== item.id),
             tombstones: { ...s.tombstones, fav: { ...s.tombstones.fav, [item.id]: Date.now() } }
           }));
-          if (uid) void remoteFavorites.remove(uid, item.id).catch(() => {});
+          if (uid) void remoteFavorites.remove(uid, item.id).then(() => useLibrary.setState({ syncError: null })).catch(() => useLibrary.setState({ syncError: 'Perubahan langganan belum tersinkron.' }));
           return;
         }
         const now = Date.now();
@@ -62,7 +67,7 @@ export const useLibrary = create<LibraryState>()(
             tombstones: { ...s.tombstones, fav }
           };
         });
-        if (uid) void remoteFavorites.upsert(uid, next).catch(() => {});
+        if (uid) void remoteFavorites.upsert(uid, next).then(() => useLibrary.setState({ syncError: null })).catch(() => useLibrary.setState({ syncError: 'Perubahan langganan belum tersinkron.' }));
       },
 
       addHistory(item) {
@@ -75,7 +80,7 @@ export const useLibrary = create<LibraryState>()(
           delete hist[HIST_KEY(item)];
           return { history: [next, ...rest].slice(0, 500), tombstones: { ...s.tombstones, hist } };
         });
-        if (uid) void remoteHistory.upsert(uid, next).catch(() => {});
+        if (uid) void remoteHistory.upsert(uid, next).then(() => useLibrary.setState({ syncError: null })).catch(() => useLibrary.setState({ syncError: 'Perubahan riwayat belum tersinkron.' }));
       },
 
       removeHistory(keys) {
@@ -92,7 +97,7 @@ export const useLibrary = create<LibraryState>()(
         }));
         if (uid) {
           keys.forEach(k => {
-            void remoteHistory.remove(uid, k.animeId, k.episode).catch(() => {});
+            void remoteHistory.remove(uid, k.animeId, k.episode).then(() => useLibrary.setState({ syncError: null })).catch(() => useLibrary.setState({ syncError: 'Penghapusan riwayat belum tersinkron.' }));
           });
         }
       },
@@ -105,12 +110,14 @@ export const useLibrary = create<LibraryState>()(
           dead[HIST_KEY(h)] = now;
         });
         set(s => ({ history: [], tombstones: { ...s.tombstones, hist: { ...s.tombstones.hist, ...dead } } }));
-        if (uid) void remoteHistory.clear(uid).catch(() => {});
+        if (uid) void remoteHistory.clear(uid).then(() => useLibrary.setState({ syncError: null })).catch(() => useLibrary.setState({ syncError: 'Penghapusan riwayat belum tersinkron.' }));
       },
 
       /** Gabungkan data server dengan lokal (last-write-wins), lalu dorong yang lebih baru. */
       async reconcile(userId) {
+        set({ syncing: true });
         try {
+          const writes: Promise<void>[] = [];
           const [remoteFavs, remoteHist] = await Promise.all([
             remoteFavorites.pull(userId),
             remoteHistory.pull(userId)
@@ -135,7 +142,7 @@ export const useLibrary = create<LibraryState>()(
             const r = favMap.get(id);
             if (r && r.updatedAt <= ts) {
               favMap.delete(id);
-              void remoteFavorites.remove(userId, id).catch(() => {});
+              writes.push(remoteFavorites.remove(userId, id));
             }
           }
           for (const [key, ts] of Object.entries(tombstones.hist)) {
@@ -143,7 +150,7 @@ export const useLibrary = create<LibraryState>()(
             if (r && r.updatedAt <= ts) {
               histMap.delete(key);
               const [animeId, episode] = key.split('|');
-              if (animeId && episode) void remoteHistory.remove(userId, animeId, episode).catch(() => {});
+              if (animeId && episode) writes.push(remoteHistory.remove(userId, animeId, episode));
             }
           }
 
@@ -154,19 +161,25 @@ export const useLibrary = create<LibraryState>()(
           /* Dorong milik lokal yang menang agar server sepadan. */
           favorites.forEach(f => {
             const r = remoteFavs.find(x => x.id === f.id);
-            if (!r || f.updatedAt > r.updatedAt) void remoteFavorites.upsert(userId, f).catch(() => {});
+            if (!r || f.updatedAt > r.updatedAt) writes.push(remoteFavorites.upsert(userId, f));
           });
           history.forEach(h => {
             const r = remoteHist.find(x => HIST_KEY(x) === HIST_KEY(h));
-            if (!r || h.updatedAt > r.updatedAt) void remoteHistory.upsert(userId, h).catch(() => {});
+            if (!r || h.updatedAt > r.updatedAt) writes.push(remoteHistory.upsert(userId, h));
           });
+          const results = await Promise.allSettled(writes);
+          const writeFailed = results.some(result => result.status === 'rejected');
+          set({ syncError: writeFailed ? 'Sebagian data langganan atau riwayat gagal disimpan ke akun. Coba sinkronkan lagi.' : null });
         } catch {
-          /* offline: data lokal tetap dipakai */
-        }
+          /* Lokal tetap dipakai, tetapi status server ditampilkan agar cache tidak disangka sudah tersinkron. */
+          set({ syncError: 'Nanime belum dapat menyelaraskan langganan dan riwayat. Data lokal tetap tersedia.' });
+        } finally { set({ syncing: false }); }
       },
 
+      async retrySync() { const uid = currentUserId(); if (uid) await get().reconcile(uid); },
+
       purge() {
-        set({ favorites: [], history: [], tombstones: { fav: {}, hist: {} } });
+        set({ favorites: [], history: [], tombstones: { fav: {}, hist: {} }, syncError: null, syncing: false });
       }
     }),
     { name: 'nanime.v2.library' }

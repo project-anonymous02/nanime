@@ -8,7 +8,7 @@ import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
 import { detailPath } from '../lib/nav';
 
-/** Favorit — kisi poster gaya "Subscribed Anime" dengan pengurutan. */
+/** Langganan anime — koleksi seri yang disimpan pengguna dan tersinkron lintas perangkat. */
 
 type SortKey = 'recent' | 'title' | 'rating';
 
@@ -22,6 +22,9 @@ export function Favorites() {
   const navigate = useNavigate();
   const favorites = useLibrary(s => s.favorites);
   const toggleFavorite = useLibrary(s => s.toggleFavorite);
+  const syncError = useLibrary(s => s.syncError);
+  const syncing = useLibrary(s => s.syncing);
+  const retrySync = useLibrary(s => s.retrySync);
   const [sort, setSort] = useState<SortKey>('recent');
   const [openSort, setOpenSort] = useState(false);
 
@@ -35,7 +38,9 @@ export function Favorites() {
 
   return (
     <>
-      <h1 className="fav-title">Favorit Anime</h1>
+      <h1 className="fav-title">Subscribed Anime</h1>
+
+      {syncError ? <div className="library-sync-warning" role="alert"><span>{syncError}</span><button type="button" disabled={syncing} onClick={() => void retrySync()}>{syncing ? 'Menyinkronkan…' : 'Coba sinkronkan'}</button></div> : null}
 
       {favorites.length ? (
         <>
@@ -89,7 +94,7 @@ export function Favorites() {
                 <button
                   type="button"
                   className="fav-mini"
-                  aria-label={'Hapus ' + f.title + ' dari favorit'}
+                  aria-label={'Berhenti subscribe ' + f.title}
                   onClick={() => {
                     toggleFavorite(f);
                     toast('Dihapus dari favorit', 'ok');
@@ -112,8 +117,8 @@ export function Favorites() {
       ) : (
         <EmptyState
           icon="heart"
-          title="Belum ada favorit"
-          sub="Tekan ikon hati di halaman detail untuk menyimpan tayangan ke sini."
+          title="Belum ada langganan"
+          sub="Subscribe anime dari halaman detail agar seri tersimpan di koleksimu."
         />
       )}
     </>

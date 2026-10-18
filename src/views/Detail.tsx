@@ -2,16 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Catalog } from '../core/services/Catalog';
 import { recordClientMetric } from '../core/services/Telemetry';
-import type { AggregatedCard, DetailBundle, StreamBundle } from '../core/types';
+import type { AggregatedCard, DetailBundle } from '../core/types';
 import { useLibrary } from '../state/library';
 import { toast } from '../state/ui';
 import { Grid, UpdateCard } from '../ui/Cards';
 import { ErrorState, Skel } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
-import { AdaptiveVideo } from '../ui/AdaptiveVideo';
 import { detailPath, shareOrCopy } from '../lib/nav';
 import { Comments } from './Comments';
+import { usePlayer } from '../state/player';
+import { useSettings } from '../state/settings';
+import { useWatchParty } from '../state/watchParty';
+import { updatePartyEpisode } from '../lib/watchParty';
+import { currentUserId } from '../state/auth';
 
 /** Detail anime ala referensi — hero, chip, synopsis, related, daftar episode list/grid. */
 
@@ -28,19 +32,22 @@ export function Detail() {
   const [epMode, setEpMode] = useState<'list' | 'grid'>('list');
   const [epQuery, setEpQuery] = useState('');
   const [stuck, setStuck] = useState(false);
-  const [playingEpisode, setPlayingEpisode] = useState<string | null>(null);
-  const [stream, setStream] = useState<StreamBundle | null>(null);
-  const [streamLoading, setStreamLoading] = useState(false);
-  const [streamError, setStreamError] = useState('');
-  const [sourceIndex, setSourceIndex] = useState(0);
   const requestId = useRef(0);
-  const streamRequestId = useRef(0);
   const lastProgressWrite = useRef(0);
+  const autoPartyEpisode = useRef('');
+
+  const playerSession = usePlayer(s => s.session?.animeId === id ? s.session : null);
+  const startPlayer = usePlayer(s => s.start);
+  const updatePlayer = usePlayer(s => s.update);
+  const playingEpisode = playerSession?.episode || null;
+  const streamLoading = playerSession?.loading || false;
 
   const favorites = useLibrary(s => s.favorites);
   const toggleFavorite = useLibrary(s => s.toggleFavorite);
   const history = useLibrary(s => s.history);
   const addHistory = useLibrary(s => s.addHistory);
+  const preferences = useSettings();
+  const activeParty = useWatchParty(s => s.active);
 
   const load = useCallback(async () => {
     const request = ++requestId.current;
@@ -66,8 +73,6 @@ export function Detail() {
     void load();
     return () => { requestId.current++; };
   }, [load]);
-
-  useEffect(() => () => { streamRequestId.current++; }, []);
 
   useEffect(() => {
     const onScroll = () => setStuck(window.scrollY > window.innerHeight * 0.4);
@@ -125,14 +130,26 @@ export function Detail() {
   const openCard = (c: AggregatedCard) => navigate(detailPath(c.canonicalId, c.title));
 
   const playEpisode = async (ep: (typeof episodes)[number]) => {
-    const request = ++streamRequestId.current;
+    const party = useWatchParty.getState().active;
+    if (party?.host_id === currentUserId() && party.anime_id === id && party.episode !== ep.num) {
+      autoPartyEpisode.current = `${party.id}:${id}:${ep.num}`;
+      try {
+        const updated = await updatePartyEpisode(party.id, ep.num);
+        useWatchParty.getState().set(updated);
+      } catch (cause) {
+        toast(`Episode diputar lokal, tetapi Nobar gagal diperbarui: ${(cause as Error).message}`, 'err');
+      }
+    }
     const startedAt = performance.now();
-    setPlayingEpisode(ep.num);
-    setStream(null);
-    setStreamError('');
-    setStreamLoading(true);
-    setSourceIndex(0);
     lastProgressWrite.current = 0;
+    const request = startPlayer({
+      animeId: id,
+      title: bundle?.title || titleHint,
+      poster: bundle?.poster || '',
+      episode: ep.num,
+      retry: () => { void playEpisode(ep); },
+      onProgress: savePlaybackProgress(ep.num)
+    });
     let timeoutId = 0;
     try {
       const preferred = ep.sources[0];
@@ -146,51 +163,59 @@ export function Detail() {
         resolution,
         new Promise<never>((_, reject) => { timeoutId = window.setTimeout(() => reject(new Error('Resolusi sumber memerlukan waktu terlalu lama. Periksa koneksi lalu coba lagi.')), 30_000); })
       ]);
-      if (request !== streamRequestId.current) return;
+      if (usePlayer.getState().session?.request !== request) return;
       if (result.availability === 'unavailable' || (!result.servers.length && !result.qualities.length)) {
         throw new Error(result.unavailableReason || 'Sumber video episode ini tidak tersedia. Coba lagi atau pilih episode lain.');
       }
       recordClientMetric({ name: 'playback-resolution', durationMs: performance.now() - startedAt, ok: true, count: result.servers.length + result.qualities.length });
-      setStream(result);
+      const qualityIndex = result.qualities.filter(quality => quality.source).findIndex(quality => quality.label === preferences.defaultQuality);
+      updatePlayer(request, { stream: result, sourceIndex: qualityIndex >= 0 ? qualityIndex : 0 });
     } catch (cause) {
-      if (request === streamRequestId.current) {
+      if (usePlayer.getState().session?.request === request) {
         recordClientMetric({ name: 'playback-resolution', durationMs: performance.now() - startedAt, ok: false });
-        setStreamError((cause as Error)?.message || 'Gagal menyiapkan episode. Periksa koneksi lalu coba lagi.');
+        updatePlayer(request, { error: (cause as Error)?.message || 'Gagal menyiapkan episode. Periksa koneksi lalu coba lagi.' });
       }
     } finally {
       window.clearTimeout(timeoutId);
-      if (request === streamRequestId.current) setStreamLoading(false);
+      if (usePlayer.getState().session?.request === request) updatePlayer(request, { loading: false });
     }
   };
 
-  const closePlayer = () => {
-    streamRequestId.current++;
-    setPlayingEpisode(null);
-    setStream(null);
-    setStreamError('');
-    setStreamLoading(false);
-  };
+  // A room's "open episode" link is executable: load the catalog first, then
+  // resolve the exact Nanime episode and launch it once for that party/episode.
+  useEffect(() => {
+    const partyId = params.get('partyId');
+    const episodeNumber = activeParty?.id === partyId ? activeParty.episode : params.get('episode');
+    if (!bundle || !partyId || !episodeNumber) return;
+    if (playerSession?.episode === episodeNumber) return;
+    const key = `${partyId}:${id}:${episodeNumber}`;
+    if (autoPartyEpisode.current === key) return;
+    autoPartyEpisode.current = key;
+    const episode = episodes.find(item => item.num === episodeNumber || item.id === episodeNumber);
+    if (episode) void playEpisode(episode);
+    else toast(`Episode ${episodeNumber} dari room Nobar tidak ditemukan di katalog ini.`, 'err');
+  }, [activeParty?.id, activeParty?.episode, bundle, episodes, id, params, playerSession?.episode]);
 
-  const playableSources = stream ? [
-    ...stream.qualities.filter(item => item.source).map(item => ({ label: item.label, url: item.source!.url, kind: item.source!.kind })),
-    ...stream.servers.filter(item => item.url && !stream.qualities.some(quality => quality.source?.url === item.url)).map(item => ({ label: item.label, url: item.url, kind: stream.sourceKind === 'direct-media' && /\.(?:m3u8|mp4|webm|mov|mpd)(?:[?#]|$)/i.test(item.url) ? 'file' as const : 'embed' as const }))
-  ] : [];
-  const activeSource = playableSources[sourceIndex];
-
-  const savePlaybackProgress = (event: React.SyntheticEvent<HTMLVideoElement>) => {
-    if (!playingEpisode || !bundle) return;
+  const savePlaybackProgress = (episode: string) => (event: React.SyntheticEvent<HTMLVideoElement>) => {
+    if (!bundle) return;
     const video = event.currentTarget;
+    const preferences = useSettings.getState();
+    if (event.type === 'timeupdate' && preferences.skipIntro && video.currentTime > 0 && video.currentTime < preferences.introDuration - 2) {
+      video.currentTime = preferences.introDuration;
+      return;
+    }
     const now = Date.now();
     if (event.type === 'timeupdate' && now - lastProgressWrite.current < 15_000) return;
     lastProgressWrite.current = now;
     const duration = Number.isFinite(video.duration) ? video.duration : 0;
     const percent = duration > 0 ? Math.min(100, Math.round(video.currentTime / duration * 100)) : 0;
-    addHistory({ animeId: id, episode: playingEpisode, title: bundle.title, poster: bundle.poster, positionSec: Math.floor(video.currentTime), durationSec: Math.floor(duration), percent, completed: event.type === 'ended' || percent >= 92, watchedAt: now });
+    addHistory({ animeId: id, episode, title: bundle.title, poster: bundle.poster, positionSec: Math.floor(video.currentTime), durationSec: Math.floor(duration), percent, completed: event.type === 'ended' || percent >= 92, watchedAt: now });
+    if (event.type === 'ended' && preferences.autoplayNext) {
+      const currentIndex = episodes.findIndex(item => item.num === episode);
+      const nextEpisode = currentIndex >= 0 ? episodes[currentIndex + 1] : undefined;
+      if (nextEpisode) void playEpisode(nextEpisode);
+    }
   };
-
-  const onMediaError = useCallback(() => {
-    setStreamError('Browser tidak dapat memutar sumber ini. Coba server lain atau episode berikutnya.');
-  }, []);
 
   if (error && !bundle) {
     return (
@@ -242,7 +267,7 @@ export function Detail() {
           <button
             type="button"
             className="ibtn ripple-host"
-            aria-label={isFav ? 'Hapus dari favorit' : 'Tambah ke favorit'}
+            aria-label={isFav ? 'Berhenti berlangganan anime' : 'Subscribe anime'}
             aria-pressed={isFav}
             style={isFav ? { color: 'var(--accent-pink)' } : undefined}
             onClick={onFav}
@@ -277,7 +302,10 @@ export function Detail() {
         <div className="dt-actions">
           <button type="button" className={'dt-btn ghost' + (isFav ? ' on' : '')} onClick={onFav}>
             <Icon name={isFav ? 'bellFill' : 'bell'} size={16} strokeWidth={2} />
-            {isFav ? 'Tersimpan' : 'Favorit'}
+            {isFav ? 'Subscribed' : 'Subscribe'}
+          </button>
+          <button type="button" className="dt-btn ghost" onClick={() => navigate(`/watch-party?animeId=${encodeURIComponent(id)}&title=${encodeURIComponent(bundle.title)}&poster=${encodeURIComponent(bundle.poster || '')}&episode=${encodeURIComponent(resumeEp || episodes[0]?.num || '1')}`)}>
+            <Icon name="users" size={16} /> Nobar
           </button>
         </div>
 
@@ -388,17 +416,6 @@ export function Detail() {
         ) : null}
         <Comments animeId={id} />
       </div>
-      {playingEpisode ? <div className="episode-player-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) closePlayer(); }}>
-        <section className="episode-player" role="dialog" aria-modal="true" aria-label={`Episode ${playingEpisode}`}>
-          <header className="episode-player-head"><div><strong>{bundle.title}</strong><span>Episode {playingEpisode}</span></div><button type="button" className="ibtn" onClick={closePlayer} aria-label="Tutup pemutar"><Icon name="x" /></button></header>
-          {streamLoading ? <div className="episode-player-state" role="status"><span className="spinner-sm" />Menyiapkan sumber video…</div> : null}
-          {!streamLoading && streamError ? <div className="episode-player-state error" role="alert"><p>{streamError}</p><button type="button" className="dt-btn primary" onClick={() => { const ep = episodes.find(item => item.num === playingEpisode); if (ep) void playEpisode(ep); }}>Coba lagi</button></div> : null}
-          {!streamLoading && !streamError && activeSource ? <>
-            <div className="episode-player-video">{activeSource.kind === 'file' ? <AdaptiveVideo key={activeSource.url} src={activeSource.url} poster={stream?.poster || bundle.poster} onTimeUpdate={savePlaybackProgress} onPause={savePlaybackProgress} onEnded={savePlaybackProgress} onError={onMediaError} /> : <iframe key={activeSource.url} src={activeSource.url} title={`${bundle.title} episode ${playingEpisode}`} allow="autoplay; fullscreen; picture-in-picture" referrerPolicy="no-referrer" allowFullScreen />}</div>
-            {playableSources.length > 1 ? <label className="episode-player-source">Kualitas / sumber<select value={sourceIndex} onChange={event => { setSourceIndex(Number(event.target.value)); setStreamError(''); }} aria-label="Pilih kualitas atau sumber">{playableSources.map((source, index) => <option key={`${source.url}-${index}`} value={index}>{source.label}</option>)}</select></label> : null}
-          </> : null}
-        </section>
-      </div> : null}
     </>
   );
 }

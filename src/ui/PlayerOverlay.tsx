@@ -1,0 +1,252 @@
+import { useCallback, useEffect, useRef, useState, type PointerEvent, type SyntheticEvent } from 'react';
+import { useLocation } from 'react-router-dom';
+import { usePlayer } from '../state/player';
+import { useSettings } from '../state/settings';
+import { listenNativePipMode, setNativePipActive } from '../lib/nativePip';
+import { AdaptiveVideo } from './AdaptiveVideo';
+import { Icon } from './icons';
+import { getWatchParty, updatePartyPlayback } from '../lib/watchParty';
+import { useWatchParty } from '../state/watchParty';
+import { currentUserId } from '../state/auth';
+
+interface PlayableSource { label: string; url: string; kind: 'file' | 'embed' }
+
+export function PlayerOverlay() {
+  const location = useLocation();
+  const session = usePlayer(state => state.session);
+  const mode = usePlayer(state => state.mode);
+  const update = usePlayer(state => state.update);
+  const setMode = usePlayer(state => state.setMode);
+  const close = usePlayer(state => state.close);
+  const playerControls = useSettings(state => state.playerControls);
+  const activeParty = useWatchParty(state => state.active);
+  const onError = useCallback(() => {
+    const current = usePlayer.getState().session;
+    if (current) update(current.request, { error: 'Browser tidak dapat memutar sumber ini. Coba server lain atau episode berikutnya.' });
+  }, [update]);
+  const dragRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const didMoveRef = useRef(false);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const [downloadsOpen, setDownloadsOpen] = useState(false);
+  const [qualitiesOpen, setQualitiesOpen] = useState(false);
+  const [orientationLocked, setOrientationLocked] = useState(false);
+  const [brightness, setBrightness] = useState(1);
+  const [volume, setVolume] = useState(1);
+  const [gestureLabel, setGestureLabel] = useState('');
+  const [playing, setPlaying] = useState(false);
+  const [playhead, setPlayhead] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [fit, setFit] = useState<'contain' | 'cover'>('contain');
+  const mediaRef = useRef<HTMLVideoElement | null>(null);
+  const gestureRef = useRef<{ pointerId: number; y: number; value: number; kind: 'brightness' | 'volume' } | null>(null);
+  const gestureTimer = useRef<number | null>(null);
+  const boxRef = useRef<HTMLElement | null>(null);
+  const partyWriteRef = useRef(0);
+  const applyingPartyRef = useRef(false);
+
+  useEffect(() => {
+    if (!session) return;
+    setMode(location.pathname.startsWith('/detail/') ? 'full' : 'mini');
+  }, [location.pathname, session?.request, setMode]);
+  useEffect(() => listenNativePipMode(active => {
+    document.documentElement.classList.toggle('nanime-pip-active', active);
+    if (active) setMode('full');
+    else if (!location.pathname.startsWith('/detail/')) setMode('mini');
+  }), [location.pathname, setMode]);
+  useEffect(() => {
+    const active = !!session && playing && !session.loading && !session.error && session.stream?.sourceKind === 'direct-media';
+    setNativePipActive(active, session?.title || '', session?.episode || '');
+    return () => setNativePipActive(false);
+  }, [session?.request, session?.loading, session?.error, session?.stream?.sourceKind, session?.title, session?.episode, playing]);
+  useEffect(() => { if (mode === 'mini') setDownloadsOpen(false); }, [mode]);
+  useEffect(() => { setPlayhead(0); setDuration(0); setPlaying(false); }, [session?.request]);
+  useEffect(() => {
+    if (!activeParty || !session || session.animeId !== activeParty.anime_id) return;
+    let alive = true;
+    const synchronize = async () => {
+      try {
+        const party = await getWatchParty(activeParty.id);
+        if (!alive) return;
+        const previous = useWatchParty.getState().active;
+        if (previous?.id === party.id && (previous.episode !== party.episode || previous.updated_at !== party.updated_at || previous.is_playing !== party.is_playing)) useWatchParty.getState().set(party);
+        if (party.host_id === currentUserId() || party.episode !== session.episode) return;
+        const video = mediaRef.current;
+        if (!video || video.readyState < 1) return;
+        if (Math.abs(video.currentTime - party.position_seconds) > 2.5) video.currentTime = party.position_seconds;
+        applyingPartyRef.current = true;
+        if (party.is_playing && video.paused) await video.play().catch(() => undefined);
+        else if (!party.is_playing && !video.paused) video.pause();
+        setTimeout(() => { applyingPartyRef.current = false; }, 250);
+      } catch { /* status jaringan tidak memutus pemutaran lokal */ }
+    };
+    void synchronize();
+    const timer = window.setInterval(() => { void synchronize(); }, 5000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [activeParty?.id, session?.request, session?.animeId, session?.episode]);
+  useEffect(() => () => { if (gestureTimer.current) window.clearTimeout(gestureTimer.current); }, []);
+
+  if (!session) return null;
+  const sources: PlayableSource[] = [
+    ...((session.stream?.qualities || []).filter(item => item.source).map(item => ({ label: item.label, url: item.source!.url, kind: item.source!.kind }))),
+    ...((session.stream?.servers || []).filter(item => item.url && !session.stream?.qualities.some(quality => quality.source?.url === item.url)).map(item => ({
+      label: item.label,
+      url: item.url,
+      kind: session.stream?.sourceKind === 'direct-media' && /\.(?:m3u8|mp4|webm|mov|mpd)(?:[?#]|$)/i.test(item.url) ? 'file' as const : 'embed' as const
+    })))
+  ];
+  const source = sources[session.sourceIndex];
+  const downloads = (session.stream?.downloads || []).flatMap(group => group.items.map(item => ({ ...item, group: group.quality }))).filter(item => isHttpUrl(item.url));
+  const beginDrag = (event: PointerEvent<HTMLElement>) => {
+    if (mode !== 'mini' || (event.target as HTMLElement).closest('button')) return;
+    const rect = boxRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    didMoveRef.current = false;
+    dragRef.current = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const moveDrag = (event: PointerEvent<HTMLElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (Math.abs(event.clientX - drag.x) + Math.abs(event.clientY - drag.y) > 5) didMoveRef.current = true;
+    const box = boxRef.current;
+    const width = box?.offsetWidth || 260;
+    const height = box?.offsetHeight || 180;
+    setPosition({
+      left: Math.max(8, Math.min(window.innerWidth - width - 8, drag.left + event.clientX - drag.x)),
+      top: Math.max(8, Math.min(window.innerHeight - height - 8, drag.top + event.clientY - drag.y))
+    });
+  };
+  const endDrag = () => { dragRef.current = null; };
+  const beginControlGesture = (event: PointerEvent<HTMLDivElement>) => {
+    if (!playerControls || mode !== 'full' || event.pointerType !== 'touch' || (event.target as HTMLElement).closest('button,input,select')) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const kind = event.clientX < rect.left + rect.width / 2 ? 'brightness' : 'volume';
+    gestureRef.current = { pointerId: event.pointerId, y: event.clientY, value: kind === 'brightness' ? brightness : volume, kind };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const moveControlGesture = (event: PointerEvent<HTMLDivElement>) => {
+    const gesture = gestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    const next = Math.max(0, Math.min(1, gesture.value + (gesture.y - event.clientY) / 220));
+    if (gesture.kind === 'brightness') setBrightness(next);
+    else setVolume(next);
+    setGestureLabel(`${gesture.kind === 'brightness' ? 'Brightness' : 'Volume'} ${Math.round(next * 100)}%`);
+    if (gestureTimer.current) window.clearTimeout(gestureTimer.current);
+    gestureTimer.current = window.setTimeout(() => setGestureLabel(''), 900);
+  };
+  const endControlGesture = () => { gestureRef.current = null; };
+  const onTimeUpdate = (event: SyntheticEvent<HTMLVideoElement>) => {
+    setPlayhead(event.currentTarget.currentTime || 0);
+    setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0);
+    session.onProgress(event);
+    if (activeParty && session.animeId === activeParty.anime_id && session.episode === activeParty.episode && activeParty.host_id === currentUserId() && Date.now() - partyWriteRef.current > 5000) {
+      partyWriteRef.current = Date.now();
+      void updatePartyPlayback(activeParty.id, event.currentTarget.currentTime || 0, !event.currentTarget.paused).catch(() => undefined);
+    }
+  };
+  const togglePlayback = () => {
+    const video = mediaRef.current;
+    if (!video) return;
+    if (video.paused) void video.play().then(() => setPlaying(true)).catch(onError);
+    else { video.pause(); setPlaying(false); }
+  };
+  const toggleFullscreen = async () => {
+    try {
+      const target = boxRef.current;
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (target?.requestFullscreen) await target.requestFullscreen();
+      try {
+        const orientation = (screen as Screen & { orientation?: { lock?: (value: string) => Promise<void>; unlock?: () => void } }).orientation;
+        if (document.fullscreenElement) await orientation?.lock?.('landscape');
+        else orientation?.unlock?.();
+      } catch { /* orientasi layar tidak didukung browser */ }
+    } catch { /* fullscreen tidak tersedia untuk konteks ini */ }
+  };
+  const toggleOrientationLock = async () => {
+    try {
+      const orientation = (screen as Screen & { orientation?: { lock?: (value: string) => Promise<void>; unlock?: () => void } }).orientation;
+      if (orientationLocked) orientation?.unlock?.();
+      else await orientation?.lock?.('landscape');
+      setOrientationLocked(value => !value);
+    } catch { /* kunci orientasi tidak didukung perangkat ini */ }
+  };
+
+  return <div className={'episode-player-backdrop' + (mode === 'mini' ? ' mini' : '')} role={mode === 'mini' ? undefined : 'presentation'} onMouseDown={event => { if (mode === 'full' && event.target === event.currentTarget) close(); }}>
+    <section
+      ref={boxRef}
+      className="episode-player"
+      role={mode === 'mini' ? undefined : 'dialog'}
+      aria-modal={mode === 'mini' ? undefined : true}
+      aria-label={`Episode ${session.episode}`}
+      style={mode === 'mini' && position ? { left: position.left, top: position.top } : undefined}
+      onPointerDown={beginDrag}
+      onPointerMove={moveDrag}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onClick={() => { if (mode === 'mini' && !didMoveRef.current) setMode('full'); }}
+    >
+      <header className="episode-player-head"><div><strong>{session.title}</strong><span>Episode {session.episode}</span></div><div className="player-overlay-actions">
+        {mode === 'full' && sources.length > 1 ? <button type="button" className="ibtn" onClick={event => { event.stopPropagation(); setQualitiesOpen(true); }} aria-label="Pilihan kualitas"><Icon name="settings" /></button> : null}
+        {mode === 'full' && downloads.length ? <button type="button" className="ibtn" onClick={event => { event.stopPropagation(); setDownloadsOpen(true); }} aria-label="Pilihan download"><Icon name="download" /></button> : null}
+        {mode === 'mini' ? <button type="button" className="ibtn" onClick={event => { event.stopPropagation(); setMode('full'); }} aria-label="Buka pemutar"><Icon name="expand" /></button> : null}
+        <button type="button" className="ibtn" onClick={event => { event.stopPropagation(); close(); }} aria-label={mode === 'mini' ? 'Tutup pemutar' : 'Tutup pemutar'}><Icon name="x" /></button>
+      </div></header>
+      {session.loading ? <div className="episode-player-state" role="status"><span className="spinner-sm" />Menyiapkan sumber video…</div> : null}
+      {!session.loading && session.error ? <div className="episode-player-state error" role="alert"><p>{session.error}</p><button type="button" className="dt-btn primary" onClick={event => { event.stopPropagation(); session.retry(); }}>Coba lagi</button></div> : null}
+      {!session.loading && !session.error && source ? <>
+        <div className="episode-player-video" style={{ filter: `brightness(${brightness})`, touchAction: playerControls ? 'pan-x' : undefined }} onPointerDown={beginControlGesture} onPointerMove={moveControlGesture} onPointerUp={endControlGesture} onPointerCancel={endControlGesture}>
+          {activeParty && activeParty.anime_id === session.animeId ? <span className="player-party-badge">{activeParty.episode !== session.episode ? `Room Nobar: episode ${activeParty.episode}` : source.kind === 'file' ? 'Nobar tersambung' : 'Nobar · server sematan tidak tersinkron'}</span> : null}
+          {source.kind === 'file' ? <AdaptiveVideo key={source.url} videoElementRef={mediaRef} src={source.url} poster={session.stream?.poster || session.poster} volume={volume} fit={fit} onTimeUpdate={onTimeUpdate} onPause={event => { setPlaying(false); session.onProgress(event); if (!applyingPartyRef.current) publishPartyState(activeParty, session.animeId, session.episode, event.currentTarget.currentTime, false); }} onPlay={event => { setPlaying(true); if (!applyingPartyRef.current) publishPartyState(activeParty, session.animeId, session.episode, event.currentTarget.currentTime, true); }} onEnded={event => { setPlaying(false); session.onProgress(event); if (!applyingPartyRef.current) publishPartyState(activeParty, session.animeId, session.episode, event.currentTarget.currentTime, false); }} onError={onError} /> : <iframe key={source.url} src={source.url} title={`${session.title} episode ${session.episode}`} allow="autoplay; fullscreen; picture-in-picture" referrerPolicy="no-referrer" allowFullScreen />}
+          {mode === 'full' && source.kind === 'file' ? <div className="player-controls" onPointerDown={event => event.stopPropagation()}>
+            <div className="player-control-row">
+              <button type="button" aria-label="Mundur 10 detik" onClick={() => { if (mediaRef.current) mediaRef.current.currentTime = Math.max(0, mediaRef.current.currentTime - 10); }}>−10</button>
+              <button type="button" className="player-play" aria-label={playing ? 'Jeda video' : 'Putar video'} onClick={togglePlayback}><Icon name={playing ? 'pause' : 'play'} size={18} /></button>
+              <button type="button" aria-label="Maju 10 detik" onClick={() => { if (mediaRef.current) mediaRef.current.currentTime = Math.min(duration || Infinity, mediaRef.current.currentTime + 10); }}>+10</button>
+              <span className="player-time">{clockTime(playhead)} / {clockTime(duration)}</span>
+              <button type="button" aria-label={fit === 'contain' ? 'Penuhi video' : 'Sesuaikan video'} onClick={() => setFit(value => value === 'contain' ? 'cover' : 'contain')}>FIT</button>
+              <button type="button" aria-label={orientationLocked ? 'Buka kunci orientasi' : 'Kunci orientasi'} onClick={() => void toggleOrientationLock()}><Icon name={orientationLocked ? 'lock' : 'unlock'} size={15} /></button>
+              <button type="button" aria-label="Layar penuh" onClick={() => void toggleFullscreen()}><Icon name="expand" size={17} /></button>
+            </div>
+            <input aria-label="Posisi video" type="range" min="0" max={duration || 1} step="1" value={Math.min(playhead, duration || 0)} onChange={event => { const value = Number(event.target.value); setPlayhead(value); if (mediaRef.current) mediaRef.current.currentTime = value; }} />
+          </div> : null}
+          {gestureLabel ? <span className="player-gesture-status" role="status">{gestureLabel}</span> : null}
+        </div>
+        {sources.length > 1 ? <button type="button" className="episode-player-source" onClick={() => setQualitiesOpen(true)}><span>Kualitas / sumber</span><strong>{sources[session.sourceIndex]?.label || 'Pilih sumber'}　⌄</strong></button> : null}
+      </> : null}
+      {qualitiesOpen && mode === 'full' ? <div className="player-download-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setQualitiesOpen(false); }}>
+        <section className="player-download-sheet" role="dialog" aria-modal="true" aria-label="Pilihan kualitas video">
+          <span className="player-download-handle" /><header><strong>Pilihan Kualitas Video</strong><button type="button" className="ibtn" onClick={() => setQualitiesOpen(false)} aria-label="Tutup pilihan kualitas"><Icon name="x" /></button></header>
+          <div className="player-download-list">{sources.map((item, index) => <button type="button" className={'player-quality-option' + (session.sourceIndex === index ? ' selected' : '')} key={`${item.url}-${index}`} onClick={() => { update(session.request, { sourceIndex: index, error: '' }); setQualitiesOpen(false); }}><span><strong>{item.label}</strong><small>{item.kind === 'file' ? 'Video langsung' : 'Server eksternal'}</small></span><span>{session.sourceIndex === index ? '✓' : '›'}</span></button>)}</div>
+        </section>
+      </div> : null}
+      {downloadsOpen && mode === 'full' ? <div className="player-download-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setDownloadsOpen(false); }}>
+        <section className="player-download-sheet" role="dialog" aria-modal="true" aria-label="Pilihan download">
+          <span className="player-download-handle" />
+          <header><strong>Pilihan Download Video</strong><button type="button" className="ibtn" onClick={() => setDownloadsOpen(false)} aria-label="Tutup pilihan download"><Icon name="x" /></button></header>
+          <p>Tautan berasal dari penyedia eksternal; pastikan alamat dan file benar sebelum mengunduh.</p>
+          <div className="player-download-list">{downloads.map((item, index) => <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" onClick={() => setDownloadsOpen(false)}>
+            <span><strong>{item.group} · {item.quality}</strong><small>{item.name}{item.availability === 'verified' ? ' · tersedia' : ' · belum diverifikasi'}</small></span><Icon name="download" size={18} />
+          </a>)}</div>
+        </section>
+      </div> : null}
+    </section>
+  </div>;
+}
+
+function isHttpUrl(value: string): boolean {
+  try { return ['http:', 'https:'].includes(new URL(value).protocol); }
+  catch { return false; }
+}
+
+function clockTime(value: number): string {
+  const seconds = Math.max(0, Math.floor(value || 0));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function currentUserIdSafe(): string | null {
+  try { return currentUserId(); } catch { return null; }
+}
+function publishPartyState(party: ReturnType<typeof useWatchParty.getState>['active'], animeId: string, episode: string, position: number, playing: boolean): void {
+  if (!party || party.anime_id !== animeId || party.episode !== episode || party.host_id !== currentUserIdSafe()) return;
+  void updatePartyPlayback(party.id, position, playing).catch(() => undefined);
+}

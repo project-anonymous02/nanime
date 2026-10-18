@@ -6,6 +6,8 @@ import { EmptyState, ErrorState, ListSkel } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 import { detailPath } from '../lib/nav';
 import { useNotifications } from '../state/notifications';
+import { useLibrary } from '../state/library';
+import { filterSubscribedUpdates, subscriptionUpdateId } from '../lib/subscriptions';
 
 /** Notifikasi — ringkasan update terbaru dengan aksen belum dibaca. */
 
@@ -14,6 +16,7 @@ export function Notifications() {
   const [items, setItems] = useState<AggregatedCard[] | null>(null);
   const [error, setError] = useState(false);
   const { read, removed, markRead, remove } = useNotifications();
+  const favorites = useLibrary(s => s.favorites);
 
   const load = useCallback(async () => {
     setError(false);
@@ -30,13 +33,13 @@ export function Notifications() {
   }, [load]);
 
   const visible = useMemo(
-    () => (items || []).filter(c => !removed.includes(c.canonicalId)),
-    [items, removed]
+    () => filterSubscribedUpdates(items || [], favorites).filter(c => !removed.includes(c.canonicalId)),
+    [items, favorites, removed]
   );
 
   useEffect(() => {
     if (!visible.length) return;
-    markRead(visible.map(c => c.canonicalId));
+    markRead(visible.map(subscriptionUpdateId));
     // Membuka daftar = sudah dibaca; statusnya disimpan permanen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
@@ -56,14 +59,15 @@ export function Notifications() {
 
       {items
         ? visible.map(c => {
-            const unread = !read.includes(c.canonicalId);
+            const notificationId = subscriptionUpdateId(c);
+            const unread = !read.includes(notificationId);
             return (
-              <div className={'notif-card' + (unread ? ' unread' : '')} key={c.canonicalId}>
+              <div className={'notif-card' + (unread ? ' unread' : '')} key={notificationId}>
                 <button
                   type="button"
                   className="nf-main"
                   onClick={() => {
-                    markRead([c.canonicalId]);
+                    markRead([notificationId]);
                     navigate(detailPath(c.canonicalId, c.title));
                   }}
                 >
@@ -84,7 +88,7 @@ export function Notifications() {
                     type="button"
                     className="nf-trash"
                     aria-label="Hapus notifikasi"
-                    onClick={() => remove(c.canonicalId)}
+                    onClick={() => remove(notificationId)}
                   >
                     <Icon name="trash" size={15} />
                   </button>
@@ -95,14 +99,14 @@ export function Notifications() {
         : null}
 
       {items && !visible.length ? (
-        <EmptyState icon="bell" title="Belum ada notifikasi" sub="Update anime terbaru akan muncul di sini." />
+        <EmptyState icon="bell" title={favorites.length ? 'Belum ada update langganan' : 'Belum ada langganan anime'} sub={favorites.length ? 'Update anime yang kamu subscribe akan muncul di sini.' : 'Subscribe anime dari halaman detail untuk menerima update episode di sini.'} />
       ) : null}
 
       {items && visible.length ? (
         <button
           type="button"
           className="notif-read-all"
-          onClick={() => markRead(visible.map(c => c.canonicalId))}
+          onClick={() => markRead(visible.map(subscriptionUpdateId))}
         >
           <Icon name="check" size={15} strokeWidth={3} />
           Baca semua notifikasi

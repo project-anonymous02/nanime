@@ -21,9 +21,16 @@ export const history = {
   async pull(userId: string): Promise<HistoryItem[]> {
     const sb = getClient();
     if (!sb) return [];
-    const { data, error } = await sb.from('history').select('*').eq('user_id', userId);
-    if (error || !data) return [];
-    return (data as HistoryRow[]).map(toDomain);
+    const rows: HistoryRow[] = [];
+    const pageSize = 500;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await sb.from('history').select('*').eq('user_id', userId).order('watched_at', { ascending: false }).order('anime_id', { ascending: true }).order('episode', { ascending: true }).range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      const page = (data || []) as HistoryRow[];
+      rows.push(...page);
+      if (page.length < pageSize) break;
+    }
+    return rows.map(toDomain);
   },
 
   async upsert(userId: string, item: HistoryItem): Promise<void> {
@@ -42,18 +49,21 @@ export const history = {
       watched_at: item.watchedAt,
       updated_at: item.updatedAt
     };
-    await sb.from('history').upsert(row, { onConflict: 'user_id,anime_id,episode' });
+    const { error } = await sb.from('history').upsert(row, { onConflict: 'user_id,anime_id,episode' });
+    if (error) throw error;
   },
 
   async remove(userId: string, animeId: string, episode: string): Promise<void> {
     const sb = getClient();
     if (!sb) return;
-    await sb.from('history').delete().eq('user_id', userId).eq('anime_id', animeId).eq('episode', episode);
+    const { error } = await sb.from('history').delete().eq('user_id', userId).eq('anime_id', animeId).eq('episode', episode);
+    if (error) throw error;
   },
 
   async clear(userId: string): Promise<void> {
     const sb = getClient();
     if (!sb) return;
-    await sb.from('history').delete().eq('user_id', userId);
+    const { error } = await sb.from('history').delete().eq('user_id', userId);
+    if (error) throw error;
   }
 };

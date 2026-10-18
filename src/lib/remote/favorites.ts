@@ -19,9 +19,16 @@ export const favorites = {
   async pull(userId: string): Promise<FavAnime[]> {
     const sb = getClient();
     if (!sb) return [];
-    const { data, error } = await sb.from('favorites').select('*').eq('user_id', userId);
-    if (error || !data) return [];
-    return (data as FavoriteRow[]).map(toDomain);
+    const rows: FavoriteRow[] = [];
+    const pageSize = 500;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await sb.from('favorites').select('*').eq('user_id', userId).order('added_at', { ascending: false }).order('anime_id', { ascending: true }).range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      const page = (data || []) as FavoriteRow[];
+      rows.push(...page);
+      if (page.length < pageSize) break;
+    }
+    return rows.map(toDomain);
   },
 
   async upsert(userId: string, item: FavAnime): Promise<void> {
@@ -38,12 +45,14 @@ export const favorites = {
       added_at: item.addedAt,
       updated_at: item.updatedAt
     };
-    await sb.from('favorites').upsert(row, { onConflict: 'user_id,anime_id' });
+    const { error } = await sb.from('favorites').upsert(row, { onConflict: 'user_id,anime_id' });
+    if (error) throw error;
   },
 
   async remove(userId: string, animeId: string): Promise<void> {
     const sb = getClient();
     if (!sb) return;
-    await sb.from('favorites').delete().eq('user_id', userId).eq('anime_id', animeId);
+    const { error } = await sb.from('favorites').delete().eq('user_id', userId).eq('anime_id', animeId);
+    if (error) throw error;
   }
 };

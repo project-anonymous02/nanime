@@ -9,6 +9,10 @@ let serial = 0;
 
 async function setupProvider(streamImpl?: (episodeId: string) => Promise<EpisodeStream>) {
   vi.spyOn(DownloadAggregator, 'collect').mockResolvedValue({ links: [], byProvider: [] });
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => new Response(null, {
+    status: 200,
+    headers: { 'content-type': 'video/mp4' }
+  })));
   const id = `stream-episode-test-${++serial}`;
   const episodeId = (n: number) => `${id}-episode-id-${n}`;
   const provider = getProvider('doronime');
@@ -34,7 +38,7 @@ async function setupProvider(streamImpl?: (episodeId: string) => Promise<Episode
   return { id, streamSpy };
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('Catalog.stream episode identity', () => {
   it('resolves episode IDs across forward and backward selection, not just the visible number', async () => {
@@ -74,11 +78,14 @@ describe('Catalog.stream episode identity', () => {
     expect(lateEpisode2.servers[0].url).toBe(`https://media.test/${episode2Id}.mp4`);
   });
 
-  it('fails instead of returning a source when the requested provider fails', async () => {
+  it('reports unavailable rather than turning a download/error URL into playback', async () => {
     const { id } = await setupProvider(async () => { throw new Error('media unavailable'); });
-    await expect(Catalog.stream(id, '2', {
+    const result = await Catalog.stream(id, '2', {
       episodeProvider: 'doronime', episodeId: `${id}-episode-id-2`, episodeSlug: `${id}-episode-2`
-    })).rejects.toThrow();
+    });
+    expect(result.availability).toBe('unavailable');
+    expect(result.qualities).toEqual([]);
+    expect(result.servers).toEqual([]);
   });
 });
 

@@ -3,21 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { CacheManager } from '../core/services/CacheManager';
 import { useAuth, signOutUser } from '../state/auth';
 import { useLibrary } from '../state/library';
-import { useSettings } from '../state/settings';
 import { toast } from '../state/ui';
 import { ConfirmModal } from '../ui/Sheet';
 import { Toggle } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 
-/** Pengaturan — profil, pemutaran, penyimpanan, aplikasi (gaya referensi). */
+/** Pengaturan — profil, penyimpanan, aplikasi. */
 
 export function Settings() {
   const navigate = useNavigate();
   const user = useAuth(s => s.user);
   const favorites = useLibrary(s => s.favorites);
   const history = useLibrary(s => s.history);
-  const s = useSettings();
-  const [openQuality, setOpenQuality] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
   const [cacheMb, setCacheMb] = useState('0.0');
 
@@ -94,68 +91,6 @@ export function Settings() {
           </span>
           <Toggle on={false} label="Profil pribadi" onChange={() => undefined} />
         </div>
-      </div>
-
-      <p className="set-sec">Pemutaran</p>
-      <div className="set-card">
-        <div className="set-row">
-          <span className="sr-body">
-            <span className="sr-title">Auto play episode berikutnya</span>
-            <span className="sr-sub">Otomatis lanjut saat episode selesai</span>
-          </span>
-          <Toggle on={s.autoplayNext} label="Auto play episode berikutnya" onChange={v => s.patch({ autoplayNext: v })} />
-        </div>
-        <div className="set-row">
-          <span className="sr-body">
-            <span className="sr-title">Kontrol brightness &amp; volume</span>
-            <span className="sr-sub">Gestur di sisi layar pemutar</span>
-          </span>
-          <Toggle on={s.playerControls} label="Kontrol brightness dan volume" onChange={v => s.patch({ playerControls: v })} />
-        </div>
-        <div className="set-row">
-          <span className="sr-body">
-            <span className="sr-title">Skip intro</span>
-            <span className="sr-sub">Tombol lompat intro saat episode dibuka</span>
-          </span>
-          <Toggle on={s.skipIntro} label="Skip intro" onChange={v => s.patch({ skipIntro: v })} />
-        </div>
-        <div className="set-row">
-          <span className="sr-body">
-            <span className="sr-title">Durasi intro default</span>
-            <span className="sr-sub">Dipakai saat skip intro aktif</span>
-          </span>
-          <span className="set-val">
-            {s.introDuration} detik
-            <Icon name="lock" size={13} strokeWidth={2.2} />
-          </span>
-        </div>
-        <button type="button" className="set-row" onClick={() => setOpenQuality(o => !o)} aria-expanded={openQuality}>
-          <span className="sr-body">
-            <span className="sr-title">Kualitas default</span>
-            <span className="sr-sub">Dipakai saat episode dibuka</span>
-          </span>
-          <span className="set-val">
-            {s.defaultQuality}
-            <Icon name={openQuality ? 'up' : 'down'} size={13} strokeWidth={2.4} />
-          </span>
-        </button>
-        {openQuality ? (
-          <div className="set-quality">
-            {(['480p', '720p', '1080p'] as const).map(q => (
-              <button
-                key={q}
-                type="button"
-                className={'set-q-chip' + (s.defaultQuality === q ? ' on' : '')}
-                onClick={() => {
-                  s.patch({ defaultQuality: q });
-                  setOpenQuality(false);
-                }}
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
 
       <p className="set-sec">Penyimpanan</p>

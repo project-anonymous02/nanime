@@ -10,7 +10,7 @@ import { buildForcedQualities } from './QualityNormalizer';
 import { episodeNumber, mergeEpisodes } from './EpisodeMatcher';
 import { resolveMediaUrl, type ResolvedMedia } from './StreamExtractor';
 import { groupByQuality } from '../utils/qualitySorter';
-import { isVideoUrl } from '../utils';
+import { filterDiscovery } from './ContentPolicy';
 import type {
   AggregatedCard,
   AggregatedSearchResult,
@@ -74,6 +74,16 @@ export function pickArtwork(...values: unknown[]): string {
   return values.map(validArtwork).find(Boolean) || '';
 }
 
+/** Keep search artwork when detail omits it; prefer detail banner artwork for the hero. */
+export function selectDetailArtwork(
+  indexedPoster: string | undefined,
+  details: Array<{ poster?: string; cover?: string; banner?: string; image?: string; thumbnail?: string }>
+): { poster: string; heroImage: string } {
+  const poster = pickArtwork(indexedPoster, ...details.flatMap(d => [d.poster, d.cover, d.image, d.thumbnail, d.banner]));
+  const heroImage = pickArtwork(...details.flatMap(d => [d.banner, d.cover, d.image, d.poster, d.thumbnail]), indexedPoster);
+  return { poster, heroImage };
+}
+
 /** Simpan kartu ke indeks judul agar route /detail/:id selalu bisa dibuka. */
 function remember(cards: AggregatedCard[]): void {
   for (const c of cards) {
@@ -112,6 +122,19 @@ function sortSources(entry: IndexedEntry): IndexedEntry['sources'] {
     .sort((a, b) => priorityOf(a.provider) - priorityOf(b.provider));
 }
 
+function sanitizeDiscoveryFeed(feed: Omit<HomeFeed, 'stale'>): Omit<HomeFeed, 'stale'> {
+  const newUpdate = filterDiscovery(feed.newUpdate);
+  const completed = filterDiscovery(feed.completed);
+  const donghua = filterDiscovery(feed.donghua);
+  const movie = filterDiscovery(feed.movie);
+  const weekly = newUpdate
+    .slice()
+    .sort((a, b) => (parseFloat(b.score) || 0) - (parseFloat(a.score) || 0))
+    .slice(0, 6)
+    .map((card, index) => ({ ...card, rank: index + 1 }));
+  return { ...feed, newUpdate, completed, donghua, movie, weekly };
+}
+
 export const Catalog = {
   /**
    * Beranda lengkap (8 rail) — hasil gabungan seluruh penyedia, sudah kanonik.
@@ -127,10 +150,10 @@ export const Catalog = {
     let pendingRaw: Awaited<ReturnType<typeof ProviderAggregator.homeFeed>> | null = null;
     let processingUpdate = false;
     const transform = async (raw: Awaited<ReturnType<typeof ProviderAggregator.homeFeed>>): Promise<Omit<HomeFeed, 'stale'>> => {
-      const newUpdate = (await SearchEngineMerge(raw.newUpdate)).slice(0, 24);
-      const completed = (await SearchEngineMerge(raw.completed)).slice(0, 24);
-      const donghua = (await SearchEngineMerge(raw.donghua)).slice(0, 24);
-      const movie = (await SearchEngineMerge(raw.movie)).slice(0, 24);
+      const newUpdate = filterDiscovery((await SearchEngineMerge(raw.newUpdate))).slice(0, 24);
+      const completed = filterDiscovery((await SearchEngineMerge(raw.completed))).slice(0, 24);
+      const donghua = filterDiscovery((await SearchEngineMerge(raw.donghua))).slice(0, 24);
+      const movie = filterDiscovery((await SearchEngineMerge(raw.movie))).slice(0, 24);
       if (!newUpdate.length && !completed.length && !donghua.length && !movie.length) {
         throw new Error('empty');
       }
@@ -187,8 +210,9 @@ export const Catalog = {
     const onFresh = opts.onFresh
       ? (d: Omit<HomeFeed, 'stale'>) => {
           if (opts.signal?.aborted) return;
-          remember([...d.newUpdate, ...d.completed, ...d.donghua, ...d.movie]);
-          opts.onFresh!({ ...d, stale: false });
+          const safe = sanitizeDiscoveryFeed(d);
+          remember([...safe.newUpdate, ...safe.completed, ...safe.donghua, ...safe.movie]);
+          opts.onFresh!({ ...safe, stale: false });
         }
       : undefined;
     const { data, stale } = await CacheManager.getSWR<Omit<HomeFeed, 'stale'>>(
@@ -199,16 +223,19 @@ export const Catalog = {
       onFresh
     );
     if (!data) throw new Error(GENERIC_ERROR);
-    remember([...data.newUpdate, ...data.completed, ...data.donghua, ...data.movie]);
-    return { ...data, stale };
+    const safe = sanitizeDiscoveryFeed(data);
+    remember([...safe.newUpdate, ...safe.completed, ...safe.donghua, ...safe.movie]);
+    return { ...safe, stale };
   },
 
   /** Pencarian lintas penyedia: satu judul = satu kartu, tanpa label penyedia. */
-  search(query: string, opts: { sort?: 'relevance' | 'title' | 'rating'; minScore?: number } = {}): Promise<AggregatedSearchResult> {
+  search(query: string, opts: { sort?: 'relevance' | 'title' | 'rating'; minScore?: number; providerIds?: string[] } = {}): Promise<AggregatedSearchResult> {
     const q = String(query || '').trim();
     const sort = opts.sort || 'relevance';
-    return CacheManager.get(`search`, q.toLowerCase() + ':' + sort, TTL.search, async () => {
-      const r = await searchAggregated(q, { sort });
+    const providerIds = opts.providerIds?.length ? [...new Set(opts.providerIds)].sort() : [];
+    const providerKey = providerIds.length ? providerIds.join(',') : 'default';
+    return CacheManager.get(`search`, q.toLowerCase() + ':' + sort + ':providers=' + providerKey, TTL.search, async () => {
+      const r = await searchAggregated(q, { sort, providerIds: providerIds.length ? providerIds : undefined });
       remember(r.items.slice(0, 30));
       return r;
     });
@@ -222,7 +249,7 @@ export const Catalog = {
   /** Sumber putar satu episode dengan 4 kualitas yang selalu tersedia. */
   stream(id: string, episode: string, opts: { title?: string; episodeProvider?: string; episodeId?: string; episodeSlug?: string } = {}): Promise<StreamBundle> {
     const episodeKey = [episode, opts.episodeProvider || '', opts.episodeId || '', opts.episodeSlug || ''].join(':');
-    return CacheManager.get('streamBundle', id + ':' + episodeKey, TTL.stream, () =>
+    return CacheManager.get('streamBundleV2', id + ':' + episodeKey, TTL.stream, () =>
       buildStream(id, episode, opts)
     );
   },
@@ -240,7 +267,8 @@ export const Catalog = {
         return r;
       }
     );
-    return { groups: data?.groups || [], stale };
+    const groups = (data?.groups || []).map(group => ({ ...group, items: filterDiscovery(group.items) })).filter(group => group.items.length);
+    return { groups, stale };
   },
 
   /** Resolusi server embed alternatif → URL yang bisa diputar iframe. */
@@ -417,18 +445,12 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
   // A provider may return a non-empty placeholder or a relative/broken URL.
   // Keep the indexed search artwork and choose the first validated artwork
   // across all fetched sources instead of letting one bad detail overwrite it.
-  const poster = pickArtwork(
-    entry.poster,
-    ...details.flatMap(d => {
-      const value = d.detail as Detail & { cover?: string; banner?: string; image?: string };
-      return [value.poster, value.cover, value.banner, value.image];
-    })
-  );
+  const artwork = selectDetailArtwork(entry.poster, details.map(d => d.detail as Detail & { cover?: string; banner?: string; image?: string; thumbnail?: string }));
   const merged = mergeEpisodes(
     groups.map(g => ({ provider: g.provider, items: g.items.map(i => ({ num: i.num, id: i.id, slug: i.slug, date: i.date, title: i.title })) }))
   );
 
-  const recCards = (base.recommendations || []).slice(0, 12);
+      const recCards = filterDiscovery(base.recommendations || []).slice(0, 12);
   const recommendations = recCards.length ? await SearchEngineMerge(recCards) : [];
   if (recommendations.length) remember(recommendations);
 
@@ -436,7 +458,7 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
     id: entry.id,
     title: base.title || entry.title,
     alt: base.alt || '',
-    poster,
+    ...artwork,
     score: base.score || entry.score || '',
     type: base.type || entry.type || '',
     status: base.status || entry.status || '',
@@ -476,7 +498,11 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
   const sources = sortSources(entry).filter(s => {
     const p = getProvider(s.provider);
     return p && p.active && !p.downloadOnly;
-  }).sort((a, b) => Number(b.provider === opts.episodeProvider) - Number(a.provider === opts.episodeProvider));
+  }).sort((a, b) => {
+    const ap = getProvider(a.provider)?.priority ?? 999;
+    const bp = getProvider(b.provider)?.priority ?? 999;
+    return ap - bp || Number(b.provider === opts.episodeProvider) - Number(a.provider === opts.episodeProvider);
+  });
 
   const makeRequests = (list: typeof sources) => list
     .map(s => {
@@ -517,7 +543,11 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
         const retrySources = sortSources(entry).filter(s => {
           const p = getProvider(s.provider);
           return p && p.active && !p.downloadOnly;
-        }).sort((a, b) => Number(b.provider === opts.episodeProvider) - Number(a.provider === opts.episodeProvider));
+        }).sort((a, b) => {
+          const ap = getProvider(a.provider)?.priority ?? 999;
+          const bp = getProvider(b.provider)?.priority ?? 999;
+          return ap - bp || Number(b.provider === opts.episodeProvider) - Number(a.provider === opts.episodeProvider);
+        });
         const retry = makeRequests(retrySources);
         if (retry.length) {
           const r2 = await FallbackEngine.resolveAll(retry, { timeout: 8000, max: 12 });
@@ -531,7 +561,8 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
 
   if (!entry) throw new Error(GENERIC_ERROR);
 
-  const primaryProvider = results[0]?.provider || requests[0]?.provider || sources[0]?.provider || '';
+  const primaryProvider = results.find(result => result.stream.sourceKind === 'direct-media')?.provider
+    || results[0]?.provider || requests[0]?.provider || sources[0]?.provider || '';
   const primarySource = sortSources(entry).find(s => s.provider === primaryProvider);
 
   /* Unduh: gabungan semua penyedia unduhan (tidak pernah melempar). */
@@ -551,42 +582,21 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
     downloads = [];
   }
 
-  /* Jalur terakhir bila semua API stream gagal: pakai tautan unduhan yang
-     tersedia (file langsung lebih dulu, lalu halaman unduhan sebagai embed).
-     Sumber dipilih dari data, bukan hardcoding. */
-  let fallbackStreams: { provider: string; stream: import('../types').EpisodeStream }[] = [];
-  if (!results.length) {
-    const direct = downloads.find(d => isVideoUrl(d.url));
-    const pageLink = downloads.find(d => /^https?:\/\//i.test(d.url));
-    const url = (direct || pageLink)?.url || '';
-    if (url) {
-      fallbackStreams = [
-        {
-          provider: primaryProvider || 'download',
-          stream: {
-            provider: primaryProvider || 'download',
-            title: 'Episode ' + (want || episode),
-            playerUrl: url,
-            qualities: [],
-            servers: [],
-            downloads,
-            info: {}
-          }
-        }
-      ];
-    }
-  }
-
-  const streams = results.length ? results : fallbackStreams;
-  if (!streams.length) throw new Error(GENERIC_ERROR);
+  // Download pages and file hosts are never converted into playback sources.
+  const streams = results;
+  const sourceKind = streams.some(entry => entry.stream.sourceKind === 'direct-media')
+    ? 'direct-media'
+    : streams.some(entry => entry.stream.sourceKind === 'embed-page')
+      ? 'embed-page'
+      : undefined;
 
   const norm = buildForcedQualities({
     streams: streams.map(r => ({ provider: r.provider, stream: r.stream })),
-    downloads
+    downloads: []
   });
 
   const servers: StreamServerRef[] = norm.servers;
-  if (!servers.length && streams[0].stream.playerUrl) {
+  if (streams.length && !servers.length && streams[0].stream.playerUrl) {
     servers.push({
       ref: streams[0].provider + ':main',
       label: 'Server Utama',
@@ -607,6 +617,9 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
     servers,
     downloads: groupByQuality(downloads).map(g => ({ quality: g.quality, items: g.items })),
     synopsis: '',
-    sourceCount: streams.length
+    sourceCount: streams.length,
+    availability: sourceKind === 'direct-media' ? 'direct-media' : sourceKind === 'embed-page' ? 'external-embed' : 'unavailable',
+    sourceKind,
+    unavailableReason: streams.length ? undefined : 'Sumber stream tidak ditemukan; tautan download ditampilkan terpisah.'
   };
 }

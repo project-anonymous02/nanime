@@ -251,6 +251,7 @@ export const otakudesu: AnimeProvider = {
   name: 'Otakudesu',
   active: true,
   searchable: true,
+  content: 'anime',
   priority: 10,
   desc: 'Provider utama. Home, search, detail, episode, server, genre, jadwal.',
   async home() {
@@ -312,6 +313,7 @@ export const oploverz: AnimeProvider = {
   name: 'Oploverz',
   active: true,
   searchable: true,
+  content: 'anime',
   priority: 11,
   desc: 'Provider alternatif. Home, search, detail, episode dengan streamingUrl langsung.',
   async home() {
@@ -362,6 +364,7 @@ export const kuramanime: AnimeProvider = {
   name: 'Kuramanime',
   active: true,
   searchable: true,
+  content: 'anime',
   priority: 12,
   desc: 'Provider alternatif. Home, detail, episode, properties (genre/season/studio).',
   async home() {
@@ -399,6 +402,7 @@ export const kusonime: AnimeProvider = {
   active: true,
   searchable: true,
   movieOnly: true,
+  content: 'anime',
   priority: 13,
   desc: 'Sumber anime movie. Home, search, detail dan tautan unduh; pemutaran memakai provider streaming lain.',
   async home() {

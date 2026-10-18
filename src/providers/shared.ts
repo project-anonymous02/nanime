@@ -41,6 +41,19 @@ export interface CardOpts {
   preferAnimePath?: boolean;
 }
 
+/** Read only explicit category/rating metadata already present in the provider document. */
+export function parseContentMetadata(root: ParentNode): Pick<Card, 'genres' | 'tags' | 'contentRating' | 'classification'> {
+  const labels = (selector: string) => nodes(root, selector).map(node => clean(attr(node, 'data-genre') || attr(node, 'data-tag') || txt(node))).filter(Boolean);
+  const ratingNode = root.querySelector('[data-content-rating], [data-rating], .content-rating, .age-rating');
+  const classificationNode = root.querySelector('[data-content-classification], [data-classification], .content-category');
+  return {
+    genres: [...new Set(labels('.genxed a, .mgen a, .genre a, .genres a, [data-genre]'))],
+    tags: [...new Set(labels('.tag a, .tags a, [data-tag]'))],
+    contentRating: clean(attr(ratingNode, 'data-content-rating') || attr(ratingNode, 'data-rating') || txt(ratingNode)),
+    classification: clean(attr(classificationNode, 'data-content-classification') || attr(classificationNode, 'data-classification') || txt(classificationNode))
+  };
+}
+
 /**
  * Slug halaman post episode/batch → slug seri.
  * "one-piece-episode-1180-subtitle-indonesia" → "one-piece"
@@ -73,7 +86,7 @@ export function detailHrefFromCard(href: string): { href: string; slug: string; 
  */
 export function parseBsxCards(doc: ParentNode, base: string, provider: string, opts: CardOpts = {}): Card[] {
   const out: Card[] = [];
-  nodes(doc, 'article.bs, article.bsx').forEach(el => {
+  nodes(doc, 'article.bs, article.bsx, div.bs, div.bsx').forEach(el => {
     const a = (el.querySelector('a.tip') as HTMLAnchorElement) || (el.querySelector('a[href]') as HTMLAnchorElement);
     const href = abs(base, attr(a, 'href'));
     if (!href) return;
@@ -99,7 +112,8 @@ export function parseBsxCards(doc: ParentNode, base: string, provider: string, o
       epLabel: clean(el.querySelector('.epx')?.textContent),
       sub: clean(el.querySelector('.sb')?.textContent),
       sourceUrl: resolved.href,
-      slug
+      slug,
+      ...parseContentMetadata(el)
     });
   });
   return out;

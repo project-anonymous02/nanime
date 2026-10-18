@@ -304,12 +304,12 @@ export async function mergeCardsAsync(cards: Card[], opts: { query?: string } = 
 /** Pencarian gabungan lintas penyedia — hasil sudah kanonik (satu judul satu kartu). */
 export async function searchAggregated(
   query: string,
-  opts: { sort?: SearchSort; minScore?: number; timeout?: number } = {}
+  opts: { sort?: SearchSort; minScore?: number; timeout?: number; providerIds?: string[] } = {}
 ): Promise<AggregatedSearchResult> {
   const q = String(query || '').trim();
   if (q.length < 2) return { items: [], sources: [] };
 
-  const sources = await ProviderAggregator.search(q, { timeout: opts.timeout });
+  const sources = await ProviderAggregator.search(q, { timeout: opts.timeout, providerIds: opts.providerIds });
   const flat: Card[] = [];
   for (const s of sources) {
     if (!s.ok) continue;

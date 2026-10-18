@@ -45,6 +45,7 @@ export const lendrive: AnimeProvider = {
   active: true,
   searchable: true,
   movieOnly: true,
+  content: 'anime',
   priority: 70,
   desc: 'Sumber unduhan x265/HEVC lengkap (unduh batch per seri, tanpa server streaming).',
 

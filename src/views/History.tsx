@@ -8,7 +8,7 @@ import { EmptyState } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
 import { ConfirmModal } from '../ui/Sheet';
-import { watchPath } from '../lib/nav';
+import { detailPath } from '../lib/nav';
 
 /** Riwayat menonton — SINGLE (per episode, grup tanggal) & MULTI (per series). */
 
@@ -116,7 +116,7 @@ export function History() {
   const activate = (h: HistoryItem) => {
     cancelPress();
     if (selecting) toggleSel(h);
-    else navigate(watchPath(h.animeId, h.episode, h.title));
+    else navigate(detailPath(h.animeId, h.title));
   };
 
   const doRemove = () => {
@@ -182,7 +182,7 @@ export function History() {
           ))
         : series.map(s => (
             <section className="hist-multi" key={s.animeId}>
-              <button type="button" className="hm-head" onClick={() => navigate(watchPath(s.animeId, s.items[0].episode, s.title))}>
+              <button type="button" className="hm-head" onClick={() => navigate(detailPath(s.animeId, s.title))}>
                 <span className="hm-thumb">
                   <SmartImage src={s.poster} alt={s.title} />
                 </span>

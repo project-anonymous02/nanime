@@ -15,16 +15,17 @@ import { moenime } from './MoenimeProvider';
 import { alqanime } from './AlqanimeProvider';
 import { animekuonline } from './AnimeKuOnlineProvider';
 import { anoboy } from './AnoboyProvider';
+import { animasu } from './AnimasuProvider';
+import { gomunime } from './GomunimeProvider';
 
 /**
- * Registry seluruh sumber. Urutan = prioritas (nilai kecil lebih dulu).
- * Urutan pemutaran yang diinginkan:
- * Doronime > Ylnime > AnimeIndo > AnimeKuLol > Nimegami > Sakunime > AnimeKuindo
- * > provider lama > Anoboy PALING AKHIR.
- * Provider unduhan murni (Moenime, Alqanime, AnimeKuOnline) tidak pernah jadi sumber stream.
+ * Registry sources. Stream order is distinct from catalog order: sources
+ * explicitly requested by product policy are attempted before legacy sources.
+ * Missing/blocked provider adapters are intentionally not fabricated.
  */
 
 const PROVIDER_LIST: AnimeProvider[] = [
+  animasu,
   doronime,
   ylnime,
   animeindo,
@@ -43,7 +44,8 @@ const PROVIDER_LIST: AnimeProvider[] = [
   moenime,
   alqanime,
   animekuonline,
-  anoboy
+  anoboy,
+  gomunime
 ];
 
 const BY_ID: Record<string, AnimeProvider> = {};
@@ -61,10 +63,10 @@ export function allProviders(): AnimeProvider[] {
   return PROVIDER_LIST.slice();
 }
 
-/** Provider aktif untuk pencarian (kecuali sumber unduhan murni bila diminta). */
+/** Semua provider aktif yang menyediakan pencarian; downloadOnly tidak berarti search-only. */
 export function searchProviders(preferred?: string): AnimeProvider[] {
   const list = PROVIDER_LIST.filter(p => p.active && p.searchable);
-  if (preferred) list.sort((a, b) => (a.id === preferred ? -1 : b.id === preferred ? 1 : a.priority - b.priority));
+  if (preferred) list.sort((a, b) => a.priority - b.priority || (a.id === preferred ? -1 : b.id === preferred ? 1 : 0));
   else list.sort((a, b) => a.priority - b.priority);
   return list;
 }
@@ -83,16 +85,28 @@ export function orderedProviders(preferred: string): AnimeProvider[] {
 /** Provider yang punya kemampuan streaming (untuk mesin fallback pemutaran). */
 export function streamingProviders(preferred?: string): AnimeProvider[] {
   const list = PROVIDER_LIST.filter(p => p.active && !p.downloadOnly && !p.movieOnly);
-  if (preferred) list.sort((a, b) => (a.id === preferred ? -1 : b.id === preferred ? 1 : a.priority - b.priority));
-  else list.sort((a, b) => a.priority - b.priority);
+  if (preferred) list.sort((a, b) => (a.id === preferred ? -1 : b.id === preferred ? 1 : streamingPriority(a.id) - streamingPriority(b.id)));
+  else list.sort((a, b) => streamingPriority(a.id) - streamingPriority(b.id));
   return list;
+}
+
+const REQUESTED_STREAM_ORDER = ['animasu', 'anitoki', 'moeclip', 'sokuja', 'kuronime', 'gomunime', 'nontonanime'];
+
+/** Missing named adapters leave their slot vacant; legacy sources follow requested sources. */
+export function streamingPriority(id: string): number {
+  const requested = REQUESTED_STREAM_ORDER.indexOf(id);
+  if (requested >= 0) return requested;
+  const p = BY_ID[id];
+  return 100 + (p?.priority ?? 999);
 }
 
 /** Provider yang menyediakan tautan unduh (untuk tab Download). */
 export function downloadProviders(): AnimeProvider[] {
-  return PROVIDER_LIST.filter(p => p.active && (p.downloadOnly || p.movieOnly || typeof p.downloads === 'function')).sort(
-    (a, b) => a.priority - b.priority
-  );
+  return PROVIDER_LIST.filter(p => p.active && (p.downloadOnly || p.movieOnly || typeof p.downloads === 'function')).sort((a, b) => {
+    if (a.id === 'moenime') return 1;
+    if (b.id === 'moenime') return -1;
+    return a.priority - b.priority;
+  });
 }
 
 export function markHealth(id: string, ok: boolean, message?: string): void {

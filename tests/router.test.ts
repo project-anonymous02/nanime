@@ -1,13 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { detailPath, watchPath, searchPath, shareOrCopy } from '../src/lib/nav';
+import { detailPath, searchPath, shareOrCopy } from '../src/lib/nav';
 import { extractAuthCode, extractAuthError } from '../src/state/auth';
 
 describe('tautan rute kanonik', () => {
-  it('detailPath & watchPath memakai id kanonik ter-encode', () => {
+  it('detailPath memakai id kanonik ter-encode', () => {
     expect(detailPath('one-piece')).toBe('/detail/one-piece');
     expect(detailPath('one-piece', 'One Piece')).toBe('/detail/one-piece?title=One%20Piece');
-    expect(watchPath('one-piece', '12')).toBe('/watch/one-piece/12');
-    expect(watchPath('one-piece', '12', 'One Piece')).toBe('/watch/one-piece/12?title=One%20Piece');
     expect(detailPath('judul miring')).toBe('/detail/judul%20miring');
   });
 

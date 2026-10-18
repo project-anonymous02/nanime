@@ -48,15 +48,14 @@ function BottomNav() {
 export function Shell({ children }: { children: ReactNode }) {
   useScrollGuard();
   const { pathname } = useLocation();
-  const bare = pathname.startsWith('/watch/');
   return (
     <div className="app-shell">
-      <main className={'app-main' + (bare ? ' watch' : '')}>
+      <main className="app-main">
         <div className="page" key={pathname}>
           {children}
         </div>
       </main>
-      {bare ? null : <BottomNav />}
+      <BottomNav />
     </div>
   );
 }

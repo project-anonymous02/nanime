@@ -4,6 +4,7 @@ import { markHealth } from '../../providers/registry';
 import type { Card, ScheduleGroup, ScheduleItem, SourceResult } from '../types';
 import { CacheManager, TTL } from './CacheManager';
 import { matchScore } from '../utils/fuzzyMatch';
+import { filterDiscovery, isAdultContent } from './ContentPolicy';
 
 /** Jalankan promise dengan batas waktu agar satu penyedia lambat tak menahan semua. */
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
@@ -36,6 +37,11 @@ export interface ProviderMetric { provider: string; operation: 'search' | 'home'
 const metrics: ProviderMetric[] = [];
 export function providerMetrics(): ProviderMetric[] { return metrics.slice(-200); }
 function recordMetric(metric: ProviderMetric): void { metrics.push(metric); if (metrics.length > 200) metrics.splice(0, metrics.length - 200); }
+
+export function isProviderSearchAllowed(provider: Pick<AnimeProvider, 'id' | 'content'>, providerIds?: string[]): boolean {
+  if (providerIds?.length) return providerIds.includes(provider.id);
+  return provider.content !== 'hentai';
+}
 
 function isMovieCard(card: Card): boolean {
   return /movie|film|gekijouban|the movie/i.test(`${card.type || ''} ${card.title || ''} ${card.sub || ''}`);
@@ -88,11 +94,11 @@ async function runPool<T>(items: T[], limit: number, job: (item: T) => Promise<v
  */
 export const ProviderAggregator = {
   /** Pencarian paralel dari semua penyedia yang mendukung pencarian. */
-  async search(query: string, opts: { timeout?: number; max?: number } = {}): Promise<SourceResult[]> {
+  async search(query: string, opts: { timeout?: number; max?: number; providerIds?: string[] } = {}): Promise<SourceResult[]> {
     const q = String(query || '').trim();
     if (!q) return [];
     const timeout = opts.timeout || 12000;
-    const providers = searchProviders().slice(0, opts.max || 99);
+    const providers = searchProviders().filter(p => isProviderSearchAllowed(p, opts.providerIds)).slice(0, opts.max || 99);
 
     const settled: PromiseSettledResult<{ p: AnimeProvider; items: Card[] }>[] = new Array(providers.length);
     let cursor = 0;
@@ -103,7 +109,11 @@ export const ProviderAggregator = {
         const p = providers[index];
         try {
           const started = performance.now();
-          const items = await withTimeout(CacheManager.search(p.id, q, () => p.search(q)), timeout);
+          const fetched = await withTimeout(CacheManager.search(p.id, q, () => p.search(q)), timeout);
+          const explicitAdultSelection = !!opts.providerIds?.includes(p.id) && p.content === 'hentai';
+          const items = explicitAdultSelection
+            ? fetched
+            : fetched.filter(card => !isAdultContent({ ...card, provider: card.provider || p.id }));
           settled[index] = { status: 'fulfilled', value: { p, items } };
           recordMetric({ provider: p.id, operation: 'search', ms: Math.round(performance.now() - started), ok: true, count: items.length });
         } catch (reason) {
@@ -152,9 +162,9 @@ export const ProviderAggregator = {
     const deadline = opts.deadline ?? 10000;
     const concurrency = opts.concurrency ?? 8;
     const providers = allProviders()
-      // Download/catalog providers are included for film discovery. Their
-      // links remain download-only and are never treated as playback streams.
-      .filter(p => p.active)
+      // Catalog providers can contribute discovery cards independently of
+      // whether their media capability is streaming or download-only.
+      .filter(p => p.active && p.content !== 'hentai')
       .sort((a, b) => a.priority - b.priority);
 
     const results: Array<{ p: AnimeProvider; ok: boolean; data?: Awaited<ReturnType<AnimeProvider['home']>>; error?: string }> =
@@ -171,16 +181,17 @@ export const ProviderAggregator = {
         const p = r.p;
         if (r.ok && r.data) {
           const d = r.data;
-          const items = (d.ongoing || []).concat(d.completed || []).concat(d.movie || []).map(c => ({
+          const items = filterDiscovery((d.ongoing || []).concat(d.completed || []).concat(d.movie || []).map(c => ({
             ...c,
             provider: c.provider || p.id
-          }));
-          const movieItems = p.downloadOnly ? items : (d.movie || []).concat(items.filter(isMovieCard));
-          if (p.movieOnly || p.downloadOnly) movie.push(...movieItems);
+          })), p.id);
+          const safeMovies = filterDiscovery(d.movie || [], p.id);
+          const movieItems = safeMovies.concat(items.filter(isMovieCard));
+          if (p.movieOnly) movie.push(...movieItems);
           else if (p.content === 'donghua') donghua.push(...items);
           else {
-            newUpdate.push(...(d.ongoing || []).filter(c => !isMovieCard(c)));
-            completed.push(...(d.completed || []).filter(c => !isMovieCard(c)));
+            newUpdate.push(...filterDiscovery(d.ongoing || [], p.id).filter(c => !isMovieCard(c)));
+            completed.push(...filterDiscovery(d.completed || [], p.id).filter(c => !isMovieCard(c)));
             movie.push(...movieItems);
           }
           markHealth(p.id, true);
@@ -227,7 +238,7 @@ export const ProviderAggregator = {
    */
   async schedule(opts: { timeout?: number } = {}): Promise<{ groups: ScheduleGroup[]; ok: number }> {
     const timeout = opts.timeout || 15000;
-    const providers = allProviders().filter(p => p.active && typeof p.schedule === 'function');
+    const providers = allProviders().filter(p => p.active && p.content !== 'hentai' && typeof p.schedule === 'function');
     const settled = await Promise.allSettled(
       providers.map(p =>
         withTimeout(
@@ -246,7 +257,7 @@ export const ProviderAggregator = {
       for (const g of r.value.days || []) {
         const idx = dayIndex(g.day);
         if (idx < 0) continue;
-        for (const item of g.items || []) {
+        for (const item of filterDiscovery(g.items || [], p.id)) {
           (buckets[idx] = buckets[idx] || []).push({ ...item, provider: item.provider || p.id });
         }
       }

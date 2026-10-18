@@ -5,11 +5,6 @@ export function detailPath(canonicalId: string, title?: string): string {
   return title ? base + '?title=' + encodeURIComponent(title) : base;
 }
 
-export function watchPath(canonicalId: string, episode: string, title?: string): string {
-  const base = '/watch/' + encodeURIComponent(canonicalId) + '/' + encodeURIComponent(episode);
-  return title ? base + '?title=' + encodeURIComponent(title) : base;
-}
-
 export function searchPath(query: string): string {
   return '/search?q=' + encodeURIComponent(query);
 }

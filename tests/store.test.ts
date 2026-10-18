@@ -3,24 +3,9 @@ import { useApp } from '../src/state/app';
 import { useSettings } from '../src/state/settings';
 import { useLibrary } from '../src/state/library';
 import { useAuth } from '../src/state/auth';
-import { clampFloatWidth, episodeNeighbors, usePlayer } from '../src/state/player';
 import { DEFAULT_SETTINGS } from '../src/lib/remote/types';
-import type { EpisodeItem, StreamBundle } from '../src/core/types';
 
 const fav = (id: string, title = id) => ({ id, title, poster: '', score: '', type: '', status: '' });
-
-const streamBundle = (id: string, episode = '1'): StreamBundle => ({
-  id,
-  title: 'Anime ' + id,
-  poster: '',
-  episode,
-  qualities: [],
-  defaultQuality: '480p',
-  servers: [],
-  downloads: [],
-  synopsis: '',
-  sourceCount: 0
-});
 
 const hist = (animeId: string, episode = '1', watchedAt = Date.now()) => ({
   animeId,
@@ -40,7 +25,6 @@ beforeEach(() => {
   useApp.setState({ onboarded: false, mode: 'multi' });
   useSettings.setState({ ...DEFAULT_SETTINGS });
   useLibrary.setState({ favorites: [], history: [], tombstones: { fav: {}, hist: {} } });
-  usePlayer.setState({ session: null, quality: '480p', serverRef: null, playUrl: '', closed: false, floating: false });
 });
 
 describe('useApp — preferensi perangkat', () => {
@@ -78,82 +62,6 @@ describe('useSettings — pengaturan pemutar', () => {
     useSettings.getState().reset();
     expect(useSettings.getState().autoplayNext).toBe(DEFAULT_SETTINGS.autoplayNext);
     expect(useSettings.getState().defaultQuality).toBe(DEFAULT_SETTINGS.defaultQuality);
-  });
-});
-
-describe('usePlayer — sesi pemutaran global', () => {
-  it('open membuka sesi & close menutup paksa', () => {
-    usePlayer.getState().open({
-      session: {
-        animeId: 'a1',
-        episode: '3',
-        title: 'Anime a1',
-        poster: '',
-        stream: streamBundle('a1', '3'),
-        episodes: []
-      },
-      quality: '720p'
-    });
-    expect(usePlayer.getState().session?.animeId).toBe('a1');
-    expect(usePlayer.getState().quality).toBe('720p');
-    expect(usePlayer.getState().closed).toBe(false);
-
-    usePlayer.getState().close();
-    expect(usePlayer.getState().session).toBeNull();
-    expect(usePlayer.getState().closed).toBe(true);
-  });
-
-  it('patchSession hanya berlaku saat ada sesi', () => {
-    usePlayer.getState().patchSession({ title: 'X' });
-    expect(usePlayer.getState().session).toBeNull();
-
-    usePlayer.getState().open({
-      session: {
-        animeId: 'a1',
-        episode: '1',
-        title: 'Awal',
-        poster: '',
-        stream: streamBundle('a1'),
-        episodes: []
-      },
-      quality: '480p'
-    });
-    const eps: EpisodeItem[] = [{ num: '1', id: '1', slug: '', date: '' }];
-    usePlayer.getState().patchSession({ title: 'Baru', episodes: eps });
-    expect(usePlayer.getState().session?.title).toBe('Baru');
-    expect(usePlayer.getState().session?.episodes).toHaveLength(1);
-  });
-
-  it('volume, brightness, dan lebar floating selalu dijepit ke rentang aman', () => {
-    usePlayer.getState().setVolume(2);
-    expect(usePlayer.getState().volume).toBe(1);
-    usePlayer.getState().setVolume(-1);
-    expect(usePlayer.getState().volume).toBe(0);
-
-    usePlayer.getState().setBrightness(0);
-    expect(usePlayer.getState().brightness).toBe(0.02);
-    usePlayer.getState().setBrightness(9);
-    expect(usePlayer.getState().brightness).toBe(1.5);
-
-    usePlayer.getState().setWidth(80);
-    expect(usePlayer.getState().width).toBe(160);
-    usePlayer.getState().setWidth(999);
-    expect(usePlayer.getState().width).toBe(400);
-  });
-
-  it('clampFloatWidth membatasi 160–400 px & membulatkan', () => {
-    expect(clampFloatWidth(100)).toBe(160);
-    expect(clampFloatWidth(1000)).toBe(400);
-    expect(clampFloatWidth(247.6)).toBe(248);
-  });
-
-  it('episodeNeighbors menemukan episode sebelum/sesudah', () => {
-    const eps: EpisodeItem[] = ['1', '2', '3'].map(n => ({ num: n, id: n, slug: '', date: '' }));
-    expect(episodeNeighbors(eps, '2').prev?.num).toBe('1');
-    expect(episodeNeighbors(eps, '2').next?.num).toBe('3');
-    expect(episodeNeighbors(eps, '1').prev).toBeUndefined();
-    expect(episodeNeighbors(eps, '3').next).toBeUndefined();
-    expect(episodeNeighbors(eps, 'x').next).toBeUndefined();
   });
 });
 

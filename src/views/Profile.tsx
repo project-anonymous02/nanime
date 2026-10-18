@@ -6,7 +6,7 @@ import { toast } from '../state/ui';
 import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
 import { Sheet } from '../ui/Sheet';
-import { detailPath, watchPath } from '../lib/nav';
+import { detailPath } from '../lib/nav';
 import { formatWatchDuration, leaderboard } from '../lib/community';
 
 /** Profil — banner, statistik, tab Favorit/Histori, dan sheet foto profil ala referensi. */
@@ -164,7 +164,7 @@ export function Profile() {
               <button
                 type="button"
                 className="pr-main"
-                onClick={() => navigate(watchPath(h.animeId, h.episode, h.title))}
+                onClick={() => navigate(detailPath(h.animeId, h.title))}
                 aria-label={h.title}
               >
                 <span className="pr-thumb">
@@ -182,14 +182,6 @@ export function Profile() {
                     {mmss(h.positionSec)} / {mmss(h.durationSec)}
                   </span>
                 </span>
-              </button>
-              <button
-                type="button"
-                className="pr-play"
-                aria-label={'Lanjutkan ' + h.title}
-                onClick={() => navigate(watchPath(h.animeId, h.episode, h.title))}
-              >
-                <Icon name="play" size={15} strokeWidth={0} />
               </button>
             </div>
           ))}

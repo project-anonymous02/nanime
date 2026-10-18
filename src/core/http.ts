@@ -36,6 +36,12 @@ export interface HttpJsonResult<T = unknown> {
   status: number;
 }
 
+export interface HttpProbeResult {
+  status: number;
+  contentType: string;
+  url: string;
+}
+
 export interface HttpOpts {
   timeout?: number;
   retries?: number;
@@ -137,6 +143,41 @@ export async function httpGetText(url: string, opts: HttpOpts = {}): Promise<Htt
     }
   }
   throw lastErr || new NetError('Gagal mengambil halaman.');
+}
+
+/** Probe a media target without downloading its body. Redirects are followed by
+ * the platform transport; HTTP status and response MIME stay explicit. */
+export async function httpProbe(url: string, timeout = 6000): Promise<HttpProbeResult> {
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { throw new NetError('URL sumber tidak valid.', 'parse'); }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new NetError('Skema URL sumber tidak didukung.', 'parse');
+  try {
+    if (isNative()) {
+      const res = await CapacitorHttp.request({
+        url: parsed.href,
+        method: 'HEAD',
+        headers: { Accept: 'video/*,application/vnd.apple.mpegurl,application/x-mpegURL,application/dash+xml,*/*;q=0.5' },
+        connectTimeout: timeout,
+        readTimeout: timeout
+      });
+      const headers = Object.fromEntries(Object.entries(res.headers || {}).map(([key, value]) => [key.toLowerCase(), String(value)]));
+      return { status: Number(res.status || 0), contentType: headers['content-type']?.split(';')[0].trim().toLowerCase() || '', url: parsed.href };
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(parsed.href, {
+        method: 'HEAD',
+        redirect: 'follow',
+        credentials: 'omit',
+        signal: controller.signal,
+        headers: { Accept: 'video/*,application/vnd.apple.mpegurl,application/x-mpegURL,application/dash+xml,*/*;q=0.5' }
+      });
+      return { status: res.status, contentType: (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase(), url: res.url || parsed.href };
+    } finally { clearTimeout(timer); }
+  } catch (error: any) {
+    throw classifyError(error);
+  }
 }
 
 /** GET JSON (endpoint API publik ber-CORS — selalu diizinkan di web). */

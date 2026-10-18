@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Catalog } from '../core/services/Catalog';
 import type { AggregatedCard, DetailBundle } from '../core/types';
@@ -8,7 +8,7 @@ import { Grid, UpdateCard } from '../ui/Cards';
 import { ErrorState, Skel } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
-import { detailPath, shareOrCopy, watchPath } from '../lib/nav';
+import { detailPath, shareOrCopy } from '../lib/nav';
 import { Comments } from './Comments';
 
 /** Detail anime ala referensi — hero, chip, synopsis, related, daftar episode list/grid. */
@@ -19,29 +19,35 @@ export function Detail() {
   const titleHint = params.get('title') || '';
   const navigate = useNavigate();
 
-  const [bundle, setBundle] = useState<DetailBundle | null>(null);
+  const [bundleState, setBundle] = useState<DetailBundle | null>(null);
+  const bundle = bundleState?.id === id ? bundleState : null;
   const [error, setError] = useState(false);
   const [expand, setExpand] = useState(false);
   const [epMode, setEpMode] = useState<'list' | 'grid'>('list');
   const [epQuery, setEpQuery] = useState('');
   const [stuck, setStuck] = useState(false);
+  const requestId = useRef(0);
 
   const favorites = useLibrary(s => s.favorites);
   const toggleFavorite = useLibrary(s => s.toggleFavorite);
   const history = useLibrary(s => s.history);
 
   const load = useCallback(async () => {
+    const request = ++requestId.current;
     setError(false);
+    setBundle(null);
     try {
-      setBundle(await Catalog.detail(id, { title: titleHint }));
+      const result = await Catalog.detail(id, { title: titleHint });
+      if (request === requestId.current) setBundle(result);
     } catch {
-      setError(true);
+      if (request === requestId.current) setError(true);
     }
   }, [id, titleHint]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     void load();
+    return () => { requestId.current++; };
   }, [load]);
 
   useEffect(() => {
@@ -77,14 +83,6 @@ export function Detail() {
     if (!q) return episodes;
     return episodes.filter(ep => (ep.num + ' ' + (ep.title || '')).toLowerCase().includes(q));
   }, [episodes, epQuery]);
-
-  const onWatch = () => {
-    if (!resumeEp) {
-      toast('Episode belum tersedia untuk tayangan ini', 'err');
-      return;
-    }
-    navigate(watchPath(id, resumeEp, bundle?.title || titleHint));
-  };
 
   const onShare = async () => {
     const url = location.origin + location.pathname + '#' + detailPath(id, bundle?.title || titleHint);
@@ -143,7 +141,7 @@ export function Detail() {
 
       <div className="dt-hero">
         <div className="dt-hero-bg">
-          <SmartImage src={bundle.poster} animeId={bundle.id} alt={bundle.title} eager />
+          <SmartImage key={bundle.id} src={bundle.heroImage || bundle.poster} animeId={bundle.id} alt={bundle.title} eager />
         </div>
         <div className="dt-hero-shade" />
         <div className="dt-hero-top">
@@ -190,10 +188,6 @@ export function Detail() {
         </div>
 
         <div className="dt-actions">
-          <button type="button" className="dt-btn primary" onClick={onWatch}>
-            <Icon name="play" size={16} strokeWidth={0} />
-            {resumeEp && progressMap.get(resumeEp) ? `Lanjut Eps ${resumeEp}` : 'Tonton Sekarang'}
-          </button>
           <button type="button" className={'dt-btn ghost' + (isFav ? ' on' : '')} onClick={onFav}>
             <Icon name={isFav ? 'bellFill' : 'bell'} size={16} strokeWidth={2} />
             {isFav ? 'Tersimpan' : 'Favorit'}
@@ -271,21 +265,13 @@ export function Detail() {
                   const active = resumeEp === ep.num && pr;
                   return (
                     <div className={'dt-eprow' + (active ? ' on' : '')} key={ep.num + ep.id}>
-                      <button type="button" className="dt-epl-main" onClick={() => navigate(watchPath(id, ep.num, bundle.title))}>
+                      <div className="dt-epl-main" aria-label={`Episode ${ep.num}`}>
                         <span className="dt-epl-num">
                           Episode {ep.num}
                           {pr?.completed ? <span className="dt-epl-done">Selesai</span> : null}
                         </span>
                         {ep.date ? <span className="dt-epl-date">{ep.date}</span> : null}
-                      </button>
-                      <button
-                        type="button"
-                        className="dt-epl-play"
-                        aria-label={'Tonton episode ' + ep.num}
-                        onClick={() => navigate(watchPath(id, ep.num, bundle.title))}
-                      >
-                        <Icon name="play" size={14} strokeWidth={0} />
-                      </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -299,17 +285,9 @@ export function Detail() {
                     const active = resumeEp === ep.num && pr;
                     return (
                       <div className={'dt-epcell' + (active ? ' on' : '')} key={ep.num + ep.id}>
-                        <button type="button" className="dt-epcell-num" onClick={() => navigate(watchPath(id, ep.num, bundle.title))}>
+                        <span className="dt-epcell-num" aria-label={`Episode ${ep.num}`}>
                           Eps {ep.num}
-                        </button>
-                        <button
-                          type="button"
-                          className="dt-epl-play"
-                          aria-label={'Tonton episode ' + ep.num}
-                          onClick={() => navigate(watchPath(id, ep.num, bundle.title))}
-                        >
-                          <Icon name="play" size={13} strokeWidth={0} />
-                        </button>
+                        </span>
                       </div>
                     );
                   })}

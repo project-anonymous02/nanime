@@ -6,6 +6,20 @@ export function getPoster(item: any): string {
   return item.poster || item.image || item.cover || item.thumbnail || '';
 }
 
+/** Carry explicit source content classification so discovery policy can filter before rendering. */
+function contentMetadata(item: any): Pick<Card, 'genres' | 'tags' | 'contentRating' | 'classification'> {
+  const labels = (value: unknown): string[] => {
+    if (!Array.isArray(value)) return [];
+    return value.map(entry => cleanVal(typeof entry === 'string' ? entry : entry?.title || entry?.name || entry?.label)).filter(Boolean);
+  };
+  return {
+    genres: labels(item?.genres || item?.genreList),
+    tags: labels(item?.tags || item?.tagList),
+    contentRating: cleanVal(item?.contentRating || item?.ageRating || item?.ratingAge || item?.certification),
+    classification: cleanVal(item?.contentClassification || item?.classification || item?.category)
+  };
+}
+
 export function normalizeOtakudesuCard(item: any): Card | null {
   if (!item) return null;
   /* .epz bisa " Episode 2" (ongoing) atau "12 Episode" (complete) — ambil angkanya saja. */
@@ -23,7 +37,8 @@ export function normalizeOtakudesuCard(item: any): Card | null {
     status: cleanVal(item.status),
     epLabel: eps ? (isOngoing ? 'Ep ' + eps : eps + ' Eps') : '',
     sub: date || cleanVal(item.releaseDay),
-    sourceUrl: item.otakudesuUrl || ''
+    sourceUrl: item.otakudesuUrl || '',
+    ...contentMetadata(item)
   };
 }
 
@@ -48,7 +63,8 @@ export function normalizeOploverzCard(item: any): Card | null {
     status: cleanVal(item.status) || (isStatus ? epx : ''),
     epLabel,
     sub: cleanVal(item.releaseTime) || '',
-    sourceUrl: href
+    sourceUrl: href,
+    ...contentMetadata(item)
   };
 }
 
@@ -67,7 +83,8 @@ export function normalizeKuramanimeCard(item: any): Card | null {
     epLabel: eps ? (total ? eps + '/' + total : 'Ep ' + eps) : '',
     sub: cleanVal(item.quality),
     sourceUrl: item.kuramanimeUrl || '',
-    slug: item.animeSlug || ''
+    slug: item.animeSlug || '',
+    ...contentMetadata(item)
   };
 }
 
@@ -91,7 +108,8 @@ export function normalizeKusonimeCard(item: any, forceType?: string): Card | nul
     status: cleanVal(item.status),
     epLabel: '',
     sub: '',
-    sourceUrl: item.url || ''
+    sourceUrl: item.url || '',
+    ...contentMetadata(item)
   };
 }
 

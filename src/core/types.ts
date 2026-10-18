@@ -15,6 +15,11 @@ export interface Card {
   match?: number;
   /** Jumlah views (string mentah dari sumber) bila tersedia. */
   views?: string;
+  /** Classification when a provider exposes verified content metadata. */
+  genres?: string[];
+  tags?: string[];
+  contentRating?: string;
+  classification?: string;
 }
 
 export interface Genre {
@@ -34,6 +39,8 @@ export interface DownloadLink {
   quality: string;
   name: string;
   url: string;
+  /** Scraped page links are not assumed to be reachable media files. */
+  availability?: 'unverified' | 'verified';
 }
 
 export interface Detail {
@@ -69,6 +76,8 @@ export interface Stream {
   provider: string;
   title: string;
   playerUrl: string;
+  /** Identifies a media file vs an iframe or opaque provider server token. */
+  sourceKind?: 'direct-media' | 'embed-page' | 'provider-resolver';
   qualities: { title: string; servers: StreamServer[] }[];
   servers: StreamServer[];
   note?: string;
@@ -113,6 +122,10 @@ export interface ScheduleItem {
   provider: string;
   slug?: string;
   poster?: string;
+  genres?: string[];
+  tags?: string[];
+  contentRating?: string;
+  classification?: string;
 }
 
 export interface ScheduleGroup {
@@ -305,7 +318,7 @@ export const EXPORT_SCHEMA_VERSION = 3;
    Tipe kanonik v2 — identitas tunggal lintas sumber.
    Kartu di UI selalu berbentuk AggregatedCard: satu judul = satu kartu,
    walau tersedia di banyak sumber. `canonicalId` menjadi kunci tak terlihat
-   yang dipakai di seluruh route /detail/:id dan /watch/:id/:episode.
+   yang dipakai pada route /detail/:id.
    ════════════════════════════════════════════════════════════════════════ */
 
 /** Rujukan ke satu sumber penyedia (tidak pernah ditampilkan ke pengguna). */
@@ -376,6 +389,8 @@ export interface DetailBundle {
   title: string;
   alt: string;
   poster: string;
+  /** Artwork hero valid dari halaman detail sumber; poster tetap dipertahankan sebagai fallback. */
+  heroImage?: string;
   score: string;
   type: string;
   status: string;
@@ -406,11 +421,14 @@ export interface StreamBundle {
   episode: string;
   episodeTitle?: string;
   qualities: ForcedQuality[];
-  defaultQuality: QualityLabel;
+  defaultQuality: QualityLabel | null;
   servers: StreamServerRef[];
   downloads: DownloadGroup[];
   synopsis: string;
   sourceCount: number;
+  availability: 'direct-media' | 'external-embed' | 'unavailable';
+  sourceKind?: 'direct-media' | 'embed-page' | 'provider-resolver';
+  unavailableReason?: string;
   nextEpisode?: string;
   stale?: boolean;
 }

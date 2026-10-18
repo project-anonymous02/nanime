@@ -33,8 +33,11 @@ export function resolveAnimeImages(id: string): Promise<string[]> {
           const provider = getProvider(source.provider);
           if (!provider) return;
           const detail = await withTimeout(provider.detail(source.id, source.slug), 7000);
-          const candidate = usable((detail as any)?.poster || (detail as any)?.image || (detail as any)?.cover || (detail as any)?.thumbnail);
-          if (candidate) found.add(candidate);
+          const value = detail as any;
+          for (const field of [value?.banner, value?.cover, value?.poster, value?.image, value?.thumbnail]) {
+            const candidate = usable(field);
+            if (candidate) found.add(candidate);
+          }
         } catch { /* A failed source does not block the other indexed sources. */ }
       }));
       const images = [...found];

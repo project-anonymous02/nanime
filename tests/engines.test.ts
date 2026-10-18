@@ -141,9 +141,9 @@ describe('ProviderAggregator.dedupe', () => {
 });
 
 describe('registry ordering', () => {
-  it('Doronime paling dulu, Anoboy paling akhir', () => {
-    const ids = orderedProviders('doronime').map(p => p.id);
-    expect(ids[0]).toBe('doronime');
+  it('Animasu menjadi sumber katalog awal, Anoboy tetap paling akhir', () => {
+    const ids = orderedProviders('animasu').map(p => p.id);
+    expect(ids[0]).toBe('animasu');
     expect(ids[ids.length - 1]).toBe('anoboy');
   });
 
@@ -162,7 +162,7 @@ describe('registry ordering', () => {
   });
 
   it('semua provider terdaftar lengkap', () => {
-    expect(allProviders().length).toBe(19);
+    expect(allProviders().length).toBe(21);
   });
 });
 
@@ -197,8 +197,8 @@ describe('DownloadAggregator.pickBestCard', () => {
 });
 
 describe('autoProviderId', () => {
-  it('mengembalikan provider streaming berprioritas tertinggi', () => {
+  it('mengembalikan Animasu sesuai prioritas provider yang diminta', () => {
     expect(autoProviderId()).toBe(streamingProviders()[0].id);
-    expect(autoProviderId()).toBe('doronime');
+    expect(autoProviderId()).toBe('animasu');
   });
 });

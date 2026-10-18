@@ -5,23 +5,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { App } from '../src/App';
 import { useAuth } from '../src/state/auth';
-import { usePlayer } from '../src/state/player';
-import type { StreamBundle } from '../src/core/types';
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
-
-const emptyStream: StreamBundle = {
-  id: 'anime-uji',
-  title: 'Anime Uji',
-  poster: '',
-  episode: '1',
-  qualities: [],
-  defaultQuality: '480p',
-  servers: [],
-  downloads: [],
-  synopsis: '',
-  sourceCount: 0
-};
 
 async function waitFor(fn: () => void, ms = 5000): Promise<void> {
   const start = Date.now();
@@ -129,43 +114,10 @@ describe('smoke test aplikasi React', () => {
     expect(container.querySelector('.bottom-nav')).not.toBeNull();
   });
 
-  it('sesi pemutar hidup: floating di halaman lain, docked di /watch', async () => {
-    await act(async () => {
-      usePlayer.getState().open({
-        session: {
-          animeId: 'anime-uji',
-          episode: '1',
-          title: 'Anime Uji',
-          poster: '',
-          stream: emptyStream,
-          episodes: []
-        },
-        quality: '480p'
-      });
-    });
-
-    await waitFor(() => {
-      const el = container.querySelector('.gp-root.gp-floating');
-      expect(el).not.toBeNull();
-      expect((el as HTMLElement).style.width).toBe('240px');
-    });
-
+  it('rute pemutar lama tidak membuka pemutar dan diarahkan ke beranda', async () => {
     await goto('#/watch/anime-uji/1');
-    await waitFor(() => {
-      expect(container.querySelector('.gp-root.gp-docked')).not.toBeNull();
-      expect(container.querySelector('.gp-root.gp-floating')).toBeNull();
-    });
-
-    await goto('#/home');
-    await waitFor(() => {
-      expect(container.querySelector('.gp-root.gp-floating')).not.toBeNull();
-    });
-
-    await act(async () => {
-      usePlayer.getState().close();
-    });
-    await waitFor(() => {
-      expect(container.querySelector('.gp-root')).toBeNull();
-    });
+    await waitFor(() => expect(container.textContent).toContain('Beranda'));
+    expect(container.querySelector('video, iframe')).toBeNull();
+    expect(container.querySelector('.bottom-nav')).not.toBeNull();
   });
 });

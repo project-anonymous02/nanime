@@ -8,6 +8,7 @@ import {
   nodes,
   parseAnimestreamDetail,
   parseBsxCards,
+  parseContentMetadata,
   parseDoc,
   parseEpisodeList,
   parseIframeEmbeds,
@@ -31,7 +32,7 @@ export interface HtmlProviderConfig {
   desc: string;
   /** Hanya menyediakan tautan unduh, tanpa server streaming. */
   downloadOnly?: boolean;
-  content?: 'anime' | 'donghua';
+  content?: 'anime' | 'donghua' | 'hentai' | 'mixed';
   /** Path pencarian; default `/?s=`. */
   searchPath?: (q: string) => string;
   /** Path detail; default `/anime/<slug>/`. */
@@ -91,7 +92,8 @@ function parseGenericCards(doc: ParentNode, base: string, provider: string): Car
       epLabel: clean(a.querySelector('.epx,.ep,.episode')?.textContent),
       sub: '',
       sourceUrl: resolved.href,
-      slug: resolved.slug
+      slug: resolved.slug,
+      ...parseContentMetadata(a.parentElement || a)
     });
   }
   return out;
@@ -144,10 +146,10 @@ export function makeHtmlProvider(cfg: HtmlProviderConfig): AnimeProvider {
     name: cfg.name,
     active: true,
     searchable: true,
-    movieOnly: !!cfg.downloadOnly,
+    downloadOnly: !!cfg.downloadOnly,
     priority: cfg.priority,
     desc: cfg.desc,
-    content: cfg.content,
+    content: cfg.content || 'anime',
 
     async home() {
       const { text, url } = await get(root + '/');

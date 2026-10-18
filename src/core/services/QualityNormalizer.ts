@@ -22,7 +22,7 @@ export interface NormalizeInput {
 
 export interface NormalizeOutput {
   qualities: ForcedQuality[];
-  defaultQuality: QualityLabel;
+  defaultQuality: QualityLabel | null;
   servers: StreamServerRef[];
 }
 
@@ -59,9 +59,9 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
     const provider = entry.provider;
 
     if (st.playerUrl) {
-      const label = guessQuality(st.playerUrl) || guessQuality(st.title || '');
-      const kind = isVideoUrl(st.playerUrl) ? 'file' : 'embed';
-      if (label) put(label, { url: st.playerUrl, providerRef: provider, label: st.title || label, kind, exact: true });
+      const directMedia = st.sourceKind === 'direct-media' || (!st.sourceKind && isVideoUrl(st.playerUrl));
+      const label = directMedia ? guessQuality(st.playerUrl) || guessQuality(st.title || '') : null;
+      if (label) put(label, { url: st.playerUrl, providerRef: provider, label: st.title || label, kind: 'file', exact: true });
       const ref = provider + ':main:' + idx;
       if (!seenServer.has(ref)) {
         seenServer.add(ref);
@@ -85,38 +85,24 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
         label: s.name || 'Server ' + (si + 1),
         url: /^https?:\/\//i.test(s.id || '') ? s.id : '',
         providerRef: provider,
-        quality: guessQuality(s.quality || s.name || '') || undefined
+        quality: st.sourceKind === 'direct-media' && isVideoUrl(s.id || '') ? guessQuality(s.quality || s.name || '') || undefined : undefined
       });
     });
   });
 
-  for (const d of input.downloads) {
-    const label = guessQuality(d.quality || d.name || '');
-    if (!label) continue;
-    const playable = isVideoUrl(d.url);
-    if (!playable) continue;
-    put(label, { url: d.url, providerRef: 'download', label: d.quality || label, kind: 'file', exact: true });
-  }
+  // Downloads are kept separate and must never be presented as playback media.
+  void input.downloads;
 
-  /* Isi slot yang kosong dengan sumber terdekat agar 4 kualitas selalu ada. */
+  /* Only expose a quality when a provider actually supplied a source for it. */
   const available = QUALITY_ORDER.filter(q => real.has(q));
-  const qualities: ForcedQuality[] = QUALITY_ORDER.map(label => {
-    const exact = real.get(label);
-    if (exact) return { label, source: { ...exact, exact: true }, approx: false };
-    if (!available.length) return { label, source: null, approx: false };
-    const nearest = available
-      .slice()
-      .sort((a, b) => distance(a, label) - distance(b, label))[0];
-    const borrowed = real.get(nearest)!;
-    return { label, source: { ...borrowed, exact: false }, approx: true };
-  });
+  const qualities: ForcedQuality[] = available.map(label => ({ label, source: { ...real.get(label)!, exact: true }, approx: false }));
 
-  /* Default: 480p bila tersedia eksplisit, selain itu kualitas terdekat dari daftar nyata. */
-  const defaultQuality: QualityLabel = real.has('480p')
+  /* Prefer 480p; otherwise choose an actually present quality near it. */
+  const defaultQuality: QualityLabel | null = real.has('480p')
     ? '480p'
     : available.length
       ? available.slice().sort((a, b) => distance(a, '480p') - distance(b, '480p'))[0]
-      : '480p';
+      : null;
 
   return { qualities, defaultQuality, servers };
 }

@@ -18,8 +18,8 @@ export interface AnimeProvider {
   downloadOnly?: boolean;
   priority: number;
   desc: string;
-  /** Jenis konten: donghua ditandai agar bisa difilter pengguna. */
-  content?: 'anime' | 'donghua';
+  /** Wajib diisi agar kebijakan discovery tidak menebak asal/jenis konten. */
+  content: 'anime' | 'donghua' | 'hentai' | 'mixed';
 
   home(): Promise<{ ongoing: Card[]; completed: Card[]; movie: Card[] }>;
   search(query: string): Promise<Card[]>;

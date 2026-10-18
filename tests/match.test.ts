@@ -24,7 +24,7 @@ describe('guessQuality — menebak label dari teks apa pun', () => {
   });
 });
 
-describe('buildForcedQualities — 4 kualitas SELALU ada', () => {
+describe('buildForcedQualities — hanya kualitas yang benar-benar tersedia', () => {
   it('tidak memberi label resolusi pada sumber yang kualitasnya tidak diketahui', () => {
     const out = buildForcedQualities({
       streams: [{ provider: 'a', stream: stream({ playerUrl: 'https://cdn.test/watch?id=1', title: 'Episode 1' }) }],
@@ -35,20 +35,15 @@ describe('buildForcedQualities — 4 kualitas SELALU ada', () => {
     expect(out.servers[0].url).toContain('watch?id=1');
   });
 
-  it('slot kosong meminjam sumber kualitas terdekat (approx)', () => {
+  it('tidak meminjam kualitas 1080p untuk mengklaim 480p atau 360p', () => {
     const out = buildForcedQualities({
       streams: [
-        { provider: 'a', stream: stream({ playerUrl: 'https://cdn.test/1080p.mp4', title: 'Full HD' }) },
         { provider: 'b', stream: stream({ playerUrl: 'https://cdn.test/720p.mp4', title: '720p' }) }
       ],
       downloads: []
     });
-    expect(out.qualities.map(q => q.label)).toEqual(['1080p', '720p', '480p', '360p']);
-    expect(out.qualities.map(q => q.approx)).toEqual([false, false, true, true]);
-    const q480 = out.qualities.find(q => q.label === '480p')!;
-    expect(q480.source?.providerRef).toBe('b');
-    const q360 = out.qualities.find(q => q.label === '360p')!;
-    expect(q360.source?.providerRef).toBe('b');
+    expect(out.qualities.map(q => q.label)).toEqual(['720p']);
+    expect(out.qualities.map(q => q.approx)).toEqual([false]);
     expect(out.defaultQuality).toBe('720p');
   });
 
@@ -65,15 +60,14 @@ describe('buildForcedQualities — 4 kualitas SELALU ada', () => {
     expect(out.defaultQuality).toBe('480p');
   });
 
-  it('tanpa sumber: empat slot kosong tanpa pinjaman', () => {
+  it('tanpa sumber: tidak membuat slot kualitas palsu', () => {
     const out = buildForcedQualities({ streams: [], downloads: [] });
-    expect(out.qualities).toHaveLength(4);
-    expect(out.qualities.every(q => q.source === null && !q.approx)).toBe(true);
-    expect(out.defaultQuality).toBe('480p');
+    expect(out.qualities).toHaveLength(0);
+    expect(out.defaultQuality).toBeNull();
     expect(out.servers).toEqual([]);
   });
 
-  it('unduhan file ikut mengisi kualitas & server utama ditandai default', () => {
+  it('tautan unduh tidak dimasukkan ke kualitas stream', () => {
     const out = buildForcedQualities({
       streams: [
         {
@@ -87,15 +81,13 @@ describe('buildForcedQualities — 4 kualitas SELALU ada', () => {
       ],
       downloads: [{ quality: '1080p', name: 'Google Drive', url: 'https://cdn.test/dl/bleach-1080p.mp4' }]
     });
-    const q1080 = out.qualities.find(q => q.label === '1080p')!;
-    expect(q1080.approx).toBe(false);
-    expect(q1080.source?.providerRef).toBe('download');
-    expect(q1080.source?.kind).toBe('file');
+    expect(out.qualities).toEqual([]);
+    expect(out.qualities.find(q => q.label === '1080p')).toBeUndefined();
 
     expect(out.servers[0].isDefault).toBe(true);
     expect(out.servers[0].label).toBe('Main');
     expect(out.servers[1].label).toBe('Mirror');
     expect(out.servers[1].providerRef).toBe('a');
-    expect(out.servers[1].quality).toBe('480p');
+    expect(out.servers[1].quality).toBeUndefined();
   });
 });

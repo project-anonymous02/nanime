@@ -1,5 +1,5 @@
 import type { AnimeProvider } from '../../providers/types';
-import { downloadProviders, getProvider } from '../../providers/registry';
+import { downloadProviders } from '../../providers/registry';
 import type { Card, DownloadLink } from '../types';
 import { CacheManager } from './CacheManager';
 import { matchScore } from '../utils/fuzzyMatch';
@@ -99,28 +99,26 @@ async function collectOne(p: AnimeProvider, q: DownloadQuery): Promise<DownloadL
 
 export const DownloadAggregator = {
   async collect(q: DownloadQuery): Promise<DownloadCollection> {
-    const providers = downloadProviders();
+    const providers = downloadProviders().slice().sort((a, b) => {
+      // Moenime is the explicitly requested final download fallback.
+      if (a.id === 'moenime') return 1;
+      if (b.id === 'moenime') return -1;
+      if (a.id === q.preferred) return -1;
+      if (b.id === q.preferred) return 1;
+      return a.priority - b.priority;
+    });
     const byProvider: ProviderDownloads[] = [];
 
-    await Promise.all(
-      providers.map(async p => {
-        try {
-          const links = await collectOne(p, q);
-          if (links && links.length) byProvider.push({ provider: p.id, name: p.name, links });
-        } catch (e: any) {
-          byProvider.push({ provider: p.id, name: p.name, links: [], error: String(e?.message || e) });
-        }
-      })
-    );
-
-    /* Sumber saat ini lebih dulu, sisanya urut prioritas. */
-    byProvider.sort((a, b) => {
-      const pa = getProvider(a.provider)?.priority ?? 999;
-      const pb = getProvider(b.provider)?.priority ?? 999;
-      if (a.provider === q.preferred) return -1;
-      if (b.provider === q.preferred) return 1;
-      return pa - pb;
-    });
+    // Providers run sequentially to preserve priority and avoid a burst of
+    // unrelated scraping. The result retains each source as a separate link.
+    for (const p of providers) {
+      try {
+        const links = await collectOne(p, q);
+        if (links && links.length) byProvider.push({ provider: p.id, name: p.name, links });
+      } catch (e: any) {
+        byProvider.push({ provider: p.id, name: p.name, links: [], error: String(e?.message || e) });
+      }
+    }
 
     return { links: mergeDownloads(byProvider.map(b => b.links)), byProvider };
   }

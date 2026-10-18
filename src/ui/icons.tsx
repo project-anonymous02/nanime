@@ -18,6 +18,18 @@ const P: Record<string, ReactNode> = {
       <path d="M20 20l-3.2-3.2" />
     </>
   ),
+  chat: (
+    <>
+      <path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-3.5 2v-5A7.5 7.5 0 1 1 20 11.5Z" />
+      <path d="M8 11h8M8 14.5h5" />
+    </>
+  ),
+  send: (
+    <>
+      <path d="m21 3-7.2 18-3.7-7.1L3 10.2 21 3Z" />
+      <path d="m10.1 13.9 4.2-4.2" />
+    </>
+  ),
   calendar: (
     <>
       <rect x="3.5" y="5" width="17" height="15.5" rx="2.6" />

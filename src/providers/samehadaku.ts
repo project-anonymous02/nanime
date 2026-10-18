@@ -48,6 +48,7 @@ export const samehadaku: AnimeProvider = {
   name: 'Samehadaku',
   active: true,
   searchable: true,
+  content: 'anime',
   priority: 30,
   desc: 'Katalog anime lengkap dengan embed langsung di halaman episode.',
 

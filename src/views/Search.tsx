@@ -7,6 +7,7 @@ import { EmptyState, ErrorState, ListSkel } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 import { useDebounced } from '../ui/hooks';
 import { detailPath } from '../lib/nav';
+import { allProviders } from '../providers/registry';
 
 /** Pencarian lintas katalog — satu judul = satu kartu, tanpa label sumber. */
 
@@ -44,6 +45,7 @@ export function Search() {
   const [items, setItems] = useState<AggregatedCard[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [selectedAdultProvider, setSelectedAdultProvider] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const dq = useDebounced(q.trim(), 380);
 
@@ -73,7 +75,7 @@ export function Search() {
     let alive = true;
     setLoading(true);
     setError(false);
-    Catalog.search(dq, { sort: 'relevance' })
+    Catalog.search(dq, { sort: 'relevance', providerIds: selectedAdultProvider ? [selectedAdultProvider] : undefined })
       .then(r => {
         if (alive) setItems(r.items);
       })
@@ -86,9 +88,10 @@ export function Search() {
     return () => {
       alive = false;
     };
-  }, [dq]);
+  }, [dq, selectedAdultProvider]);
 
   const openCard = (c: AggregatedCard) => navigate(detailPath(c.canonicalId, c.title));
+  const adultProviders = allProviders().filter(provider => provider.active && provider.searchable && provider.content === 'hentai');
 
   return (
     <>
@@ -124,6 +127,8 @@ export function Search() {
           ) : null}
         </div>
       </header>
+
+      {adultProviders.length ? <label className="search-source-picker"><span>Pilih sumber hentai</span><select value={selectedAdultProvider} onChange={event => setSelectedAdultProvider(event.target.value)} aria-label="Pilih provider hentai"><option value="">Nonaktif</option>{adultProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label> : null}
 
       {loading && !items ? <ListSkel count={4} /> : null}
       {error && !loading ? <ErrorState onRetry={() => setQ(v => v)} /> : null}

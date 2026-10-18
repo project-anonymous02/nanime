@@ -10,7 +10,7 @@ import { ErrorState, ListSkel, OfflineBar, PosterSkel, RailSkel, SectionHead } f
 import { Icon } from '../ui/icons';
 import { usePullToRefresh } from '../ui/hooks';
 import { SmartImage } from '../ui/SmartImage';
-import { detailPath, searchPath, watchPath } from '../lib/nav';
+import { detailPath, searchPath } from '../lib/nav';
 
 /** Beranda gaya AnibiPlay: kartu profil, leaderboard carousel, search, lalu rail/grid konten. */
 
@@ -159,14 +159,14 @@ export function Home() {
           <button
             type="button"
             className="premium-banner anim-up"
-            onClick={() => (next ? navigate(watchPath(next.animeId, next.episode, next.title)) : navigate('/search'))}
+            onClick={() => (next ? navigate(detailPath(next.animeId, next.title)) : navigate('/search'))}
           >
             <span className="pb-left">
-              <span className="pb-title">{next ? 'LANJUTKAN MENONTON' : 'MULAI NONTON'}</span>
+              <span className="pb-title">{next ? 'LIHAT ANIME TERAKHIR' : 'CARI ANIME'}</span>
               <span className="pb-sub ellipsis">{next ? next.title : 'Cari anime favoritmu sekarang'}</span>
             </span>
             <span className="pb-play">
-              <Icon name="play" size={18} strokeWidth={0} />
+              <Icon name="right" size={18} strokeWidth={2.4} />
             </span>
           </button>
 
@@ -262,7 +262,7 @@ export function Home() {
                   <ContinueRailCard
                     key={h.animeId + '|' + h.episode}
                     item={h}
-                    onOpen={it => navigate(watchPath(it.animeId, it.episode, it.title))}
+                    onOpen={it => navigate(detailPath(it.animeId, it.title))}
                   />
                 ))}
               </Rail>

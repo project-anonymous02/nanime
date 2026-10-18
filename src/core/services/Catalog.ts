@@ -59,6 +59,21 @@ function priorityOf(provider: string): number {
   return p ? p.priority : 999;
 }
 
+export function validArtwork(value: unknown): string {
+  const raw = String(value || '').trim();
+  if (!raw || !/^https?:\/\//i.test(raw) || /^(data:|javascript:)/i.test(raw)) return '';
+  try {
+    const u = new URL(raw);
+    return /^https?:$/.test(u.protocol) ? u.href : '';
+  } catch {
+    return '';
+  }
+}
+
+export function pickArtwork(...values: unknown[]): string {
+  return values.map(validArtwork).find(Boolean) || '';
+}
+
 /** Simpan kartu ke indeks judul agar route /detail/:id selalu bisa dibuka. */
 function remember(cards: AggregatedCard[]): void {
   for (const c of cards) {
@@ -399,6 +414,16 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
   if (!details.length) throw new Error(GENERIC_ERROR);
 
   const base = details[0].detail;
+  // A provider may return a non-empty placeholder or a relative/broken URL.
+  // Keep the indexed search artwork and choose the first validated artwork
+  // across all fetched sources instead of letting one bad detail overwrite it.
+  const poster = pickArtwork(
+    entry.poster,
+    ...details.flatMap(d => {
+      const value = d.detail as Detail & { cover?: string; banner?: string; image?: string };
+      return [value.poster, value.cover, value.banner, value.image];
+    })
+  );
   const merged = mergeEpisodes(
     groups.map(g => ({ provider: g.provider, items: g.items.map(i => ({ num: i.num, id: i.id, slug: i.slug, date: i.date, title: i.title })) }))
   );
@@ -411,7 +436,7 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
     id: entry.id,
     title: base.title || entry.title,
     alt: base.alt || '',
-    poster: base.poster || entry.poster || '',
+    poster,
     score: base.score || entry.score || '',
     type: base.type || entry.type || '',
     status: base.status || entry.status || '',

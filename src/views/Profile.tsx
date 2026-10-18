@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, signOutUser } from '../state/auth';
 import { useLibrary } from '../state/library';
@@ -7,6 +7,7 @@ import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
 import { Sheet } from '../ui/Sheet';
 import { detailPath, watchPath } from '../lib/nav';
+import { formatWatchDuration, leaderboard } from '../lib/community';
 
 /** Profil — banner, statistik, tab Favorit/Histori, dan sheet foto profil ala referensi. */
 
@@ -33,12 +34,20 @@ export function Profile() {
 
   const [tab, setTab] = useState<'fav' | 'hist'>('hist');
   const [photo, setPhoto] = useState(false);
+  const [validatedSeconds, setValidatedSeconds] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    if (user?.id) void leaderboard().then(rows => {
+      if (alive) setValidatedSeconds(rows.find(row => row.id === user.id)?.watch_seconds || 0);
+    }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [user?.id]);
 
   const stats = useMemo(() => {
     const done = history.filter(h => h.completed).length;
-    const secs = history.reduce((acc, h) => acc + Math.min(h.positionSec || 0, h.durationSec || h.positionSec || 0), 0);
-    return { favs: favorites.length, hist: history.length, done, minutes: Math.round(secs / 60) };
-  }, [favorites.length, history]);
+    return { favs: favorites.length, hist: history.length, done, seconds: validatedSeconds };
+  }, [favorites.length, history, validatedSeconds]);
 
   const initial = (user?.name || user?.email || 'N').trim().charAt(0).toUpperCase();
   const tag = user?.id ? '#' + user.id.replace(/-/g, '').slice(0, 6) : '';
@@ -93,8 +102,8 @@ export function Profile() {
           <span className="ps-lab">riwayat</span>
         </div>
         <div className="prof-stat">
-          <span className="ps-val">{stats.minutes}</span>
-          <span className="ps-lab">menit</span>
+          <span className="ps-val" title={formatWatchDuration(stats.seconds)}>{formatWatchDuration(stats.seconds)}</span>
+          <span className="ps-lab">durasi</span>
         </div>
       </div>
 

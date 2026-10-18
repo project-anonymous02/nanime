@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mergeCards, mergeCardsAsync, scoreCard } from '../src/core/services/SearchEngine';
+import { pickArtwork } from '../src/core/services/Catalog';
 import type { Card } from '../src/core/types';
 
 const card = (over: Partial<Card> = {}): Card => ({
@@ -39,6 +40,13 @@ describe('scoreCard — skor kecocokan 0–1000', () => {
 });
 
 describe('mergeCards — satu judul = satu kartu kanonik', () => {
+  it('memisahkan film dari serial dengan judul sama', () => {
+    const out = mergeCards([
+      card({ provider: 'a', title: 'Bleach', type: 'TV' }),
+      card({ provider: 'b', title: 'Bleach', type: 'Movie' })
+    ]);
+    expect(out).toHaveLength(2);
+  });
   it('judul sama dari beberapa penyedia digabung, wakil = prioritas tertinggi', () => {
     const out = mergeCards(
       [
@@ -105,5 +113,14 @@ describe('mergeCards — satu judul = satu kartu kanonik', () => {
     );
     expect(out[0].title).toBe('Bleach');
     expect(out[0].score1000).toBeGreaterThan(out[1].score1000);
+  });
+});
+
+describe('artwork detail', () => {
+  it('mempertahankan artwork pencarian ketika detail mengembalikan URL rusak', () => {
+    expect(pickArtwork('not-a-url', 'https://cdn.test/search-poster.jpg', 'https://cdn.test/detail.jpg')).toBe('https://cdn.test/search-poster.jpg');
+  });
+  it('menerima URL relatif hanya ketika memiliki base yang valid', () => {
+    expect(pickArtwork('/poster.jpg', 'https://cdn.test/poster.jpg')).toBe('https://cdn.test/poster.jpg');
   });
 });

@@ -11,6 +11,7 @@ import { toast } from '../state/ui';
 import { Icon } from '../ui/icons';
 import { Sheet, SheetItem } from '../ui/Sheet';
 import { watchPath } from '../lib/nav';
+import { endWatchSession, heartbeatWatchSession, startWatchSession } from '../lib/watchSession';
 
 /**
  * GlobalPlayer — SATU elemen `<video>` persisten untuk seluruh aplikasi.
@@ -182,6 +183,7 @@ export function GlobalPlayer() {
   } | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchRef = useRef<{ d0: number; w0: number } | null>(null);
+  const watchSessionRef = useRef<{ id: string; key: string } | null>(null);
 
   useEffect(() => {
     let wasFullscreen = false;
@@ -195,6 +197,12 @@ export function GlobalPlayer() {
     };
     document.addEventListener('fullscreenchange', sync);
     document.addEventListener('webkitfullscreenchange', sync as EventListener);
+    const onFullscreenError = () => {
+      setFullscreen(false);
+      toast('Tidak dapat membuka layar penuh pada WebView ini', 'err');
+    };
+    document.addEventListener('fullscreenerror', onFullscreenError);
+    document.addEventListener('webkitfullscreenerror', onFullscreenError as EventListener);
     window.addEventListener('resize', sync);
     const video = videoRef.current;
     video?.addEventListener('webkitbeginfullscreen', sync);
@@ -202,6 +210,8 @@ export function GlobalPlayer() {
     return () => {
       document.removeEventListener('fullscreenchange', sync);
       document.removeEventListener('webkitfullscreenchange', sync as EventListener);
+      document.removeEventListener('fullscreenerror', onFullscreenError);
+      document.removeEventListener('webkitfullscreenerror', onFullscreenError as EventListener);
       window.removeEventListener('resize', sync);
       video?.removeEventListener('webkitbeginfullscreen', sync);
       video?.removeEventListener('webkitendfullscreen', sync);
@@ -212,6 +222,47 @@ export function GlobalPlayer() {
   const stream = session?.stream || null;
   const isVideo = !!playUrl && isVideoUrl(playUrl);
   const title = session?.title || '';
+
+  // A player session is the only source of trusted watch time. The client
+  // never sends a duration; the database function derives bounded deltas from
+  // server timestamps and the current authenticated user.
+  useEffect(() => {
+    let disposed = false;
+    if (!signedIn || !session || !sessionKey) return undefined;
+    const key = sessionKey;
+    void startWatchSession(session.animeId, session.episode).then(created => {
+      if (!created) return;
+      if (disposed) {
+        void endWatchSession(created.id).catch(() => undefined);
+        return;
+      }
+      watchSessionRef.current = { id: created.id, key };
+    }).catch(error => console.warn('[watch-session] start failed', error));
+    return () => {
+      disposed = true;
+      const active = watchSessionRef.current;
+      if (active?.key === key) {
+        watchSessionRef.current = null;
+        void endWatchSession(active.id).catch(() => undefined);
+      }
+    };
+  }, [signedIn, sessionKey, session?.animeId, session?.episode]);
+
+  useEffect(() => {
+    const tick = () => {
+      const current = watchSessionRef.current;
+      if (!current || current.key !== sessionKey) return;
+      void heartbeatWatchSession(current.id, !usePlayer.getState().playing).catch(error => console.warn('[watch-session] heartbeat failed', error));
+    };
+    const timer = window.setInterval(tick, 15000);
+    return () => window.clearInterval(timer);
+  }, [sessionKey, playing]);
+
+  const heartbeatNow = useCallback((paused: boolean) => {
+    const active = watchSessionRef.current;
+    if (!active || active.key !== sessionKey) return;
+    void heartbeatWatchSession(active.id, paused).catch(error => console.warn('[watch-session] heartbeat failed', error));
+  }, [sessionKey]);
 
   const neighbors = useMemo(
     () => (session ? episodeNeighbors(session.episodes, session.episode) : {}),
@@ -809,9 +860,9 @@ export function GlobalPlayer() {
     const active = doc.fullscreenElement || doc.webkitFullscreenElement || video?.webkitDisplayingFullscreen;
     try {
       if (active) {
-        if (document.exitFullscreen) await document.exitFullscreen();
+        if (video?.webkitDisplayingFullscreen) video.webkitExitFullscreen?.();
+        else if (document.exitFullscreen) await document.exitFullscreen();
         else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
-        else if (video?.webkitDisplayingFullscreen) video.webkitExitFullscreen?.();
         (screen.orientation as ScreenOrientation & { unlock?: () => void } | undefined)?.unlock?.();
         return;
       }
@@ -950,8 +1001,8 @@ export function GlobalPlayer() {
               onLoadedMetadata={onLoadedMetadata}
               onTimeUpdate={onTimeUpdate}
               onProgress={onProgress}
-              onPlay={() => usePlayer.getState().setPlaying(true)}
-              onPause={() => usePlayer.getState().setPlaying(false)}
+              onPlay={() => { usePlayer.getState().setPlaying(true); heartbeatNow(false); }}
+              onPause={() => { usePlayer.getState().setPlaying(false); heartbeatNow(true); }}
               onEnded={onEnded}
               onError={onMediaError}
             />

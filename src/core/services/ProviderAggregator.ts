@@ -32,6 +32,15 @@ const DAY_KEYS = [
   ['sabtu', 'saturday', 'sat']
 ];
 
+export interface ProviderMetric { provider: string; operation: 'search' | 'home' | 'schedule'; ms: number; ok: boolean; count: number; cache?: 'hit' | 'miss' }
+const metrics: ProviderMetric[] = [];
+export function providerMetrics(): ProviderMetric[] { return metrics.slice(-200); }
+function recordMetric(metric: ProviderMetric): void { metrics.push(metric); if (metrics.length > 200) metrics.splice(0, metrics.length - 200); }
+
+function isMovieCard(card: Card): boolean {
+  return /movie|film|gekijouban|the movie/i.test(`${card.type || ''} ${card.title || ''} ${card.sub || ''}`);
+}
+
 /** Indeks hari (0=Minggu … 6=Sabtu) dari nama hari apa pun; -1 bila tak dikenali. */
 export function dayIndex(raw: string): number {
   const s = String(raw || '').toLowerCase();
@@ -85,14 +94,25 @@ export const ProviderAggregator = {
     const timeout = opts.timeout || 12000;
     const providers = searchProviders().slice(0, opts.max || 99);
 
-    const settled = await Promise.allSettled(
-      providers.map(p =>
-        withTimeout(
-          CacheManager.search(p.id, q, () => p.search(q)),
-          timeout
-        ).then(items => ({ p, items }))
-      )
-    );
+    const settled: PromiseSettledResult<{ p: AnimeProvider; items: Card[] }>[] = new Array(providers.length);
+    let cursor = 0;
+    const worker = async () => {
+      for (;;) {
+        const index = cursor++;
+        if (index >= providers.length) return;
+        const p = providers[index];
+        try {
+          const started = performance.now();
+          const items = await withTimeout(CacheManager.search(p.id, q, () => p.search(q)), timeout);
+          settled[index] = { status: 'fulfilled', value: { p, items } };
+          recordMetric({ provider: p.id, operation: 'search', ms: Math.round(performance.now() - started), ok: true, count: items.length });
+        } catch (reason) {
+          settled[index] = { status: 'rejected', reason };
+          recordMetric({ provider: p.id, operation: 'search', ms: timeout, ok: false, count: 0 });
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(6, Math.max(1, providers.length)) }, worker));
 
     return settled.map((r, i) => {
       const p = providers[i];
@@ -132,7 +152,9 @@ export const ProviderAggregator = {
     const deadline = opts.deadline ?? 10000;
     const concurrency = opts.concurrency ?? 8;
     const providers = allProviders()
-      .filter(p => p.active && !p.downloadOnly)
+      // Download/catalog providers are included for film discovery. Their
+      // links remain download-only and are never treated as playback streams.
+      .filter(p => p.active)
       .sort((a, b) => a.priority - b.priority);
 
     const results: Array<{ p: AnimeProvider; ok: boolean; data?: Awaited<ReturnType<AnimeProvider['home']>>; error?: string }> =
@@ -153,12 +175,13 @@ export const ProviderAggregator = {
             ...c,
             provider: c.provider || p.id
           }));
-          if (p.movieOnly) movie.push(...(d.movie || items));
+          const movieItems = p.downloadOnly ? items : (d.movie || []).concat(items.filter(isMovieCard));
+          if (p.movieOnly || p.downloadOnly) movie.push(...movieItems);
           else if (p.content === 'donghua') donghua.push(...items);
           else {
-            newUpdate.push(...(d.ongoing || []));
-            completed.push(...(d.completed || []));
-            movie.push(...(d.movie || []));
+            newUpdate.push(...(d.ongoing || []).filter(c => !isMovieCard(c)));
+            completed.push(...(d.completed || []).filter(c => !isMovieCard(c)));
+            movie.push(...movieItems);
           }
           markHealth(p.id, true);
           sources.push({ id: p.id, ok: true, count: (d.ongoing || []).length + (d.completed || []).length, items: [] });
@@ -173,14 +196,17 @@ export const ProviderAggregator = {
     // Maksimal `concurrency` scraping serentak — urutan prioritas dipertahankan.
     const running = runPool(providers, concurrency, async p => {
       const i = providers.indexOf(p);
+      const started = performance.now();
       try {
         const data = await withTimeout(
           CacheManager.home(p.id, () => p.home()),
           timeout
         );
         results[i] = { p, ok: true, data };
+        recordMetric({ provider: p.id, operation: 'home', ms: Math.round(performance.now() - started), ok: true, count: (data.ongoing?.length || 0) + (data.completed?.length || 0) + (data.movie?.length || 0) });
       } catch (e) {
         results[i] = { p, ok: false, error: String((e as Error)?.message || e) };
+        recordMetric({ provider: p.id, operation: 'home', ms: timeout, ok: false, count: 0 });
       }
       const result = results[i];
       if (result?.ok && result.data &&

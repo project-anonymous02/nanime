@@ -61,6 +61,22 @@ describe('TitleIndex — peta kanonik → sumber', () => {
     expect(e!.sources[0].episodes).toHaveLength(1);
   });
 
+  it('upsert kosong tidak menghapus poster hasil pencarian', async () => {
+    await TitleIndex.upsert({
+      id: 'artwork-preserve',
+      title: 'Artwork Preserve',
+      poster: 'https://cdn.test/search.jpg',
+      sources: [{ provider: 'a', id: 'a1', slug: 'artwork-preserve' }]
+    });
+    await TitleIndex.upsert({
+      id: 'artwork-preserve',
+      title: 'Artwork Preserve',
+      poster: '',
+      sources: [{ provider: 'a', id: 'a1', slug: 'artwork-preserve' }]
+    });
+    expect((await TitleIndex.get('artwork-preserve'))?.poster).toBe('https://cdn.test/search.jpg');
+  });
+
   it('setEpisodes menempel ke penyedia yang tepat & aman untuk penyedia asing', async () => {
     await TitleIndex.upsert({
       id: 'naruto',

@@ -99,9 +99,20 @@ export const TitleIndex = {
         updatedAt: Date.now()
       });
     });
+    const text = (next: unknown, old: unknown): string | undefined => {
+      const value = String(next || '').trim();
+      return value || (String(old || '').trim() || undefined);
+    };
     const merged: IndexedEntry = {
       ...prev,
       ...entry,
+      // Provider refreshes frequently omit artwork/metadata. An empty field
+      // must never erase a validated value already learned from search.
+      poster: text(entry.poster, prev?.poster),
+      score: text(entry.score, prev?.score),
+      type: text(entry.type, prev?.type),
+      status: text(entry.status, prev?.status),
+      year: text(entry.year, prev?.year),
       updatedAt: Date.now(),
       sources: Array.from(sources.values())
     };

@@ -23,6 +23,10 @@ export const profile = {
     if (!sb) return;
     // The connected project uses `id`/`username`; keep this write compatible
     // with that schema and never allow client supplied rank fields.
-    await sb.from('profiles').upsert({ id: userId, username: info.name || 'Pengguna', avatar_url: info.avatar }, { onConflict: 'id' });
+    const { data: existing } = await sb.from('profiles').select('username,avatar_url').eq('id', userId).maybeSingle();
+    const username = String((existing as any)?.username || info.name || '').trim();
+    const row: Record<string, unknown> = { id: userId, avatar_url: info.avatar || (existing as any)?.avatar_url || null };
+    if (username) row.username = username;
+    await sb.from('profiles').upsert(row, { onConflict: 'id' });
   }
 };

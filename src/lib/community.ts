@@ -9,7 +9,11 @@ export interface ReplyRow { id: string; discussion_id: string; user_id: string; 
 
 async function profiles(ids: string[]): Promise<Map<string, CommunityProfile>> {
   const sb = getClient(); const out = new Map<string, CommunityProfile>(); if (!sb || !ids.length) return out;
-  const { data } = await sb.from('profiles').select('id,username,avatar_url,is_developer,watch_seconds,rank').in('id', [...new Set(ids)]);
+  // `rank` is a PostgreSQL ordered-set function name and PostgREST treats an
+  // explicit select of it as an aggregate expression. Compute the display tier
+  // from the trusted seconds/developer columns instead.
+  const { data, error } = await sb.from('profiles').select('id,username,avatar_url,is_developer,watch_seconds').in('id', [...new Set(ids)]);
+  if (error) throw error;
   for (const p of (data || []) as any[]) { const seconds = Number(p.watch_seconds) || 0; out.set(p.id, { id: p.id, username: p.username || p.display_name || 'Pengguna', avatar_url: p.avatar_url || null, is_developer: !!p.is_developer, watch_seconds: seconds, rank: rankFor(seconds, !!p.is_developer) }); }
   return out;
 }
@@ -21,3 +25,10 @@ export async function createDiscussion(title: string, content: string): Promise<
 export async function listReplies(discussionId: string): Promise<ReplyRow[]> { const sb = getClient(); if (!sb) return []; const { data, error } = await sb.from('discussion_replies').select('*').eq('discussion_id', discussionId).order('created_at'); if (error) throw error; const rows = (data || []) as ReplyRow[]; const ps = await profiles(rows.map(x => x.user_id)); return rows.map(x => ({ ...x, profile: ps.get(x.user_id) })); }
 export async function createReply(discussionId: string, content: string): Promise<void> { const sb = getClient(); const uid = currentUserId(); if (!sb || !uid) throw new Error('Login diperlukan'); const text = content.trim(); if (!text || text.length > 2000) throw new Error('Balasan tidak valid'); const { error } = await sb.from('discussion_replies').insert({ discussion_id: discussionId, user_id: uid, content: text }); if (error) throw error; }
 export async function leaderboard(): Promise<CommunityProfile[]> { const sb = getClient(); if (!sb) return []; const { data, error } = await sb.from('nanime_leaderboard').select('*').order('watch_seconds', { ascending: false }).limit(100); if (error) throw error; return ((data || []) as any[]).map(p => ({ id: p.id, username: p.username || 'Pengguna', avatar_url: p.avatar_url || null, is_developer: !!p.is_developer, watch_seconds: Number(p.watch_seconds) || 0, rank: rankFor(Number(p.watch_seconds) || 0, !!p.is_developer) })); }
+
+export function formatWatchDuration(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${hours} jam ${minutes} menit ${seconds % 60} detik`;
+}

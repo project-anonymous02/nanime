@@ -85,6 +85,7 @@ interface Group {
   sources: Map<string, SourceRef>;
   similarityKey: string;
   alias: string;
+  kind: string;
 }
 
 function toSourceRef(card: Card): SourceRef {
@@ -111,10 +112,22 @@ interface PreparedCard {
   alias: string;
   similarityKey: string;
   match: number;
+  kind: string;
+}
+
+function contentKind(card: Card): string {
+  const value = `${card.type || ''} ${card.sub || ''} ${card.title || ''}`.toLowerCase();
+  if (/movie|film|gekijouban|the movie|ova|special/.test(value)) {
+    if (/ova/.test(value)) return 'ova';
+    if (/special/.test(value)) return 'special';
+    return 'movie';
+  }
+  return 'series';
 }
 
 /** Aturan penggabungan dua judul; kandidat sudah dipersempit lewat indeks. */
 function canMerge(g: Group, card: PreparedCard): boolean {
+  if (card.kind !== g.kind) return false;
   if (card.canonical && card.canonical === g.canonical) return true;
 
   /* Musim eksplisit tidak boleh tercampur musim lain / tanpa musim. */
@@ -179,7 +192,8 @@ function createMergeContext(query: string): MergeContext {
       marked: hasSeasonMarker(card.title),
       alias: aliasKey(split.base || card.title),
       similarityKey: normalizeTitle(fullNorm(card.title)),
-      match: query ? matchScore(query, card.title) : 0
+      match: query ? matchScore(query, card.title) : 0,
+      kind: contentKind(card)
     };
 
     // A title only needs comparison with exact, alias, or fuzzy-neighbour
@@ -218,7 +232,8 @@ function createMergeContext(query: string): MergeContext {
         match: prepared.match,
         sources: new Map(),
         similarityKey: prepared.similarityKey,
-        alias: prepared.alias
+        alias: prepared.alias,
+        kind: prepared.kind
       };
       groups.push(group);
       groupIndex = groups.length - 1;

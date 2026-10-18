@@ -26,6 +26,14 @@ describe('community data boundaries', () => {
     expect(JSON.stringify(mocks.rpc.mock.calls)).not.toContain('email');
   });
 
+  it('keeps public posts visible with initials fallback when the profile RPC is not deployed', async () => {
+    mocks.from.mockReturnValue(queryChain({ data: [{ id: 'post-2', user_id: 'user-2', title: 'Tetap tampil', content: 'Isi', created_at: '2026-01-01', updated_at: '2026-01-01' }], error: null }));
+    mocks.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'RPC missing' } });
+    const rows = await listDiscussions();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].profile).toBeUndefined();
+  });
+
   it('ranks by trusted app usage and does not select watch time or private profile data', async () => {
     const query = queryChain({ data: [{ id: 'user-1', username: 'Aiko', avatar_url: null, is_developer: false, rank: 'bronze', app_usage_seconds: 240 }], error: null });
     mocks.from.mockReturnValue(query);

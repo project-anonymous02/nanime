@@ -34,10 +34,11 @@ export function Profile() {
 
   const [tab, setTab] = useState<'fav' | 'hist'>('hist');
   const [photo, setPhoto] = useState(false);
-  const [validatedSeconds, setValidatedSeconds] = useState(0);
+  const [validatedSeconds, setValidatedSeconds] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
+    setValidatedSeconds(null);
     if (user?.id) void ownAppUsageSeconds().then(seconds => {
       if (alive) setValidatedSeconds(seconds);
     }).catch(() => undefined);
@@ -102,7 +103,7 @@ export function Profile() {
           <span className="ps-lab">riwayat</span>
         </div>
         <div className="prof-stat">
-          <span className="ps-val" title={formatWatchDuration(stats.seconds)}>{formatWatchDuration(stats.seconds)}</span>
+          <span className="ps-val" title={stats.seconds == null ? 'Data penggunaan belum tersedia' : formatWatchDuration(stats.seconds)}>{stats.seconds == null ? '—' : formatWatchDuration(stats.seconds)}</span>
           <span className="ps-lab">penggunaan</span>
         </div>
       </div>

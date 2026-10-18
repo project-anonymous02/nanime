@@ -12,7 +12,9 @@ async function profiles(ids: string[]): Promise<Map<string, CommunityProfile>> {
   // RPC returns only the public presentation fields, so RLS can keep raw
   // profile rows (including email) private from other community members.
   const { data, error } = await sb.rpc('get_public_profiles', { p_user_ids: [...new Set(ids)] });
-  if (error) throw error;
+  // Keep public content readable while a new RPC migration is pending or
+  // temporarily unavailable; the UI will render its initials placeholder.
+  if (error) return out;
   for (const p of (data || []) as any[]) { const developer = !!p.is_developer; const rank = developer ? 'developer' : ['bronze', 'silver', 'gold', 'platinum', 'diamond'].includes(p.rank) ? p.rank as RankTier : 'bronze'; out.set(p.id, { id: p.id, username: p.username || 'Pengguna', avatar_url: p.avatar_url || null, is_developer: developer, app_usage_seconds: 0, rank }); }
   return out;
 }

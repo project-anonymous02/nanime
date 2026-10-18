@@ -152,6 +152,9 @@ export const ProviderAggregator = {
     if (deadlineTimer) clearTimeout(deadlineTimer);
     if (abortListener) opts.signal?.removeEventListener('abort', abortListener);
     publishing = false;
+    // A canceled query is not a provider failure and must not poison health
+    // state based on requests that the caller no longer needs.
+    if (opts.signal?.aborted) return [];
     const snapshot = settled.map((result, index) => result || ({ status: 'rejected', reason: new Error('deadline') } as const));
 
     return snapshot.map((r, i) => {

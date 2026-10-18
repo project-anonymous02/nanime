@@ -6,8 +6,8 @@ import { useAuth } from '../state/auth';
 
 const HEARTBEAT_MS = 20_000;
 
-function isForegroundActive(nativeActive: boolean): boolean {
-  return nativeActive && document.visibilityState === 'visible' && document.hasFocus();
+function isForegroundActive(nativeActive: boolean, nativeApp: boolean): boolean {
+  return nativeActive && document.visibilityState === 'visible' && (nativeApp || document.hasFocus());
 }
 
 /** Trusted server-time app usage; this is intentionally independent of playback sessions. */
@@ -20,6 +20,7 @@ export function AppUsageTracker() {
     const nativeApp = Capacitor.isNativePlatform();
     let nativeActive = !nativeApp;
     let sessionId: string | null = null;
+    let starting = false;
     let stopped = false;
     let appListener: Awaited<ReturnType<typeof App.addListener>> | null = null;
     let operations = Promise.resolve();
@@ -27,18 +28,22 @@ export function AppUsageTracker() {
       operations = operations.then(operation).catch(() => undefined);
     };
     const heartbeat = () => {
-      if (!sessionId || stopped) return;
-      const active = isForegroundActive(nativeActive);
+      if (stopped) return;
+      if (!sessionId) { void start().catch(() => undefined); return; }
+      const active = isForegroundActive(nativeActive, nativeApp);
       enqueue(async () => {
         if (!sessionId || stopped) return;
         await client.rpc('record_app_usage_heartbeat', { p_session_id: sessionId, p_active: active });
       });
     };
     const start = async () => {
+      if (stopped || sessionId || starting) return;
+      starting = true;
+      try {
       if (nativeApp) {
         try { nativeActive = (await App.getState()).isActive; } catch { nativeActive = false; }
       }
-      const { data, error } = await client.rpc('start_app_usage_session', { p_active: isForegroundActive(nativeActive) });
+      const { data, error } = await client.rpc('start_app_usage_session', { p_active: isForegroundActive(nativeActive, nativeApp) });
       if (error || !data) return;
       sessionId = String(data);
       if (stopped) {
@@ -46,6 +51,9 @@ export function AppUsageTracker() {
         return;
       }
       heartbeat();
+      } finally {
+        starting = false;
+      }
     };
     const onActivityState = () => heartbeat();
     if (nativeApp) {
@@ -74,7 +82,7 @@ export function AppUsageTracker() {
       if (appListener) void appListener.remove();
       void operations.finally(async () => {
         if (sessionId) {
-          await client.rpc('record_app_usage_heartbeat', { p_session_id: sessionId, p_active: isForegroundActive(nativeActive) });
+          await client.rpc('record_app_usage_heartbeat', { p_session_id: sessionId, p_active: isForegroundActive(nativeActive, nativeApp) });
           await client.rpc('end_app_usage_session', { p_session_id: sessionId });
         }
       }).catch(() => undefined);

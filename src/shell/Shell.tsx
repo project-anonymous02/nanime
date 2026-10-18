@@ -15,11 +15,11 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { to: '/home', icon: 'home', label: 'Beranda' },
+  { to: '/home', icon: 'home', label: 'Home' },
   { to: '/schedule', icon: 'calendar', label: 'Jadwal' },
-  { to: '/favorites', icon: 'film', label: 'Subscribed' },
-  { to: '/history', icon: 'clock', label: 'Riwayat' },
-  { to: '/community', icon: 'chart', label: 'SocialLine' }
+  { to: '/favorites', icon: 'subscribed', label: 'Subscribed' },
+  { to: '/history', icon: 'history', label: 'Riwayat' },
+  { to: '/community', icon: 'socialLine', label: 'SocialLine' }
 ];
 
 function isActive(pathname: string, item: NavItem): boolean {
@@ -49,11 +49,13 @@ function BottomNav() {
 export function Shell({ children }: { children: ReactNode }) {
   useScrollGuard();
   const { pathname } = useLocation();
-  const mainTab = ['/home', '/schedule', '/favorites', '/history', '/community', '/profile'].includes(pathname);
+  // Only the five primary AniBiPlay tabs show the bottom navigation. Profile,
+  // detail, settings, and chat are pushed screens in the source app.
+  const mainTab = ['/home', '/schedule', '/favorites', '/history', '/community'].includes(pathname);
   return (
     <div className="app-shell">
       <AppUsageTracker />
-      <main className="app-main">
+      <main className={'app-main' + (pathname === '/public-chat' ? ' public-chat-main' : '')}>
         <div className="page" key={pathname}>
           {children}
         </div>

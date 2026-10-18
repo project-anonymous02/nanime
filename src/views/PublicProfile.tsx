@@ -6,6 +6,7 @@ import { Icon } from '../ui/icons';
 import { CommunityAvatar } from '../ui/CommunityAvatar';
 import { sendFriendRequest } from '../lib/friends';
 import { loadPublicAffinities, type AffinityBond } from '../lib/affinity';
+import { AffinityMark } from '../ui/AffinityMark';
 
 type PublicPerson = { id: string; username: string; avatar_url: string | null; is_developer: boolean; rank: string };
 
@@ -59,7 +60,7 @@ export function PublicProfile() {
       <section className="public-profile-card"><div className="public-profile-banner" /><div className="public-profile-info"><CommunityAvatar name={person.username} src={person.avatar_url || undefined} /><div><h2>{person.username}</h2><p>{person.is_developer ? '#1 · Developer · Level 9999' : `#${person.id.replace(/-/g, '').slice(0, 8)} · Rank ${person.rank}`}</p></div></div>{person.is_developer ? <span className="community-badge developer-chip">Developer · Lvl. 9999</span> : null}
         {relation === 'self' ? <button type="button" className="community-submit" onClick={() => navigate('/profile')}>Buka profil saya</button> : relation === 'friend' ? <button type="button" className="community-submit" onClick={() => navigate(`/friends/${person.id}`)}><Icon name="chat" size={15} /> Kirim pesan</button> : relation === 'none' ? <button type="button" className="community-submit" disabled={busy} onClick={() => void addFriend()}><Icon name="user" size={15} /> {busy ? 'Mengirim…' : 'Tambah teman'}</button> : <span className="public-profile-status">{relation === 'incoming' ? 'Permintaan teman menunggu jawaban di Teman' : 'Permintaan teman terkirim'}</span>}
       </section>
-      {affinities.length ? <section className="affinity-public-card"><div className="games-section-head"><div><h2>Ikatan Afinitas</h2><p>Ikatan yang dibagikan oleh akun ini.</p></div></div>{affinities.map(bond => <div className="affinity-public-row" key={bond.id}><CommunityAvatar name={bond.person?.username || 'Teman'} src={bond.person?.avatar_url} /><div><strong>{bond.person?.username || 'Teman Nanime'}</strong><span>{bond.tier === 'partner' ? 'Pasangan' : bond.tier === 'bros' ? 'Saudara' : bond.tier === 'besties' ? 'Sahabat' : 'Confidant'} · Level {bond.level || 1}</span></div><b>{bond.xp} XP</b></div>)}</section> : null}
+      {affinities.length ? <section className="affinity-public-card"><div className="games-section-head"><div><h2>Ikatan Afinitas</h2><p>Ikatan yang dibagikan oleh akun ini.</p></div></div>{affinities.map(bond => <div className="affinity-public-row" key={bond.id}><CommunityAvatar name={bond.person?.username || 'Teman'} src={bond.person?.avatar_url} /><AffinityMark tier={bond.tier} size={24} active /><div><strong>{bond.person?.username || 'Teman Nanime'}</strong><span>{bond.tier === 'partner' ? 'Pasangan' : bond.tier === 'bros' ? 'Saudara' : bond.tier === 'besties' ? 'Sahabat' : 'Confidant'} · Level {bond.level || 1}</span></div><b>{bond.xp} XP</b></div>)}</section> : null}
       <section className="community-state-card public-profile-private"><Icon name="shield" /><strong>Aktivitas privat</strong><span>Favorit dan riwayat tontonan hanya terlihat oleh pemilik akun.</span></section>
     </>}
   </main>;

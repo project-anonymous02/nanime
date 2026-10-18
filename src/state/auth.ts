@@ -19,6 +19,7 @@ export interface AuthUser {
   email: string | null;
   name: string | null;
   avatar: string | null;
+  createdAt?: string;
 }
 
 interface AuthStore {
@@ -83,7 +84,8 @@ async function applySession(session: { user?: any } | null): Promise<void> {
     id: u.id,
     email: (u.email as string) || null,
     name: (meta.full_name || meta.name || meta.preferred_username || null) as string | null,
-    avatar: (meta.avatar_url || meta.picture || null) as string | null
+    avatar: (meta.avatar_url || meta.picture || null) as string | null,
+    createdAt: typeof u.created_at === 'string' ? u.created_at : undefined
   };
   const changed = lastUserId !== user.id;
   lastUserId = user.id;

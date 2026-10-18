@@ -56,7 +56,7 @@
   --tap: 48px;
 
   /* ── Tipografi ── */
-  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font: 'AniBiRoboto', Roboto, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --fs-hero: 42px;
   --fs-title: 32px;
   --fs-card: 15px;

@@ -98,7 +98,7 @@
 - Ikon header: 44–48 px, putih.
 
 ### Tipografi
-- Body/UI: sans-serif standar Android (Roboto) — di web pakai **Inter**.
+- Body/UI: Roboto dari resource APK dipasang lokal di Nanime (tanpa CDN).
 - Display onboarding ("WELCOME", "SIAP MULAI"): font rounded chunky tebal (custom), warna putih/gold, ±110 px.
 
 ### Gerak/animasi (terlihat & konvensi)
@@ -265,6 +265,18 @@ menyimpan nama paket/layar dan DTO aplikasi berada di
   dan status playback. Player langsung Nanime menyinkronkan posisi/status lewat
   Supabase Realtime dengan polling cadangan. Iframe sematan tidak dapat
   dikendalikan lintas origin dan menampilkan status keterbatasannya.
+- Public Chat juga merupakan fitur terpisah dari SocialLine. Route `public-chat`,
+  `PublicChatChannelDto` (`id`, `slug`, `name`, `sortOrder`), endpoint
+  `public-chat/channels`, dan event Socket.IO `chat:public:join`,
+  `chat:public:history:request`, `chat:channel:join`,
+  `chat:channel:history:request`, `chat:channel:message:send`,
+  `chat:channel:message:new`, `chat:channel:message:delete`, serta
+  `chat:giveaway:claim` membuktikan kanal, histori, kirim/hapus, dan giveaway.
+  Nanime kini memisahkan SocialLine (`/community`) dari `/public-chat`; migrasi
+  add-only `014_public_chat.sql` membuat kanal Umum dan pesan dengan RLS,
+  balasan, penghapusan pesan milik sendiri, dan Supabase Realtime. Giveaway
+  tidak dipalsukan karena ekonomi hadiah dan kontrak klaim AniBiPlay tidak cocok
+  dengan model Nanime yang membuka semua fitur secara gratis.
 - AniBiGames jauh lebih luas dari game tunggal: konstanta endpoint terdekompilasi
   mencakup `/anibi-games`, clan, role, view clan, join request, activity,
   treasury shop, gacha, colors, banners, wallpaper gacha, avatar decorations,
@@ -286,7 +298,9 @@ menyimpan nama paket/layar dan DTO aplikasi berada di
   pada profil publik. Slot tier 1/4/4/5 berasal dari `defpackage/dd.java`;
   nominal XP Nanime sengaja konfigurasi baru sebab angka runtime AniBiPlay tidak
   ada di dekompilasi lokal. Migrasi add-only `012_affinity_bonds.sql` belum
-  diterapkan pada Supabase. `defpackage/i03.java` hanya mencatat `AniPetZoo`,
+  diterapkan pada Supabase. Delapan ikon `affinity_{pasangan,sahabat,saudara,
+  confidant}` dan variasi `_up` APK kini dipakai pada kartu ikatan, leaderboard,
+  dan profil publik Nanime. `defpackage/i03.java` hanya mencatat `AniPetZoo`,
   sementara APK mengungkap ilustrasi naga `anipetzoo_dragon_red.png`. DTO
   `AnnouncementFeaturesDto`/`defpackage/wu.java` menambah bukti bahwa
   `herocard_anipetzoo` adalah flag server untuk item carousel beranda; tidak ada
@@ -547,16 +561,16 @@ episode yang sama. Migrasi aditifnya ada di `supabase/migrations/007_watch_parti
 
 ## 15. CATATAN ADAPTASI KE NANIME
 
-Beberapa fitur di referensi tidak ada datanya di Nanime; pertahankan **posisi & gaya visual**, ganti isi:
+Pemetaan yang berlaku setelah implementasi terbaru:
 | Referensi | Nanime |
 |-----------|--------|
-| Lencana pengguna: XP, Lvl, rank | **hilangkan** atau pakai statistik riwayat (jumlah tonton, menit) |
-| Crystal / AniGames / Beli Premium | **ganti** jadi kartu ajakan "Lanjutkan Menonton" / info aplikasi |
-| TOP LEADERBOARD / GIVEAWAY | **ganti** jadi carousel "Top Anime Mingguan" (data rating/views ada) |
-| Public Diskusi (server chat) | **ganti** jadi banner info statis atau hapus |
+| Lencana pengguna: XP, Lvl, rank | Gunakan statistik riwayat pada akun biasa; rank Developer/email terverifikasi tampil sebagai Developer Lvl. 9999 dan #1. Artwork rank APK digunakan di profil/komunitas. |
+| Crystal / AniGames / Beli Premium | Crystal dan AniGames Nanime tetap tersedia; CTA premium diganti CTA gratis pada posisi/kartu yang sama. Tidak ada transaksi uang atau premium gate. |
+| TOP LEADERBOARD / GIVEAWAY | Peringkat aktivitas dan afinitas mengambil data Supabase Nanime; kartu anime mengambil katalog nyata. Slide giveaway belum direkonstruksi karena belum ada ekonomi giveaway Nanime. |
+| Public Diskusi (server chat) | Teaser membuka halaman Public Chat realtime Nanime; SocialLine tetap tersedia terpisah. |
 | Subscribed | pakai **favorit**. Riwayat & favorit sudah ada di Supabase |
-| SocialLine | **ganti** jadi halaman Profil (tab statistik sederhana) |
-| Komentar | tidak ada data komentar → hilangkan seksi komentar |
+| SocialLine | Halaman Community/Diskusi Nanime, terpisah dari chat publik. |
+| Komentar | Komentar dan balasan satu tingkat disediakan lewat Supabase Nanime. |
 | Bantu Admin / Download / Report | sesuaikan: Report → laporkan link rusak, Download → buka web |
 | Kualitas 1080p Premium | pakai 1080p/720p/480p/360p apa adanya (tanpa label Premium) |
 | Versi "AnibiPlay v1.4.9 (47)" | `Nanime v…` sesuai versi repo |
@@ -570,14 +584,17 @@ ikon bukan emoji, logo `public/logo.jpg`, dan video tidak pernah hilang (mini pl
 
 - Rute React saat ini mencakup Home, Search, Schedule, Favorites/Subscribed,
   History, Profile/Public Profile, Settings, Notifications, Community,
-  Friends/DM, Affinity, Watch Party, Nanime Games, Detail, serta OAuth callback.
+  Public Chat, Anime Ranking, User Leaderboard, Friends/DM, Affinity, Watch
+  Party, Nanime Games, Detail, serta OAuth callback.
 - Navigasi bawah sekarang hanya dirender pada tab utama. Detail anime, pengaturan,
   notifikasi, profil publik, chat, Games, Afinitas, dan Nobar tidak menampilkan
   bottom nav seperti layar non-tab pada referensi.
 - Pengelolaan Supabase untuk teman/DM (006), Nobar (007), Games/clan (008),
   reply komentar (009), chat clan (010), kosmetik clan (011), Afinitas (012),
   dan role/pesan developer (013) tersedia sebagai migration aditif. Migration
-  006–013 belum diterapkan di proyek Supabase produksi.
+  Public Chat (014) menambah tabel kanal/pesan, RLS baca/kirim/hapus pesan
+  sendiri, reply-to dalam kanal yang sama, dan Realtime. Migration 006–014
+  belum diterapkan di proyek Supabase produksi.
 - Migration 013 menetapkan badge developer dari email Auth yang sudah
   terkonfirmasi `kusumanata767@gmail.com`, level tampilan 9999 dan rank
   `developer`; ID akun Supabase tetap UUID. `#1` adalah tag UI.
@@ -587,10 +604,13 @@ ikon bukan emoji, logo `public/logo.jpg`, dan video tidak pernah hilang (mini pl
   `herocard_anipetzoo`/label; tidak ditemukan model pet, rute, kontrak API,
   ataupun resource visual. Detail profile cosmetics AniBiPlay juga masih
   sebatas inventaris DTO karena pemanggil endpoint dan artwork tidak tersedia.
-- Cuplikan UI Nanime ada di `screenshot/`, tetapi berkas screenshot asli
-  AniBiPlay yang dirujuk di atas tidak ikut tersedia di workspace. Karena itu
-  belum ada bukti pixel-diff penuh. APK hasil JADX juga tidak memiliki berkas
-  pada direktori `resources`, dan tidak ada emulator Android yang terhubung.
+- Screenshot AniBiPlay tersedia lokal di `/tmp/opencode/test` (47 gambar);
+  drawable APK tersedia di `/tmp/Anibiplay/res/drawable` (69 gambar), termasuk
+  10 aset profile level yang kini dipasang ke Nanime. Screenshot Nanime terbaru
+  belum dibandingkan otomatis dengan seluruh 47 gambar; pixel-diff penuh belum
+  dilakukan. Direktori `resources` di JADX memang kosong, tetapi APK resource
+  hasil ekstraksi berada terpisah di `/tmp/Anibiplay/res`. Tidak ada emulator
+  Android yang terhubung.
 - Kode pembanding source dapat dijalankan lewat `node
   scripts/compare-anibiplay-nanime.mjs`; hasil saat ini ada di
   `ANIBIPLAY_VS_NANIME.md`.

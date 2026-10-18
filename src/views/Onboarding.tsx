@@ -41,7 +41,6 @@ function LoginBlock({
         <br />
         Aplikasi ini tidak mengunggah atau mendistribusikan konten media.
       </p>
-      <p className="ob-dev">Developer: Nata</p>
     </div>
   );
 }

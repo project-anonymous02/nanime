@@ -19,6 +19,7 @@ import { currentAuthUser, useAuth } from '../state/auth';
 import { toast } from '../state/ui';
 import { Icon } from '../ui/icons';
 import { CommunityAvatar } from '../ui/CommunityAvatar';
+import { RankInsignia } from '../ui/RankInsignia';
 import { useNavigate } from 'react-router-dom';
 
 function Identity({ profile, userId }: { profile?: CommunityProfile; userId?: string }) {
@@ -33,7 +34,7 @@ function Identity({ profile, userId }: { profile?: CommunityProfile; userId?: st
       <CommunityAvatar name={name} src={profile?.avatar_url} />
       <span className="community-identity-copy">
         <span className={developer ? 'community-user developer' : 'community-user'}>{name}</span>
-        {rank ? <span className="community-rank" style={developer ? undefined : { color: rank.color }}>{rank.label}</span> : null}
+        {rank ? <span className="community-rank" style={developer ? undefined : { color: rank.color }}><RankInsignia rank={profile!.rank} size={14} />{rank.label}</span> : null}
       </span>
     </button>
   );
@@ -202,7 +203,7 @@ export function Community() {
           {!loading && hasMore && !error ? <button type="button" className="community-load-more" onClick={() => void load(page + 1)} disabled={loading}>Muat diskusi lainnya</button> : null}
         </section>
 
-        <aside className="community-leaderboard"><div className="community-board-heading"><span className="community-board-icon"><Icon name="chart" size={17} /></span><div><h2>Leaderboard</h2><p>Waktu aktif menggunakan Nanime</p></div></div>
+        <aside className="community-leaderboard"><button type="button" className="community-board-heading community-board-link" onClick={() => navigate('/leaderboard')}><span className="community-board-icon"><Icon name="chart" size={17} /></span><div><h2>Leaderboard</h2><p>Waktu aktif menggunakan Nanime</p></div><Icon name="right" size={16} /></button>
           {leaderLoading ? <p className="community-state" role="status">Memuat leaderboard…</p> : null}
           {leaderError ? <div className="community-error" role="alert"><span>{leaderError}</span><button type="button" onClick={() => void load(0, true)}>Coba lagi</button></div> : null}
           {!leaderLoading && leaders.length ? leaders.slice(0, 10).map((profile, index) => <div className="leader-row" key={profile.id}><b className={'leader-position' + (index < 3 ? ` rank-${index + 1}` : '')}>{String(index + 1).padStart(2, '0')}</b><Identity profile={profile} userId={profile.id} /><span className="leader-time">{formatWatchDuration(profile.app_usage_seconds)}</span></div>) : !leaderLoading && !leaderError ? <p className="community-state">Leaderboard belum memiliki data.</p> : null}

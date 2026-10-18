@@ -7,8 +7,9 @@ import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
 import { Sheet } from '../ui/Sheet';
 import { detailPath } from '../lib/nav';
-import { formatWatchDuration, listOwnComments, ownAppUsageSeconds, type OwnCommentRow } from '../lib/community';
+import { countOwnComments, formatWatchDuration, listOwnComments, ownAppUsageSeconds, type OwnCommentRow } from '../lib/community';
 import { isNanimeDeveloper, DEVELOPER_LEVEL, listDeveloperMessages, sendDeveloperMessage, type DeveloperMessage } from '../lib/developer';
+import { RankInsignia } from '../ui/RankInsignia';
 
 /** Profil — banner, statistik, tab Favorit/Histori, dan sheet foto profil ala referensi. */
 
@@ -38,6 +39,7 @@ export function Profile() {
   const [photo, setPhoto] = useState(false);
   const [validatedSeconds, setValidatedSeconds] = useState<number | null>(null);
   const [comments, setComments] = useState<OwnCommentRow[]>([]);
+  const [commentCount, setCommentCount] = useState<number | null>(null);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsError, setCommentsError] = useState(false);
   const [developerMessages, setDeveloperMessages] = useState<DeveloperMessage[]>([]);
@@ -73,13 +75,14 @@ export function Profile() {
     }).finally(() => {
       if (alive) setCommentsLoading(false);
     });
+    void countOwnComments().then(count => { if (alive) setCommentCount(count); }).catch(() => { if (alive) setCommentCount(null); });
     return () => { alive = false; };
   }, [user?.id]);
 
   const stats = useMemo(() => {
-    const done = history.filter(h => h.completed).length;
-    return { favs: favorites.length, hist: history.length, done, seconds: validatedSeconds };
-  }, [favorites.length, history, validatedSeconds]);
+    const months = user?.createdAt ? Math.max(1, Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (30 * 86400000))) : null;
+    return { months, comments: commentCount, hist: history.length, seconds: validatedSeconds };
+  }, [commentCount, history.length, user?.createdAt, validatedSeconds]);
 
   const initial = (user?.name || user?.email || 'N').trim().charAt(0).toUpperCase();
   const tag = developer ? '#1' : user?.id ? '#' + user.id.replace(/-/g, '').slice(0, 6) : '';
@@ -110,7 +113,7 @@ export function Profile() {
       </div>
 
       <div className="prof-chips">
-        {developer ? <span className="prof-chip developer-chip"><Icon name="shield" size={12} strokeWidth={2.2} />Developer · Lvl. {DEVELOPER_LEVEL}</span> : null}
+        {developer ? <span className="prof-chip developer-chip"><RankInsignia rank="developer" size={22} />Developer · Lvl. {DEVELOPER_LEVEL}</span> : null}
         <span className="prof-chip">
           <Icon name="shield" size={12} strokeWidth={2.2} />
           Akun Google
@@ -121,38 +124,22 @@ export function Profile() {
         </span>
       </div>
 
-      <section className="developer-profile-messages" aria-label="Pesan developer">
-        <header><div><span className="eyebrow">NANIME</span><h2>Pesan Developer</h2></div><span className="developer-message-mark">DEV</span></header>
-        <p className="developer-message-intro">Pengumuman dan pesan langsung dari developer Nanime.</p>
-        {developer && <form onSubmit={async event => {
-          event.preventDefault(); setDeveloperMessageError(''); setSendingDeveloperMessage(true);
-          try { await sendDeveloperMessage(developerMessage); setDeveloperMessage(''); setDeveloperMessages(await listDeveloperMessages()); }
-          catch (error) { setDeveloperMessageError(error instanceof Error ? error.message : 'Pesan gagal dikirim.'); }
-          finally { setSendingDeveloperMessage(false); }
-        }} className="developer-message-form">
-          <textarea aria-label="Pesan untuk pengguna Nanime" maxLength={2000} value={developerMessage} onChange={event => setDeveloperMessage(event.target.value)} placeholder="Tulis pesan untuk pengguna Nanime…" />
-          <button type="submit" disabled={sendingDeveloperMessage || !developerMessage.trim()}>{sendingDeveloperMessage ? 'Mengirim…' : 'Kirim pesan'}</button>
-          {developerMessageError ? <p role="alert">{developerMessageError}</p> : null}
-        </form>}
-        {developerMessagesError ? <p className="prof-empty" role="alert">Pesan developer belum dapat dimuat. Terapkan migration Supabase 013 lalu coba lagi. <button type="button" className="prof-comment-link" onClick={() => { setDeveloperMessagesError(false); void listDeveloperMessages().then(setDeveloperMessages).catch(() => setDeveloperMessagesError(true)); }}>Coba lagi</button></p> : developerMessages.length ? <div className="developer-message-list">{developerMessages.map(message => <article key={message.id}><p>{message.content}</p><time>{new Date(message.created_at).toLocaleString('id-ID')}</time></article>)}</div> : <p className="prof-empty">Belum ada pesan developer.</p>}
-      </section>
-
       <div className="prof-stats">
         <div className="prof-stat">
-          <span className="ps-val">{stats.favs}</span>
-          <span className="ps-lab">favorit</span>
+          <span className="ps-val">{stats.months ?? '—'}</span>
+          <span className="ps-lab">bulan</span>
         </div>
         <div className="prof-stat">
-          <span className="ps-val">{stats.done}</span>
-          <span className="ps-lab">selesai</span>
+          <span className="ps-val">{stats.comments ?? '—'}</span>
+          <span className="ps-lab">komentar</span>
         </div>
         <div className="prof-stat">
           <span className="ps-val">{stats.hist}</span>
           <span className="ps-lab">riwayat</span>
         </div>
         <div className="prof-stat">
-          <span className="ps-val" title={stats.seconds == null ? 'Data penggunaan belum tersedia' : formatWatchDuration(stats.seconds)}>{stats.seconds == null ? '—' : formatWatchDuration(stats.seconds)}</span>
-          <span className="ps-lab">penggunaan</span>
+          <span className="ps-val" title={stats.seconds == null ? 'Data penggunaan belum tersedia' : formatWatchDuration(stats.seconds)}>{stats.seconds == null ? '—' : Math.floor(stats.seconds / 60)}</span>
+          <span className="ps-lab">menit</span>
         </div>
       </div>
 
@@ -257,6 +244,22 @@ export function Profile() {
 
       {tab === 'fav' && !favList.length ? <p className="prof-empty">Belum ada favorit.</p> : null}
       {tab === 'hist' && !histList.length ? <p className="prof-empty">Belum ada riwayat tontonan.</p> : null}
+
+      <section className="developer-profile-messages" aria-label="Pesan developer">
+        <header><div><span className="eyebrow">NANIME</span><h2>Pesan Developer</h2></div><span className="developer-message-mark">DEV</span></header>
+        <p className="developer-message-intro">Pengumuman dan pesan langsung dari developer Nanime.</p>
+        {developer && <form onSubmit={async event => {
+          event.preventDefault(); setDeveloperMessageError(''); setSendingDeveloperMessage(true);
+          try { await sendDeveloperMessage(developerMessage); setDeveloperMessage(''); setDeveloperMessages(await listDeveloperMessages()); }
+          catch (error) { setDeveloperMessageError(error instanceof Error ? error.message : 'Pesan gagal dikirim.'); }
+          finally { setSendingDeveloperMessage(false); }
+        }} className="developer-message-form">
+          <textarea aria-label="Pesan untuk pengguna Nanime" maxLength={2000} value={developerMessage} onChange={event => setDeveloperMessage(event.target.value)} placeholder="Tulis pesan untuk pengguna Nanime…" />
+          <button type="submit" disabled={sendingDeveloperMessage || !developerMessage.trim()}>{sendingDeveloperMessage ? 'Mengirim…' : 'Kirim pesan'}</button>
+          {developerMessageError ? <p role="alert">{developerMessageError}</p> : null}
+        </form>}
+        {developerMessagesError ? <p className="prof-empty" role="alert">Pesan developer belum dapat dimuat. Terapkan migration Supabase 013 lalu coba lagi. <button type="button" className="prof-comment-link" onClick={() => { setDeveloperMessagesError(false); void listDeveloperMessages().then(setDeveloperMessages).catch(() => setDeveloperMessagesError(true)); }}>Coba lagi</button></p> : developerMessages.length ? <div className="developer-message-list">{developerMessages.map(message => <article key={message.id}><p>{message.content}</p><time>{new Date(message.created_at).toLocaleString('id-ID')}</time></article>)}</div> : <p className="prof-empty">Belum ada pesan developer.</p>}
+      </section>
 
       <Sheet open={photo} onClose={() => setPhoto(false)}>
         <div className="photo-sheet">

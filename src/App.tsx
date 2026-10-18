@@ -25,6 +25,9 @@ import { WatchPartyView } from './views/WatchParty';
 import { Games } from './views/Games';
 import { PublicProfile } from './views/PublicProfile';
 import { Affinity } from './views/Affinity';
+import { PublicChat } from './views/PublicChat';
+import { AnimeRanking } from './views/AnimeRanking';
+import { Leaderboard } from './views/Leaderboard';
 
 /** Akar aplikasi: inisialisasi sesi, deep-link, lalu gerbang masuk. */
 
@@ -52,20 +55,30 @@ function Gate() {
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<Home />} />
         <Route path="/search" element={<Search />} />
+        <Route path="/genre/:genreUrl/:genreTitle" element={<Search />} />
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/favorites" element={<Favorites />} />
+        <Route path="/subscribed" element={<Navigate to="/favorites" replace />} />
         <Route path="/history" element={<History />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/:userId" element={<PublicProfile />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/community" element={<Community />} />
+        <Route path="/socialline" element={<Navigate to="/community" replace />} />
+        <Route path="/public-chat" element={<PublicChat />} />
+        <Route path="/ranking/anime" element={<AnimeRanking />} />
+        <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/friends" element={<Friends />} />
+        <Route path="/friends/search" element={<Friends />} />
         <Route path="/friends/:friendId" element={<Friends />} />
+        <Route path="/chat/:friendId" element={<Friends />} />
         <Route path="/affinity" element={<Affinity />} />
+        <Route path="/profile/affinity" element={<Navigate to="/affinity" replace />} />
         <Route path="/watch-party" element={<WatchPartyView />} />
         <Route path="/watch-party/:id" element={<WatchPartyView />} />
         <Route path="/games" element={<Games />} />
+        <Route path="/anibi-games" element={<Navigate to="/games" replace />} />
         <Route path="/detail/:id" element={<Detail />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>

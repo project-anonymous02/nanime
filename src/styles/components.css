@@ -1754,7 +1754,7 @@
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
+  background: #0c0e16;
   position: relative;
   overflow: hidden;
 }
@@ -1782,15 +1782,15 @@
 }
 
 .onboard .ob-dot {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
   border-radius: 999px;
   background: #3a4152;
   transition: height var(--t-enter) var(--ease), background var(--t-enter) var(--ease);
 }
 
 .onboard .ob-dot.active {
-  height: 24px;
+  height: 18px;
   background: var(--accent-gold);
 }
 
@@ -1821,12 +1821,17 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   gap: 18px;
+  text-align: center;
 }
 
+.ob-slide:nth-child(2) .ob-center { align-items: flex-start; text-align: left; }
+
 .ob-display {
-  font-size: clamp(40px, 13vw, 58px);
+  font-size: clamp(40px, 16vw, 72px);
   font-weight: 900;
+  font-family: 'AniBiDisplay', var(--font);
   letter-spacing: -0.02em;
   line-height: 1.04;
   color: #fff;
@@ -1851,8 +1856,9 @@
 
 .ob-sub {
   color: var(--text-secondary);
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.65;
+  text-align: center;
 }
 
 .ob-chip {
@@ -1957,15 +1963,6 @@
   font-size: 11.5px;
   line-height: 1.6;
   margin-top: 10px;
-}
-
-.onboard .ob-dev {
-  color: #4b5563;
-  font-size: var(--fs-label);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-align: center;
-  margin-top: 2px;
 }
 
 /* ── Beranda header ── */
@@ -2263,31 +2260,6 @@
   margin-top: 12px;
 }
 
-.uh-stat {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--accent-cyan);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.uh-fav {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--accent-gold);
-  color: #1c1608;
-  font-size: 12px;
-  font-weight: 800;
-  transition: transform var(--t-micro) var(--ease);
-}
-
-.uh-fav:active {
-  transform: scale(0.95);
-}
 .uh-crystal { display: inline-flex; align-items: center; gap: 5px; padding: 6px 4px; color: #f2f4fa; background: transparent; font-size: 12px; font-weight: 750; white-space: nowrap; }
 .uh-crystal svg { color: #f5d15b; }
 .uh-games { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border: 1px solid rgba(245,197,24,.24); border-radius: 999px; color: #f5d15b; background: rgba(20,23,32,.78); font-size: 11px; font-weight: 800; white-space: nowrap; }
@@ -2333,18 +2305,6 @@
   font-size: 12.5px;
   color: var(--text-secondary);
   max-width: 62vw;
-}
-
-.pb-play {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  color: #fff;
-  box-shadow: 0 6px 18px rgba(46, 125, 255, 0.4);
 }
 
 /* Carousel 3 halaman */
@@ -2586,20 +2546,6 @@
   border-radius: 50%;
   background: var(--accent-primary);
   color: #fff;
-}
-
-/* Baris info pengganti Public Diskusi */
-.info-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 12px 14px;
-  margin-bottom: 26px;
-  border-radius: var(--r-md);
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  text-align: left;
 }
 
 .ir-title {

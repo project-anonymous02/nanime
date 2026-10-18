@@ -50,6 +50,12 @@ const P: Record<string, ReactNode> = {
       <path d="M12 7.2V12l3.2 2" />
     </>
   ),
+  history: (
+    <>
+      <path d="M3.4 8.2V3.8M3.4 8.2h4.4M4.1 7.6a8.9 8.9 0 1 1-.6 7" />
+      <path d="M12 7.3v5l3.4 2.1" />
+    </>
+  ),
   camera: (
     <>
       <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.8l1.4-2h6.6l1.4 2h1.8A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" />
@@ -107,6 +113,7 @@ const P: Record<string, ReactNode> = {
   down: <path d="m6 9 6 6 6-6" />,
   up: <path d="m6 15 6-6 6 6" />,
   x: <path d="M18 6 6 18M6 6l12 12" />,
+  reply: <path d="M9 8 4 12l5 4v-3h4.2a5.8 5.8 0 0 1 5.8 5.8V20a7.8 7.8 0 0 0-7.8-7.8H9z" />,
   check: <path d="m5 12.6 4.6 4.6L19 7.6" />,
   plus: <path d="M12 5v14M5 12h14" />,
   star: <path d="m12 3.6 2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 17l-5.25 2.75 1-5.85L3.5 9.75l5.9-.85z" />,
@@ -117,10 +124,18 @@ const P: Record<string, ReactNode> = {
       stroke="none"
     />
   ),
+  crown: <path d="m3 8 4.4 3.2 4.6-6 4.6 6L21 8l-2.1 11H5.1L3 8Z" fill="currentColor" stroke="none" />,
   film: (
     <>
       <rect x="3" y="4" width="18" height="16" rx="2.4" />
       <path d="M7 4v16M17 4v16M3 12h18" />
+    </>
+  ),
+  subscribed: (
+    <>
+      <path d="M7 3.2h10M4.7 6h14.6" />
+      <rect x="4" y="8.2" width="16" height="12.3" rx="2.2" fill="currentColor" stroke="none" />
+      <path d="m10 10.7 5.8 3.6-5.8 3.6z" fill="#17191f" stroke="none" />
     </>
   ),
   globe: (
@@ -250,6 +265,15 @@ const P: Record<string, ReactNode> = {
   ),
   folder: <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h3.2l1.8 2.2h8A2.5 2.5 0 0 1 21 9.7v7.8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" />,
   chart: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  socialLine: (
+    <>
+      <path d="m3 18 6-6 4 3 8-9" />
+      <circle cx="3" cy="18" r="1.3" fill="currentColor" />
+      <circle cx="9" cy="12" r="1.3" fill="currentColor" />
+      <circle cx="13" cy="15" r="1.3" fill="currentColor" />
+      <circle cx="21" cy="6" r="1.3" fill="currentColor" />
+    </>
+  ),
   palette: (
     <>
       <path d="M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 1.4-3.4 2 2 0 0 1 1.4-3.4H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3z" />

@@ -1,39 +1,72 @@
-# AniBiPlay vs Nanime — source comparison
+# Perbandingan kode AniBiPlay dan Nanime
 
-Generated from the current Nanime working tree. APK JADX output checked at `/tmp/Anibiplay-decompiled`.
+Dibuat otomatis pada 2026-10-18T13:24:50.956Z. Nanime: `/workspace/nanime`. Sumber dekompilasi: `/tmp/Anibiplay-decompiled` (tersedia).
 
-> This is a source/inventory comparison, not a pixel-diff result. Nanime has local screenshots in `screenshot/`, but the original AniBiPlay screenshot files are not in this workspace; the extracted JADX resource directory contains 0 files, and no emulator is attached. Exact screenshot parity and runtime Android PiP therefore remain unverified.
+Bukti lokal yang terdeteksi: 47 screenshot AniBiPlay di `/tmp/opencode/test`; 69 drawable APK di `/tmp/Anibiplay/res/drawable`; 193 resource APK tersalin utuh ke `public/anibiplay-source/android-res`; 10/10 aset rank, 8/8 aset Afinitas, 19 font, dan 47 aset game/sumber dipasang di Nanime; 31 deklarasi Route JSX di App.tsx. Capture onboarding Nanime tersedia di `/tmp/nanime-onboarding.png`.
 
-| AniBiPlay area | Nanime source status | Basis / known difference |
+| Area AniBiPlay | Implementasi Nanime | Perbedaan / catatan |
 |---|---|---|
-| Onboarding, login & callback | IMPLEMENTED IN SOURCE | AniBiPlay onboarding screenshots; Nanime deliberately keeps Supabase OAuth and nanime://auth-callback. |
-| Home, search, schedule & anime detail | IMPLEMENTED IN SOURCE | 47-screen inventory in map-anibiplay.md. |
-| Anime subscription, history & notifications | IMPLEMENTED IN SOURCE | AniBiPlay subscribed anime flow mapped to Nanime favorites and catalog updates. |
-| Player, floating player & external PiP | IMPLEMENTED IN SOURCE | Player portrait/landscape/mini-player screenshots; native support is platform-dependent. |
-| Friends, requests & direct chat | IMPLEMENTED IN SOURCE | Verified AniBiPlay FriendRequest and Chat DTO families; Nanime uses independent Supabase tables. |
-| Watch party / Nobar | IMPLEMENTED IN SOURCE | JADX socket events include party state, episode change, playback, presence and chat. |
-| AniBiGames equivalent | IMPLEMENTED IN SOURCE | Nanime has wallet, crystal ledger, clan membership, join flow and daily claims. |
-| Clan chat and cosmetics | IMPLEMENTED IN SOURCE | Clan messages and color catalog/gacha are server-validated. |
-| Afinitas | IMPLEMENTED IN SOURCE | DTOs confirm four tiers, partner, slots, privacy, cooldown, missions and levels. |
-| AniPetZoo | BLOCKED: no implementation contract | Only AnnouncementFeaturesDto.herocard_anipetzoo and the feature label occur in available JADX output; no pet DTO, route, API contract or resource files were recovered. |
-| Profile, comments, favorites & history | IMPLEMENTED IN SOURCE | Nanime has own/public profiles, comments, favorites/history and community relations. |
-| Developer role, badge and profile messages | IMPLEMENTED IN SOURCE | Nanime identity is asserted by confirmed Supabase Auth email; account UUID remains unchanged. |
-| Paid membership and premium quality gates | IMPLEMENTED IN SOURCE | No paid entitlement implementation exists in Nanime; free callout replaces the pay CTA and playback quality has no premium gate. |
-| Settings & account lifecycle | IMPLEMENTED IN SOURCE | Playback preferences and sign-out cleanup; Google OAuth callback remains Nanime-owned. |
+| Onboarding / sign-in | Ada di implementasi aktif | Layout and gesture pattern ported; Google OAuth intentionally uses Nanime Supabase. |
+| Home, search, genres and weekly content | Ada di implementasi aktif | Home now uses live Nanime user and affinity leaderboards plus a live Public Diskusi teaser. Free banner replaces paid CTA. AniBiPlay giveaway slide is not recreated without its data model. |
+| Anime ranking route | Ada di implementasi aktif | Dedicated ranking route uses the weekly ranking from the live Nanime catalog feed. |
+| User leaderboard route | Ada di implementasi aktif | Dedicated leaderboard uses Supabase app-usage profiles and rank artwork; XP from AniBiPlay is not fabricated. |
+| Schedule, subscribed anime and history | Ada di implementasi aktif | Dedicated pages and real catalog/library state exist; provider coverage and visual parity vary. |
+| Anime detail, episode selection and player | Ada di implementasi aktif | Player and episode flows exist; source AniBiPlay Media3 implementation is adapted to React/Capacitor and is not pixel-identical by assumption. |
+| SocialLine / public discussion | Ada di implementasi aktif | Supabase-backed discussions, replies and activity leaderboard; AniBiPlay social feed data/API is not reused. |
+| Public Chat channels and live messages | Ada di implementasi aktif | Separate channel chat backed by Supabase Realtime; migration 014 adapts the AniBiPlay channel/message event model. |
+| Notifications and profile | Ada di implementasi aktif | Subscription updates, profile tabs and developer message feed are integrated. |
+| Friends and direct chat | Ada di implementasi aktif | Supabase-backed Nanime friend graph and messages; migration 006. |
+| Watch party / Nobar | Ada di implementasi aktif | Nanime room model and live synchronization; migration 007. |
+| AniBiGames / clan features | Ada di implementasi aktif | Nanime wallet, games and clan functions; migrations 008, 010 and 011. Paid access remains free. |
+| Affinity | Ada di implementasi aktif | Nanime bond tiers, missions, privacy and leaderboard; migration 012; all eight AniBiPlay affinity tier icons are installed and used. |
+| Developer profile, rank art and messages | Ada di implementasi aktif | Developer check is the confirmed Supabase email; level 9999/display #1 and send composer; migration 013. AniBiPlay rank art is installed and mapped onto Nanime tiers. |
+| Settings, account lifecycle and OAuth callback | Ada di implementasi aktif | Nanime settings/session flow and nanime://auth-callback are retained. |
 
-## Identity and free access
+## Route Nanime aktif
 
-- UI identity is Nanime. Supabase Google OAuth and `nanime://auth-callback` remain the Nanime flow.
-- `kusumanata767@gmail.com` is assigned Developer / Level 9999 / display tag #1 by migration 013 after confirmed-email verification. Supabase Auth IDs are UUIDs, so the underlying UUID is retained; `#1` is a presentation tag, not a rewritten auth primary key.
-- The profile has a Developer-only composer and an authenticated-user announcement feed. RLS validates the sender against `auth.users`.
-- No paid feature gate exists in the current Nanime source. The home CTA now says all features are free. Catalog availability and actual stream quality still depend on the selected external provider.
+- `/`
+- `/home`
+- `/search`
+- `/genre/:genreUrl/:genreTitle`
+- `/schedule`
+- `/favorites`
+- `/subscribed`
+- `/history`
+- `/profile`
+- `/profile/:userId`
+- `/settings`
+- `/notifications`
+- `/community`
+- `/socialline`
+- `/public-chat`
+- `/ranking/anime`
+- `/leaderboard`
+- `/friends`
+- `/friends/search`
+- `/friends/:friendId`
+- `/chat/:friendId`
+- `/affinity`
+- `/profile/affinity`
+- `/watch-party`
+- `/watch-party/:id`
+- `/games`
+- `/anibi-games`
+- `/detail/:id`
+- `*`
+- `/auth/callback`
+- `*`
 
-## Supabase changes
+## Bagian yang masih berbeda atau belum terverifikasi
 
-Apply migrations 006–013 in numerical order to the Nanime Supabase project. They add friend/direct-message, watch-party, game/clan, threaded-comment, clan-chat/cosmetic, affinity, and developer-profile-message data and RPC/RLS rules. These migrations are additive; they do not assign an integer Auth ID or modify OAuth settings. Do not run only 013 before its prerequisite migration 002 profile columns exist.
+- AniBiPlay adalah APK Android yang didekompilasi (Compose/Media3), bukan source project Kotlin lengkap. Implementasi Nanime memakai React/Capacitor sehingga lifecycle dan rendering native tidak identik.
+- AniBiPlay mempunyai route/halaman tambahan yang belum memiliki padanan Nanime khusus: beberapa halaman kosmetik clan/avatar/banner/wallpaper/profile effect, serta AniPetZoo. Jangan anggap menu atau file yang ada sebagai parity tanpa memeriksa alur runtime.
+- Nanime memakai data Supabase dan katalog/provider Nanime; API privat AniBiPlay/Firebase tidak dipindahkan. Ranking di Home memakai data Nanime yang tersedia, bukan skor XP AniBiPlay; giveaway carousel sengaja tidak diberi data palsu.
+- Screenshot Welcome AniBiPlay #21 dibandingkan manual dengan capture Nanime; posisi, bidang gelap, font display dan teks sudah dikoreksi. Pixel-diff belum dijalankan karena screenshot APK menyertakan status/navigation bar Android sedangkan capture Chromium tidak.
+- Home, detail anime, search, library, profile, leaderboard, Public Chat, jadwal, detail/player, modal, dan viewport Android belum dicapture berdampingan. Kesetaraan visual penuh dan exact pixel parity belum terbukti.
+- Native Android PiP dan perilaku landscape perlu verifikasi build/device; build Android/emulator belum tersedia pada pemeriksaan ini.
 
-## Remaining verified gaps
+## Database dan autentikasi
 
-- AniPetZoo is discoverable only as a home hero-card feature flag (`herocard_anipetzoo`) and label in the available DEX. No entity model, API endpoint contract, navigation route, or local asset files were recoverable, so implementing a pretend pet system would not be a reconstruction.
-- `screenshot/` contains Nanime captures, while the original AniBiPlay captures listed in `map-anibiplay.md` are absent; exact pixel comparison cannot be run from this checkout. The decoded APK resource directory is also empty.
-- Native external PiP needs an Android build/device verification. Browser PiP does not provide identical overlay behavior on every platform.
+Migration Nanime yang tersedia: `001_init.sql`, `002_community_safe.sql`, `003_watch_profile_consistency.sql`, `004_app_usage_and_public_profiles.sql`, `005_watch_profile_key_compat.sql`, `006_friends_and_direct_messages.sql`, `007_watch_parties.sql`, `008_nanime_games.sql`, `009_threaded_anime_comments.sql`, `010_clan_chat.sql`, `011_clan_color_gacha.sql`, `012_affinity_bonds.sql`, `013_developer_profile_messages.sql`, `014_public_chat.sql`. Status live Supabase tidak dapat dibaca dari lingkungan ini (Supabase CLI/kredensial admin tidak tersedia); checkpoint repo sebelumnya mencatat 006–014 belum diterapkan, dan tidak ada migration produksi yang dijalankan sekarang. OAuth tetap memakai Supabase PKCE dan callback `nanime://auth-callback`. Migration 014 menambah channel Umum, pesan publik, RLS pemilik pesan, dan Realtime publication.
+- `kusumanata767@gmail.com` mendapatkan tampilan Developer / Level 9999 / #1 melalui identitas Auth yang sudah terverifikasi. UUID Supabase tetap UUID kanonis; tidak diubah menjadi bilangan 1.
+- Tidak ada checkout atau entitlement berbayar dalam alur Nanime yang diperiksa. Akses fitur tidak dikunci dengan uang; ketersediaan stream tetap bergantung pada provider sumber.

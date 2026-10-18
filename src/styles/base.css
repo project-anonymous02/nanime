@@ -2,6 +2,10 @@
    Base — reset ringan, tipografi global, area aman Android, scroll.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+@font-face { font-family: 'AniBiRoboto'; src: url('/anibiplay-source/fonts/roboto_regular.ttf') format('truetype'); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: 'AniBiRoboto'; src: url('/anibiplay-source/fonts/roboto_medium.ttf') format('truetype'); font-style: normal; font-weight: 500 700; font-display: swap; }
+@font-face { font-family: 'AniBiDisplay'; src: url('/anibiplay-source/fonts/madsense.otf') format('opentype'); font-style: normal; font-weight: 700 900; font-display: swap; }
+
 *,
 *::before,
 *::after {

@@ -120,16 +120,18 @@ perlu disesuaikan.
 
 ## 6. Fitur lama yang dipensiunkan
 
-Mengikuti spesifikasi reinkarnasi, modul lama berikut **tidak** dibawa ke v2 dan
-file fisiknya di-stub (isi dikosongkan, file tetap ada):
+Modul transisi UI Nanime yang sebelumnya hanya berupa stub kosong telah dihapus
+setelah dipastikan tidak direferensikan. Penghapusan ini tidak menyentuh state,
+provider anime, layanan, ataupun penyimpanan yang masih aktif:
 
 - `src/app.ts`, `src/main.ts` (diganti `src/main.tsx` + `src/App.tsx`)
-- `src/views/*.ts`, `src/ui/{components,dom,nav,sheet,toast}.ts`,
+- `src/views/*.ts`, `src/ui/{components,nav,sheet,toast}.ts`,
   `src/core/{router,store,api,config,icons,movies}.ts`
 - `src/sync/*`, `src/features/*`, `src/metadata/*` (metadata AniList/Kitsu,
   ekspor/impor, PWA, notifikasi, shortcut tidak ada di spesifikasi v2)
-- `src/__shot__/*` (mock screenshot lokal) dan stylesheet lama
-  (`card/detail/features/hero/index/layout/panels/responsive/wibuku.css`)
+- `src/__shot__/*` (mock screenshot lokal) dan stylesheet kosong
+  (`card/detail/features/hero/index/layout/panels/responsive/wibuku.css`).
+- `src/shell/Topbar.tsx`, komponen lama yang tidak lagi diimpor oleh rute.
 
 Fitur ekspor/impor data dan PWA dihapus karena tidak diminta pada spesifikasi
 v2; penyimpanan data pengguna sepenuhnya ditangani Supabase + state lokal.
@@ -141,8 +143,8 @@ v2; penyimpanan data pengguna sepenuhnya ditangani Supabase + state lokal.
   `tests/setup.ts` menyediakan polyfill minimal (localStorage, observer, matchMedia).
 - Build APK CI membutuhkan `ANDROID_GOOGLE_SERVICES_JSON` (base64) untuk
   Firebase; tanpa secret tersebut build tetap jalan tanpa Firebase.
-- Font Inter diambil dari CDN jsDelivr di `index.html`; offline penuh akan
-  memakai font sistem.
+- Font UI menggunakan Roboto yang diekstrak dari resource APK AniBiPlay agar
+  bentuk teks web mengikuti font Android sumber tanpa ketergantungan CDN.
 
 ## 8. Role developer dan akses gratis (checkpoint 2026-10-18)
 

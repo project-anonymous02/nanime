@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Catalog } from '../core/services/Catalog';
 import { recordClientMetric } from '../core/services/Telemetry';
 import type { AggregatedCard } from '../core/types';
@@ -40,8 +40,9 @@ function Highlight({ text, q }: { text: string; q: string }) {
 
 export function Search() {
   const navigate = useNavigate();
+  const routeParams = useParams();
   const [params, setParams] = useSearchParams();
-  const [q, setQ] = useState(params.get('q') || '');
+  const [q, setQ] = useState(params.get('q') || routeParams.genreTitle || '');
   const [items, setItems] = useState<AggregatedCard[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);

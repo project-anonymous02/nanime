@@ -7,6 +7,7 @@ import { Icon } from '../ui/icons';
 import { usePullToRefresh } from '../ui/hooks';
 import { SmartImage } from '../ui/SmartImage';
 import { detailPath } from '../lib/nav';
+import { titleKey } from '../core/services/TitleIndex';
 
 /** Jadwal tayang — timeline gold per hari, scroll menerus, pil navigasi hari melayang. */
 
@@ -107,7 +108,7 @@ export function Schedule() {
                 </span>
                 <span className="sch-card">
                   <span className="sch-thumb">
-                    <SmartImage src={it.poster} alt={it.title} eager={d.idx === todayIdx && j < 3} />
+                    <SmartImage src={it.poster} animeId={titleKey(it.title)} alt={it.title} eager={d.idx === todayIdx && j < 3} />
                   </span>
                   <span className="sch-body">
                     <span className="sch-name clamp-2">{it.title}</span>

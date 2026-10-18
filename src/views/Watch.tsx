@@ -156,7 +156,7 @@ export function Watch() {
       <div className="wp">
         <div className="wp-info">
           <button type="button" className="wp-thumb" onClick={() => navigate(detailPath(id, title))} aria-label={title}>
-            <SmartImage src={stream?.poster || detail?.poster} alt={title} />
+            <SmartImage src={stream?.poster || detail?.poster} animeId={id} alt={title} />
           </button>
           <span className="wp-id">
             <span className="wp-title clamp-2">{title}</span>

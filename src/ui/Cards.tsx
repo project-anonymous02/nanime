@@ -4,6 +4,7 @@ import type { HistoryItem } from '../lib/remote/types';
 import { Icon } from './icons';
 import { SmartImage } from './SmartImage';
 import { ProgressBar } from './Feedback';
+import { titleKey } from '../core/services/TitleIndex';
 
 /** Kartu-kartu siap pakai di seluruh halaman. */
 
@@ -33,7 +34,7 @@ export function AnimeCard({
   return (
     <button type="button" className="anime-card" style={style} onClick={() => onOpen(card)} aria-label={card.title}>
       <div className="poster-wrap">
-        <SmartImage src={card.poster} alt={card.title} eager={index < 4} />
+        <SmartImage src={card.poster} animeId={card.canonicalId} alt={card.title} eager={index < 4} />
         {card.score ? (
           <span className="rating-chip">
             <Icon name="starFill" size={11} strokeWidth={0} />
@@ -66,7 +67,7 @@ export function WeeklyCard({
   return (
     <button type="button" className="weekly-card" onClick={() => onOpen(card)} aria-label={card.title}>
       <span className="week-bg">
-        <SmartImage src={card.poster} alt={card.title} />
+        <SmartImage src={card.poster} animeId={card.canonicalId} alt={card.title} />
       </span>
       <span className="week-shade" />
       <span className="rank">{card.rank ?? 1}</span>
@@ -113,7 +114,7 @@ export function UpdateCard({
   return (
     <button type="button" className="up-card anim-up" style={style} onClick={() => onOpen(card)} aria-label={card.title}>
       <span className="up-poster">
-        <SmartImage src={card.poster} alt={card.title} eager={index < 6} />
+        <SmartImage src={card.poster} animeId={card.canonicalId} alt={card.title} eager={index < 6} />
         {badge ? <span className="up-badge">{badge}</span> : null}
         {score ? (
           <span className="up-rating">
@@ -149,7 +150,7 @@ export function RankCard({
   return (
     <button type="button" className="rank-card anim-up" style={style} onClick={() => onOpen(card)} aria-label={card.title}>
       <span className="rk-img">
-        <SmartImage src={card.poster} alt={card.title} />
+        <SmartImage src={card.poster} animeId={card.canonicalId} alt={card.title} />
         {card.rank ? <span className="rk-badge">#{card.rank}</span> : null}
         {score ? (
           <span className="rk-rating">
@@ -183,7 +184,7 @@ export function ContinueRailCard({
   return (
     <button type="button" className="cr-card anim-up" onClick={() => onOpen(item)} aria-label={item.title}>
       <span className="cr-img">
-        <SmartImage src={item.poster} alt={item.title} />
+        <SmartImage src={item.poster} animeId={item.animeId} alt={item.title} />
         <span className="cr-eps">Eps {item.episode}</span>
       </span>
       <span className="cr-title clamp-2">{item.title}</span>
@@ -208,7 +209,7 @@ export function ContinueCard({
   return (
     <div className="continue-card anim-up">
       <button type="button" className="cw-thumb" onClick={() => onOpen(item)} aria-label={item.title}>
-        <SmartImage src={item.poster} alt={item.title} />
+        <SmartImage src={item.poster} animeId={item.animeId} alt={item.title} />
       </button>
       <button type="button" className="cw-body" onClick={() => onOpen(item)} style={{ textAlign: 'left' }}>
         <span className="cw-title clamp-2">{item.title}</span>
@@ -287,7 +288,7 @@ export function ScheduleCard({
   return (
     <button type="button" className="schedule-card" onClick={() => onOpen(item)} aria-label={item.title}>
       <span className="sc-poster">
-        <SmartImage src={item.poster} alt={item.title} />
+        <SmartImage src={item.poster} animeId={titleKey(item.title)} alt={item.title} />
       </span>
       <span className="sc-body">
         <span className="sc-title clamp-2">{item.title}</span>

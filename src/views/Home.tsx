@@ -212,7 +212,7 @@ export function Home() {
                 {heroes.map(c => (
                   <div className="car-page" key={c.canonicalId}>
                     <button type="button" className="hero-card" onClick={() => openCard(c)} aria-label={c.title}>
-                      <SmartImage src={c.poster} alt={c.title} />
+                      <SmartImage src={c.poster} animeId={c.canonicalId} alt={c.title} />
                       <span className="hero-shade" />
                       {c.views ? (
                         <span className="hero-views">

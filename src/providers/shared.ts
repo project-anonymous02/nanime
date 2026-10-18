@@ -85,7 +85,7 @@ export function parseBsxCards(doc: ParentNode, base: string, provider: string, o
       clean(el.querySelector('h2')?.textContent);
     if (!title) return;
     const img = el.querySelector('.limit img') || el.querySelector('img');
-    const poster = abs(base, attr(img, 'src') || attr(img, 'data-src') || attr(img, 'data-lazy-src'));
+    const poster = abs(base, attr(img, 'data-src') || attr(img, 'data-lazy-src') || attr(img, 'data-original') || attr(img, 'data-lazy-srcset') || attr(img, 'src'));
     const resolved = detailHrefFromCard(href);
     const slug = resolved.slug;
     out.push({
@@ -137,8 +137,10 @@ export function parseAnimestreamDetail(doc: Document, pageUrl: string, provider:
   const title = txt(h1);
   const poster = abs(
     base,
-    attr(doc.querySelector('.thumbook .thumb img, .thumbook img, .bsx img'), 'src') ||
-      attr(doc.querySelector('.thumbook .thumb img'), 'data-src')
+    attr(doc.querySelector('.thumbook .thumb img, .thumbook img, .bsx img'), 'data-src') ||
+      attr(doc.querySelector('.thumbook .thumb img'), 'data-lazy-src') ||
+      attr(doc.querySelector('.thumbook .thumb img'), 'data-original') ||
+      attr(doc.querySelector('.thumbook .thumb img'), 'src')
   );
   const info = parseSpeInfo(doc);
   const alt = txt(doc.querySelector('.alter, .alternative, span.alter'));

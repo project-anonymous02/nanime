@@ -150,6 +150,7 @@ export function GlobalPlayer() {
   const [hint, setHint] = useState<{ side: 'left' | 'right'; key: number } | null>(null);
   const [locked, setLocked] = useState(false);
   const [overClose, setOverClose] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -181,6 +182,31 @@ export function GlobalPlayer() {
   } | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchRef = useRef<{ d0: number; w0: number } | null>(null);
+
+  useEffect(() => {
+    let wasFullscreen = false;
+    const sync = () => {
+      const doc = document as Document & { webkitFullscreenElement?: Element | null };
+      const video = videoRef.current as (HTMLVideoElement & { webkitDisplayingFullscreen?: boolean }) | null;
+      const active = !!(doc.fullscreenElement || doc.webkitFullscreenElement || video?.webkitDisplayingFullscreen);
+      setFullscreen(active);
+      if (wasFullscreen && !active) (screen.orientation as ScreenOrientation & { unlock?: () => void } | undefined)?.unlock?.();
+      wasFullscreen = active;
+    };
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('webkitfullscreenchange', sync as EventListener);
+    window.addEventListener('resize', sync);
+    const video = videoRef.current;
+    video?.addEventListener('webkitbeginfullscreen', sync);
+    video?.addEventListener('webkitendfullscreen', sync);
+    return () => {
+      document.removeEventListener('fullscreenchange', sync);
+      document.removeEventListener('webkitfullscreenchange', sync as EventListener);
+      window.removeEventListener('resize', sync);
+      video?.removeEventListener('webkitbeginfullscreen', sync);
+      video?.removeEventListener('webkitendfullscreen', sync);
+    };
+  }, []);
 
   const sessionKey = session ? session.animeId + '|' + session.episode : '';
   const stream = session?.stream || null;
@@ -772,12 +798,37 @@ export function GlobalPlayer() {
     setDrag(false);
   };
 
-  /* ── Fullscreen native ── */
-  const toggleFs = () => {
-    const el = rootRef.current;
-    if (!el) return;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void el.requestFullscreen?.();
+  /* ── Native fullscreen; feature detect each runtime and handle rejection. ── */
+  const toggleFs = async () => {
+    const doc = document as Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void };
+    const video = videoRef.current as (HTMLVideoElement & {
+      webkitEnterFullscreen?: () => void;
+      webkitDisplayingFullscreen?: boolean;
+      webkitExitFullscreen?: () => void;
+    }) | null;
+    const active = doc.fullscreenElement || doc.webkitFullscreenElement || video?.webkitDisplayingFullscreen;
+    try {
+      if (active) {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
+        else if (video?.webkitDisplayingFullscreen) video.webkitExitFullscreen?.();
+        (screen.orientation as ScreenOrientation & { unlock?: () => void } | undefined)?.unlock?.();
+        return;
+      }
+      const root = rootRef.current as (HTMLDivElement & { webkitRequestFullscreen?: () => void }) | null;
+      if (root?.requestFullscreen) await root.requestFullscreen();
+      else if (root?.webkitRequestFullscreen) root.webkitRequestFullscreen();
+      else if (video?.webkitEnterFullscreen) video.webkitEnterFullscreen();
+      else {
+        toast('Layar penuh tidak didukung pada pemutar ini', 'err');
+        return;
+      }
+      const orientation = screen.orientation as ScreenOrientation & { lock?: (orientation: string) => Promise<void> };
+      if (orientation?.lock) void orientation.lock('landscape').catch(() => undefined);
+    } catch (error) {
+      console.warn('[player] fullscreen request failed', error);
+      toast('Tidak dapat membuka layar penuh', 'err');
+    }
   };
 
   /* ── Interaksi floating ── */
@@ -984,8 +1035,8 @@ export function GlobalPlayer() {
                   <button type="button" className="gp-ibtn" aria-label="Kunci layar" onClick={() => setLocked(true)}>
                     <Icon name="lock" size={20} strokeWidth={2.2} />
                   </button>
-                  <button type="button" className="gp-ibtn" aria-label="Layar penuh" onClick={toggleFs}>
-                    <Icon name="fullscreen" size={24} />
+                  <button type="button" className="gp-ibtn" aria-label={fullscreen ? 'Keluar layar penuh' : 'Layar penuh'} aria-pressed={fullscreen} onClick={() => void toggleFs()}>
+                    <Icon name={fullscreen ? 'collapse' : 'fullscreen'} size={24} />
                   </button>
                 </div>
 

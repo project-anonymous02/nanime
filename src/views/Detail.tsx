@@ -142,7 +142,7 @@ export function Detail() {
 
       <div className="dt-hero">
         <div className="dt-hero-bg">
-          <SmartImage src={bundle.poster} alt={bundle.title} eager />
+          <SmartImage src={bundle.poster} animeId={bundle.id} alt={bundle.title} eager />
         </div>
         <div className="dt-hero-shade" />
         <div className="dt-hero-top">

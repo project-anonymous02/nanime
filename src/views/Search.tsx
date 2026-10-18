@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Catalog } from '../core/services/Catalog';
+import { recordClientMetric } from '../core/services/Telemetry';
 import type { AggregatedCard } from '../core/types';
 import { Grid, UpdateCard } from '../ui/Cards';
 import { EmptyState, ErrorState, ListSkel } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 import { useDebounced } from '../ui/hooks';
 import { detailPath } from '../lib/nav';
-import { allProviders } from '../providers/registry';
 
 /** Pencarian lintas katalog — satu judul = satu kartu, tanpa label sumber. */
 
@@ -45,9 +45,10 @@ export function Search() {
   const [items, setItems] = useState<AggregatedCard[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  const [selectedAdultProvider, setSelectedAdultProvider] = useState('');
+  const [partial, setPartial] = useState(false);
+  const [retry, setRetry] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const dq = useDebounced(q.trim(), 380);
+  const dq = useDebounced(q.trim(), 260);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -70,28 +71,50 @@ export function Search() {
       setItems(null);
       setLoading(false);
       setError(false);
+      setPartial(false);
       return;
     }
     let alive = true;
+    const controller = new AbortController();
+    const startedAt = performance.now();
+    let firstResultMeasured = false;
+    setItems(null);
     setLoading(true);
     setError(false);
-    Catalog.search(dq, { sort: 'relevance', providerIds: selectedAdultProvider ? [selectedAdultProvider] : undefined })
+    setPartial(false);
+    Catalog.search(dq, { sort: 'relevance', signal: controller.signal, onUpdate: result => {
+      if (alive && !controller.signal.aborted) {
+        setItems(result.items);
+        setPartial(true);
+        if (!firstResultMeasured && result.items.length) {
+          firstResultMeasured = true;
+          recordClientMetric({ name: 'search-first-result', durationMs: performance.now() - startedAt, count: result.items.length, ok: true });
+        }
+      }
+    } })
       .then(r => {
-        if (alive) setItems(r.items);
+        if (alive && !controller.signal.aborted) {
+          setItems(r.items);
+          setPartial(r.sources.some(source => source.error === 'deadline'));
+          recordClientMetric({ name: 'search', durationMs: performance.now() - startedAt, count: r.items.length, ok: true });
+        }
       })
       .catch(() => {
-        if (alive) setError(true);
+        if (alive && !controller.signal.aborted) {
+          setError(true);
+          recordClientMetric({ name: 'search', durationMs: performance.now() - startedAt, count: 0, ok: false });
+        }
       })
       .finally(() => {
         if (alive) setLoading(false);
       });
     return () => {
       alive = false;
+      controller.abort();
     };
-  }, [dq, selectedAdultProvider]);
+  }, [dq, retry]);
 
   const openCard = (c: AggregatedCard) => navigate(detailPath(c.canonicalId, c.title));
-  const adultProviders = allProviders().filter(provider => provider.active && provider.searchable && provider.content === 'hentai');
 
   return (
     <>
@@ -128,18 +151,19 @@ export function Search() {
         </div>
       </header>
 
-      {adultProviders.length ? <label className="search-source-picker"><span>Pilih sumber hentai</span><select value={selectedAdultProvider} onChange={event => setSelectedAdultProvider(event.target.value)} aria-label="Pilih provider hentai"><option value="">Nonaktif</option>{adultProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label> : null}
-
       {loading && !items ? <ListSkel count={4} /> : null}
-      {error && !loading ? <ErrorState onRetry={() => setQ(v => v)} /> : null}
+      {loading && items ? <p className="search-refresh-note" role="status">Mengumpulkan dan menggabungkan hasil dari beberapa sumber…</p> : null}
+      {!loading && partial ? <p className="search-refresh-note" role="status">Beberapa sumber belum merespons. Hasil yang tersedia tetap ditampilkan.</p> : null}
+      {error && !loading ? <ErrorState onRetry={() => setRetry(value => value + 1)} /> : null}
 
-      {!loading && !error && items && items.length === 0 ? (
+      {!loading && !error && !partial && items && items.length === 0 ? (
         <EmptyState
           icon="search"
           title="Tidak ditemukan"
           sub={`Tidak ada hasil untuk “${dq}”. Coba kata kunci lain atau periksa ejaan.`}
         />
       ) : null}
+      {!loading && !error && partial && items?.length === 0 ? <p className="search-refresh-note" role="status">Sumber yang merespons belum menemukan hasil. Coba lagi beberapa saat lagi.</p> : null}
 
       {items && items.length ? (
         <Grid>

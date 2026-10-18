@@ -1,6 +1,9 @@
 import { getProvider } from '../../providers/registry';
 
 interface DiscoveryMetadata {
+  title?: string;
+  alt?: string;
+  altTitles?: string[];
   provider?: string;
   genres?: string[];
   tags?: string[];
@@ -17,7 +20,10 @@ export function isAdultContent(card: DiscoveryMetadata): boolean {
   if (ADULT_PROVIDER_IDS.has(providerId) || getProvider(providerId)?.content === 'hentai') return true;
 
   const labels = [card.contentRating, card.classification, ...(card.genres || []), ...(card.tags || [])];
-  return labels.some(label => ADULT_LABEL.test(String(label || '')));
+  if (labels.some(label => ADULT_LABEL.test(String(label || '')))) return true;
+  // Titles are weaker evidence than provider classifications. Only treat an
+  // explicit Hentai label in title/alternative title as conclusive.
+  return [card.title, card.alt, ...(card.altTitles || [])].some(title => /(?:^|[[(])\s*hentai\s*(?:$|[\])])/i.test(String(title || '')));
 }
 
 /** Discovery feeds are conservative: explicit adult source/category metadata is excluded. */

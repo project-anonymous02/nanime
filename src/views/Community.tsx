@@ -18,6 +18,7 @@ import { RANK_META } from '../lib/rank';
 import { currentAuthUser, useAuth } from '../state/auth';
 import { toast } from '../state/ui';
 import { Icon } from '../ui/icons';
+import { CommunityAvatar } from '../ui/CommunityAvatar';
 
 function Identity({ profile, userId }: { profile?: CommunityProfile; userId?: string }) {
   const authUser = currentAuthUser();
@@ -27,10 +28,7 @@ function Identity({ profile, userId }: { profile?: CommunityProfile; userId?: st
   const developer = profile?.rank === 'developer';
   return (
     <span className="community-identity">
-      <span className="community-avatar">
-        {name.trim().charAt(0).toUpperCase()}
-        {profile?.avatar_url ? <img src={profile.avatar_url} alt="" loading="lazy" onError={event => { event.currentTarget.style.display = 'none'; }} /> : null}
-      </span>
+      <CommunityAvatar name={name} src={profile?.avatar_url} />
       <span className="community-identity-copy">
         <span className={developer ? 'community-user developer' : 'community-user'}>{name}</span>
         {rank ? <span className="community-rank" style={developer ? undefined : { color: rank.color }}>{rank.label}</span> : null}
@@ -122,6 +120,7 @@ export function Community() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [leaderError, setLeaderError] = useState('');
+  const [leaderLoading, setLeaderLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<string>();
   const [editTitle, setEditTitle] = useState('');
@@ -133,6 +132,7 @@ export function Community() {
     if (refresh || nextPage === 0) setRefreshing(refresh);
     else setLoading(true);
     setError('');
+    if (nextPage === 0) setLeaderLoading(true);
     try {
       const [discussionResult, rankingResult] = await Promise.allSettled([listDiscussions(nextPage), leaderboard()]);
       if (discussionResult.status === 'rejected') throw discussionResult.reason;
@@ -140,13 +140,21 @@ export function Community() {
       setRows(previous => nextPage === 0 ? discussions : [...previous, ...discussions.filter(row => !previous.some(item => item.id === row.id))]);
       if (rankingResult.status === 'fulfilled') { setLeaders(rankingResult.value); setLeaderError(''); }
       else setLeaderError((rankingResult.reason as Error)?.message || 'Leaderboard gagal dimuat');
+      setLeaderLoading(false);
       setPage(nextPage);
       setHasMore(discussions.length === 20);
     } catch (cause) { setError((cause as Error).message || 'Diskusi gagal dimuat'); }
-    finally { setLoading(false); setRefreshing(false); }
+    finally { setLoading(false); setRefreshing(false); setLeaderLoading(false); }
   }, []);
 
   useEffect(() => { void load(0); }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void leaderboard().then(setLeaders).catch(cause => setLeaderError((cause as Error)?.message || 'Leaderboard gagal dimuat'));
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -191,9 +199,10 @@ export function Community() {
           {!loading && hasMore && !error ? <button type="button" className="community-load-more" onClick={() => void load(page + 1)} disabled={loading}>Muat diskusi lainnya</button> : null}
         </section>
 
-        <aside className="community-leaderboard"><div className="community-board-heading"><span className="community-board-icon"><Icon name="chart" size={17} /></span><div><h2>Leaderboard</h2><p>Waktu menonton tervalidasi</p></div></div>
-          {leaderError ? <p className="community-state">{leaderError}</p> : null}
-          {leaders.length ? leaders.slice(0, 10).map((profile, index) => <div className="leader-row" key={profile.id}><b className={'leader-position' + (index < 3 ? ` rank-${index + 1}` : '')}>{String(index + 1).padStart(2, '0')}</b><Identity profile={profile} userId={profile.id} /><span className="leader-time">{formatWatchDuration(profile.watch_seconds)}</span></div>) : !leaderError ? <p className="community-state">Leaderboard belum tersedia.</p> : null}
+        <aside className="community-leaderboard"><div className="community-board-heading"><span className="community-board-icon"><Icon name="chart" size={17} /></span><div><h2>Leaderboard</h2><p>Waktu aktif menggunakan Nanime</p></div></div>
+          {leaderLoading ? <p className="community-state" role="status">Memuat leaderboard…</p> : null}
+          {leaderError ? <div className="community-error" role="alert"><span>{leaderError}</span><button type="button" onClick={() => void load(0, true)}>Coba lagi</button></div> : null}
+          {!leaderLoading && leaders.length ? leaders.slice(0, 10).map((profile, index) => <div className="leader-row" key={profile.id}><b className={'leader-position' + (index < 3 ? ` rank-${index + 1}` : '')}>{String(index + 1).padStart(2, '0')}</b><Identity profile={profile} userId={profile.id} /><span className="leader-time">{formatWatchDuration(profile.app_usage_seconds)}</span></div>) : !leaderLoading && !leaderError ? <p className="community-state">Leaderboard belum memiliki data.</p> : null}
         </aside>
       </div>
     </div>

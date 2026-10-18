@@ -119,6 +119,7 @@ body {
 .community-identity { min-width: 0; display: inline-flex; align-items: center; gap: 9px; }
 .community-avatar { position: relative; width: 38px; height: 38px; flex: 0 0 auto; display: grid; place-items: center; overflow: hidden; border-radius: 14px; color: #d7e2ff; background: linear-gradient(140deg, rgba(102, 133, 205, .46), rgba(40, 67, 85, .68)); font-size: 13px; font-weight: 800; }
 .community-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.comment-identity { display: flex; align-items: center; gap: 10px; }
 .community-identity-copy { min-width: 0; display: grid; gap: 2px; }
 .community-user { max-width: 190px; overflow: hidden; color: #e8eef9; font-size: 12px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
 .community-user.developer { width: fit-content; background: linear-gradient(90deg, #ff91cb, #f6ce71, #7fe4d8, #99aaff, #ef9afa); background-clip: text; color: transparent; }
@@ -181,10 +182,28 @@ body {
 .ob-slide { background: radial-gradient(ellipse at 68% 26%, rgba(77, 117, 198, .16), transparent 54%); }
 .ob-chip, .ob-point, .ob-login { border-color: var(--border-subtle); background: var(--surface-liquid); box-shadow: var(--shadow-card), inset 0 1px rgba(255,255,255,.035); }
 .search-topbar { background: rgba(10, 16, 26, .83); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.search-refresh-note { margin: 6px 2px 12px; color: var(--text-secondary); font-size: 11px; }
 .dt-actions { gap: 10px; }
 .dt-eprow, .dt-epcell { background: rgba(20, 31, 48, .72); border-color: var(--border-subtle); }
-.dt-epl-main { cursor: default; }
-.dt-epl-play, .pr-play { display: none; }
+.dt-epl-main { cursor: pointer; border: 0; color: inherit; background: transparent; font: inherit; }
+.dt-epl-play { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; color: white; background: var(--accent-primary); }
+.dt-epcell { cursor: pointer; color: inherit; font: inherit; transition: transform 180ms var(--ease), border-color 180ms var(--ease), background 180ms var(--ease); }
+.dt-epcell:active { transform: scale(.97); }
+.episode-player-backdrop { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); background: rgba(2, 5, 11, .84); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); animation: liquid-fade-in 160ms ease-out both; }
+.episode-player { width: min(100%, 980px); max-height: 100%; overflow: auto; border: 1px solid var(--border-strong); border-radius: 22px; background: #0d1420; box-shadow: var(--shadow-float); animation: liquid-sheet-in 220ms var(--ease) both; }
+.episode-player-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; }
+.episode-player-head > div { min-width: 0; display: grid; gap: 3px; }
+.episode-player-head strong { overflow: hidden; color: #edf3ff; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.episode-player-head span { color: var(--text-secondary); font-size: 11px; }
+.episode-player-video { width: 100%; aspect-ratio: 16 / 9; display: grid; place-items: center; overflow: hidden; background: #03060a; }
+.episode-player-video video, .episode-player-video iframe { width: 100%; height: 100%; border: 0; object-fit: contain; }
+.episode-player-state { min-height: 210px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; color: #d7e1f2; text-align: center; font-size: 13px; }
+.episode-player-state.error p { max-width: 560px; margin: 0; color: #ffc6c8; line-height: 1.55; }
+.episode-player-source { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; color: var(--text-secondary); font-size: 12px; }
+.episode-player-source select { max-width: 65%; padding: 8px 10px; border: 1px solid var(--border-subtle); border-radius: 11px; color: #edf3ff; background: #172235; font: inherit; }
+@keyframes liquid-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes liquid-sheet-in { from { opacity: .7; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .episode-player-backdrop, .episode-player { animation: none; } }
 
 @media (min-width: 840px) {
   .community-page { padding-top: 36px; }

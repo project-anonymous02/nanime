@@ -167,21 +167,23 @@ export const FallbackEngine = {
     opts: { timeout?: number; max?: number } = {}
   ): Promise<{ results: ResolvedStream[]; attempts: StreamAttempt[] }> {
     const timeout = opts.timeout || STREAM_TIMEOUT;
-    const list = requests.slice(0, opts.max || 12).slice().sort((a, b) => {
+    const list = requests.slice(0, Math.min(opts.max || 6, 6)).slice().sort((a, b) => {
       const pa = streamingPriority(a.provider);
       const pb = streamingPriority(b.provider);
       return pa - pb;
     });
-    const results: ResolvedStream[] = [];
-    const attempts: StreamAttempt[] = [];
-    for (const req of list) {
+    const settled = await Promise.all(list.map(async req => {
       const p = getProvider(req.provider);
       const r = p ? await tryProvider(p, req.params, timeout) : { ok: false, error: 'tidak tersedia', ms: 0 };
+      return { req, r };
+    }));
+    const results: ResolvedStream[] = [];
+    const attempts: StreamAttempt[] = [];
+    // Promise.all preserves provider priority order regardless of completion
+    // order, while bounding the whole fallback wave to one provider timeout.
+    for (const { req, r } of settled) {
       attempts.push({ provider: req.provider, ok: r.ok, error: r.error, ms: r.ms });
-      if (r.ok && r.stream) {
-        results.push({ provider: req.provider, stream: r.stream, ms: r.ms });
-        if (r.stream.sourceKind === 'direct-media') break;
-      }
+      if (r.ok && r.stream) results.push({ provider: req.provider, stream: r.stream, ms: r.ms });
     }
     return { results, attempts };
   },

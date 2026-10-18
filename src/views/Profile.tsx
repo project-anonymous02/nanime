@@ -7,7 +7,7 @@ import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
 import { Sheet } from '../ui/Sheet';
 import { detailPath } from '../lib/nav';
-import { formatWatchDuration, leaderboard } from '../lib/community';
+import { formatWatchDuration, ownAppUsageSeconds } from '../lib/community';
 
 /** Profil — banner, statistik, tab Favorit/Histori, dan sheet foto profil ala referensi. */
 
@@ -38,8 +38,8 @@ export function Profile() {
 
   useEffect(() => {
     let alive = true;
-    if (user?.id) void leaderboard().then(rows => {
-      if (alive) setValidatedSeconds(rows.find(row => row.id === user.id)?.watch_seconds || 0);
+    if (user?.id) void ownAppUsageSeconds().then(seconds => {
+      if (alive) setValidatedSeconds(seconds);
     }).catch(() => undefined);
     return () => { alive = false; };
   }, [user?.id]);
@@ -103,7 +103,7 @@ export function Profile() {
         </div>
         <div className="prof-stat">
           <span className="ps-val" title={formatWatchDuration(stats.seconds)}>{formatWatchDuration(stats.seconds)}</span>
-          <span className="ps-lab">durasi</span>
+          <span className="ps-lab">penggunaan</span>
         </div>
       </div>
 

@@ -42,12 +42,13 @@ export interface IndexedEntry {
 /** Slug kanonik dari judul tampilan (huruf kecil, angka & musim dipertahankan). */
 export function titleKey(title: string): string {
   return String(title || '')
+    .normalize('NFKC')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/&/g, ' and ')
     .replace(/['’`]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 80);

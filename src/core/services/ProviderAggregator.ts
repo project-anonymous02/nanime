@@ -4,7 +4,7 @@ import { markHealth } from '../../providers/registry';
 import type { Card, ScheduleGroup, ScheduleItem, SourceResult } from '../types';
 import { CacheManager, TTL } from './CacheManager';
 import { matchScore } from '../utils/fuzzyMatch';
-import { filterDiscovery, isAdultContent } from './ContentPolicy';
+import { filterDiscovery } from './ContentPolicy';
 
 /** Jalankan promise dengan batas waktu agar satu penyedia lambat tak menahan semua. */
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
@@ -39,8 +39,7 @@ export function providerMetrics(): ProviderMetric[] { return metrics.slice(-200)
 function recordMetric(metric: ProviderMetric): void { metrics.push(metric); if (metrics.length > 200) metrics.splice(0, metrics.length - 200); }
 
 export function isProviderSearchAllowed(provider: Pick<AnimeProvider, 'id' | 'content'>, providerIds?: string[]): boolean {
-  if (providerIds?.length) return providerIds.includes(provider.id);
-  return provider.content !== 'hentai';
+  return provider.content !== 'hentai' && (!providerIds?.length || providerIds.includes(provider.id));
 }
 
 function isMovieCard(card: Card): boolean {
@@ -94,37 +93,68 @@ async function runPool<T>(items: T[], limit: number, job: (item: T) => Promise<v
  */
 export const ProviderAggregator = {
   /** Pencarian paralel dari semua penyedia yang mendukung pencarian. */
-  async search(query: string, opts: { timeout?: number; max?: number; providerIds?: string[] } = {}): Promise<SourceResult[]> {
+  async search(query: string, opts: { timeout?: number; deadline?: number; max?: number; providerIds?: string[]; signal?: AbortSignal; onUpdate?: (sources: SourceResult[]) => void } = {}): Promise<SourceResult[]> {
     const q = String(query || '').trim();
     if (!q) return [];
     const timeout = opts.timeout || 12000;
+    const deadline = opts.deadline ?? 8500;
     const providers = searchProviders().filter(p => isProviderSearchAllowed(p, opts.providerIds)).slice(0, opts.max || 99);
 
     const settled: PromiseSettledResult<{ p: AnimeProvider; items: Card[] }>[] = new Array(providers.length);
+    let publishing = true;
+    const sourceResult = (result: PromiseSettledResult<{ p: AnimeProvider; items: Card[] }>, index: number): SourceResult => {
+      const p = providers[index];
+      if (result.status === 'fulfilled') {
+        const items = (result.value.items || []).map(card => ({ ...card, match: matchScore(q, card.title) }));
+        return { id: p.id, ok: true, count: items.length, items };
+      }
+      return { id: p.id, ok: false, count: 0, items: [], error: String((result.reason && result.reason.message) || result.reason || 'error') };
+    };
+    const publishSnapshot = () => {
+      if (!publishing || opts.signal?.aborted || !opts.onUpdate) return;
+      try { opts.onUpdate(settled.flatMap((result, index) => result ? [sourceResult(result, index)] : [])); } catch { /* UI observers cannot fail provider work. */ }
+    };
     let cursor = 0;
     const worker = async () => {
       for (;;) {
+        if (opts.signal?.aborted) return;
         const index = cursor++;
         if (index >= providers.length) return;
         const p = providers[index];
         try {
           const started = performance.now();
-          const fetched = await withTimeout(CacheManager.search(p.id, q, () => p.search(q)), timeout);
-          const explicitAdultSelection = !!opts.providerIds?.includes(p.id) && p.content === 'hentai';
-          const items = explicitAdultSelection
-            ? fetched
-            : fetched.filter(card => !isAdultContent({ ...card, provider: card.provider || p.id }));
+          const fetched = await withTimeout(CacheManager.search(p.id, q, async () => {
+            const cards = await p.search(q);
+            return filterDiscovery(cards.map(card => ({ ...card, provider: card.provider || p.id })), p.id);
+          }), timeout);
+          // Re-filter cache hits too; persisted search results predate current policy.
+          const items = filterDiscovery(fetched.map(card => ({ ...card, provider: card.provider || p.id })), p.id);
           settled[index] = { status: 'fulfilled', value: { p, items } };
           recordMetric({ provider: p.id, operation: 'search', ms: Math.round(performance.now() - started), ok: true, count: items.length });
         } catch (reason) {
           settled[index] = { status: 'rejected', reason };
           recordMetric({ provider: p.id, operation: 'search', ms: timeout, ok: false, count: 0 });
         }
+        publishSnapshot();
       }
     };
-    await Promise.all(Array.from({ length: Math.min(6, Math.max(1, providers.length)) }, worker));
+    const workers = Promise.all(Array.from({ length: Math.min(8, Math.max(1, providers.length)) }, worker));
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    let abortListener: (() => void) | undefined;
+    const aborted = new Promise<void>(resolve => {
+      if (opts.signal?.aborted) resolve();
+      else if (opts.signal) {
+        abortListener = () => resolve();
+        opts.signal.addEventListener('abort', abortListener, { once: true });
+      }
+    });
+    await Promise.race([workers, aborted, new Promise<void>(resolve => { deadlineTimer = setTimeout(resolve, deadline); })]);
+    if (deadlineTimer) clearTimeout(deadlineTimer);
+    if (abortListener) opts.signal?.removeEventListener('abort', abortListener);
+    publishing = false;
+    const snapshot = settled.map((result, index) => result || ({ status: 'rejected', reason: new Error('deadline') } as const));
 
-    return settled.map((r, i) => {
+    return snapshot.map((r, i) => {
       const p = providers[i];
       if (r.status === 'fulfilled') {
         const items = (r.value.items || []).map(c => ({ ...c, match: matchScore(q, c.title) }));

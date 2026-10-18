@@ -25,12 +25,12 @@ export interface ResolvedMedia {
 const FETCH_TIMEOUT = 12000;
 const MAX_DEPTH = 2;
 
-const VIDEO_URL_RE = /https?:\/\/[^\s"'`<>\\]+?\.(?:m3u8|mp4|webm|mov)(?:\?[^\s"'`<>\\]*)?/gi;
+const VIDEO_URL_RE = /https?:\/\/[^\s"'`<>\\]+?\.(?:m3u8|mpd|mp4|webm|mov)(?:\?[^\s"'`<>\\]*)?/gi;
 
 const KEYED_PATTERNS: RegExp[] = [
   /file\s*[:=]\s*["']([^"']+)["']/gi,
-  /src\s*[:=]\s*["']([^"']+\.(?:m3u8|mp4|webm|mov)[^"']*)["']/gi,
-  /url\s*[:=]\s*["']([^"']+\.(?:m3u8|mp4|webm|mov)[^"']*)["']/gi,
+  /src\s*[:=]\s*["']([^"']+\.(?:m3u8|mpd|mp4|webm|mov)[^"']*)["']/gi,
+  /url\s*[:=]\s*["']([^"']+\.(?:m3u8|mpd|mp4|webm|mov)[^"']*)["']/gi,
   /source\s+src=["']([^"']+)["']/gi
 ];
 
@@ -43,7 +43,9 @@ function absolutize(raw: string, base: string): string {
     .trim();
   if (!u || u.startsWith('data:') || u.startsWith('blob:')) return '';
   try {
-    return new URL(u, base).toString();
+    const resolved = new URL(u, base);
+    if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') return '';
+    return resolved.toString();
   } catch {
     return /^https?:\/\//i.test(u) ? u : '';
   }
@@ -51,26 +53,28 @@ function absolutize(raw: string, base: string): string {
 
 /** Kumpulkan semua kandidat URL video dari dalam sebuah halaman embed. */
 export function extractMediaCandidates(html: string, baseUrl: string): string[] {
-  const out: string[] = [];
+  const matches: Array<{ index: number; url: string }> = [];
   const seen = new Set<string>();
-  const push = (raw: string) => {
+  const push = (raw: string, index: number) => {
     const u = absolutize(raw, baseUrl);
     if (!u || seen.has(u) || !isVideoUrl(u)) return;
     seen.add(u);
-    out.push(u);
+    matches.push({ index, url: u });
   };
 
   for (const re of KEYED_PATTERNS) {
     re.lastIndex = 0;
     let m: RegExpExecArray | null;
-    while ((m = re.exec(html))) push(m[1]);
+    while ((m = re.exec(html))) push(m[1], m.index);
   }
 
   VIDEO_URL_RE.lastIndex = 0;
   let hit: RegExpExecArray | null;
-  while ((hit = VIDEO_URL_RE.exec(html))) push(hit[0]);
+  while ((hit = VIDEO_URL_RE.exec(html))) push(hit[0], hit.index);
 
-  return out;
+  // Keep the order used by the page. The caller can then apply quality
+  // ranking without changing the source order used for equal quality.
+  return matches.sort((a, b) => a.index - b.index).map(match => match.url);
 }
 
 /** URL embed lain di dalam halaman (untuk ditelusuri satu tingkat). */
@@ -133,6 +137,12 @@ async function crawl(url: string, depth: number): Promise<string> {
 export async function resolveMediaUrl(url: string): Promise<ResolvedMedia> {
   const target = String(url || '').trim();
   if (!target) return { url: '', kind: 'embed' };
+  try {
+    const protocol = new URL(target).protocol;
+    if (protocol !== 'http:' && protocol !== 'https:') return { url: '', kind: 'embed' };
+  } catch {
+    return { url: '', kind: 'embed' };
+  }
   if (isVideoUrl(target)) return { url: target, kind: 'file' };
 
   return CacheManager.get('play', target, TTL.stream, async () => {

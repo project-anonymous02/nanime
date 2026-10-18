@@ -42,15 +42,22 @@ export interface CardOpts {
 }
 
 /** Read only explicit category/rating metadata already present in the provider document. */
-export function parseContentMetadata(root: ParentNode): Pick<Card, 'genres' | 'tags' | 'contentRating' | 'classification'> {
+export function parseContentMetadata(root: ParentNode): Pick<Card, 'genres' | 'tags' | 'contentRating' | 'classification' | 'altTitles' | 'year'> {
   const labels = (selector: string) => nodes(root, selector).map(node => clean(attr(node, 'data-genre') || attr(node, 'data-tag') || txt(node))).filter(Boolean);
   const ratingNode = root.querySelector('[data-content-rating], [data-rating], .content-rating, .age-rating');
   const classificationNode = root.querySelector('[data-content-classification], [data-classification], .content-category');
+  const altTitles = nodes(root, '[data-alt-title], [data-english-title], [data-romaji], [data-japanese-title], .alt-title, .alternative-title, .japanese-title')
+    .map(node => clean(attr(node, 'data-alt-title') || attr(node, 'data-english-title') || attr(node, 'data-romaji') || attr(node, 'data-japanese-title') || txt(node)))
+    .filter(Boolean);
+  const rawYear = clean(attr(root.querySelector('[data-year], .year, time[datetime]'), 'data-year') || attr(root.querySelector('time[datetime]'), 'datetime'));
+  const year = (rawYear.match(/(?:19|20)\d{2}/) || [])[0] || '';
   return {
     genres: [...new Set(labels('.genxed a, .mgen a, .genre a, .genres a, [data-genre]'))],
     tags: [...new Set(labels('.tag a, .tags a, [data-tag]'))],
     contentRating: clean(attr(ratingNode, 'data-content-rating') || attr(ratingNode, 'data-rating') || txt(ratingNode)),
-    classification: clean(attr(classificationNode, 'data-content-classification') || attr(classificationNode, 'data-classification') || txt(classificationNode))
+    classification: clean(attr(classificationNode, 'data-content-classification') || attr(classificationNode, 'data-classification') || txt(classificationNode)),
+    altTitles: [...new Set(altTitles)],
+    year
   };
 }
 

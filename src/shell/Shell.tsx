@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from '../ui/icons';
 import { useScrollGuard } from '../ui/hooks';
+import { AppUsageTracker } from '../features/AppUsageTracker';
 
 /** Kerangka aplikasi: konten, navigasi bawah, dan tumpukan toast. */
 
@@ -50,6 +51,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   return (
     <div className="app-shell">
+      <AppUsageTracker />
       <main className="app-main">
         <div className="page" key={pathname}>
           {children}

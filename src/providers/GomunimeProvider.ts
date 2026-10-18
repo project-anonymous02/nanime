@@ -1,6 +1,6 @@
 import { httpGetText, NetError } from '../core/http';
 import type { Card, Detail, EpisodeItem, EpisodeStream, ListResult } from '../core/types';
-import { abs, attr, parseDoc, parseIframeEmbeds, pathSlug, txt } from './shared';
+import { abs, attr, parseContentMetadata, parseDoc, parseIframeEmbeds, pathSlug, txt } from './shared';
 import type { AnimeProvider } from './types';
 
 const ROOT = 'https://gomunime.top';
@@ -30,7 +30,8 @@ export function parseGomunimeCards(doc: ParentNode, base = ROOT): Card[] {
       id: slug, slug, provider: 'gomunime', title,
       poster: abs(base, attr(image, 'data-src') || attr(image, 'src')),
       score, type, status, epLabel: '', sub: year, sourceUrl: url.href,
-      classification: ''
+      classification: '',
+      ...parseContentMetadata(anchor)
     });
   }
   return cards;

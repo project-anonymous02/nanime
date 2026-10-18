@@ -3,7 +3,7 @@ import { aliasKey, aliasesOf, splitSeason } from '../src/core/utils/titleAliases
 import { matchScore, normalizeTitle, similarity } from '../src/core/utils/fuzzyMatch';
 import { canonicalQuality, groupByQuality, qualityRank } from '../src/core/utils/qualitySorter';
 import { episodeNumber, mergeEpisodes, mergeDownloads, findByEpisode } from '../src/core/services/EpisodeMatcher';
-import { dedupeKey, sortCards, applyFilters, suggestions, sourceSummary } from '../src/core/services/SearchEngine';
+import { dedupeKey, sortCards, applyFilters, suggestions, sourceSummary, mergeCards } from '../src/core/services/SearchEngine';
 import { dedupe } from '../src/core/services/ProviderAggregator';
 import { FallbackEngine } from '../src/core/services/FallbackEngine';
 import { pickBestCard } from '../src/core/services/DownloadAggregator';
@@ -119,6 +119,18 @@ describe('SearchEngine', () => {
     expect(dedupeKey(card({ title: 'Bleach', provider: 'a', type: 'TV' }))).toBe(
       dedupeKey(card({ title: 'Bleach', provider: 'b', type: 'TV' }))
     );
+  });
+
+  it('menggabungkan judul Unicode yang ekuivalen dan memisahkan musim berbeda', () => {
+    const merged = mergeCards([
+      card({ provider: 'a', title: 'Café! The Animation' }),
+      card({ provider: 'b', title: 'Cafe The Animation' }),
+      card({ provider: 'c', title: 'アニメ 2nd Season' }),
+      card({ provider: 'd', title: 'アニメ 3rd Season' })
+    ]);
+    expect(merged).toHaveLength(3);
+    expect(merged.find(item => item.title.includes('Café'))?.providerCount).toBe(2);
+    expect(merged.filter(item => item.title.includes('アニメ'))).toHaveLength(2);
   });
 
   it('suggestions & sourceSummary', () => {

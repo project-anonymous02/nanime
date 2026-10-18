@@ -55,6 +55,7 @@ describe('utils', () => {
   it('isVideoUrl mengenali stream video', () => {
     expect(isVideoUrl('https://x.test/a.mp4')).toBe(true);
     expect(isVideoUrl('https://x.test/a.m3u8?token=1')).toBe(true);
+    expect(isVideoUrl('https://x.test/a.mpd?token=1')).toBe(true);
     expect(isVideoUrl('https://x.test/watch')).toBe(false);
   });
 });

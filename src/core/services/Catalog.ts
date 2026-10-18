@@ -3,14 +3,12 @@ import { legacyResolveServer } from '../../providers/legacy';
 import { ProviderAggregator } from './ProviderAggregator';
 import { searchAggregated, mergeCardsAsync } from './SearchEngine';
 import { FallbackEngine } from './FallbackEngine';
-import { DownloadAggregator } from './DownloadAggregator';
 import { TitleIndex, titleFromKey, titleKey, type IndexedEntry } from './TitleIndex';
 import { CacheManager, TTL } from './CacheManager';
 import { buildForcedQualities } from './QualityNormalizer';
 import { episodeNumber, mergeEpisodes } from './EpisodeMatcher';
 import { resolveMediaUrl, type ResolvedMedia } from './StreamExtractor';
-import { groupByQuality } from '../utils/qualitySorter';
-import { filterDiscovery } from './ContentPolicy';
+import { filterDiscovery, isAdultContent } from './ContentPolicy';
 import type {
   AggregatedCard,
   AggregatedSearchResult,
@@ -37,6 +35,7 @@ import type {
 
 /** Satu-satunya pesan galat yang boleh sampai ke pengguna. */
 export const GENERIC_ERROR = 'Gagal memuat data, silakan periksa koneksi internet dan coba lagi nanti.';
+const policyValidatedDetails = new Set<string>();
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -135,6 +134,15 @@ function sanitizeDiscoveryFeed(feed: Omit<HomeFeed, 'stale'>): Omit<HomeFeed, 's
   return { ...feed, newUpdate, completed, donghua, movie, weekly };
 }
 
+function sanitizeSearchResult(result: AggregatedSearchResult): AggregatedSearchResult {
+  const items = filterDiscovery(result.items || []);
+  const sources = (result.sources || []).map(source => {
+    const safe = filterDiscovery(source.items || [], source.id);
+    return { ...source, items: safe, count: safe.length };
+  });
+  return { ...result, items, sources };
+}
+
 export const Catalog = {
   /**
    * Beranda lengkap (8 rail) — hasil gabungan seluruh penyedia, sudah kanonik.
@@ -229,21 +237,54 @@ export const Catalog = {
   },
 
   /** Pencarian lintas penyedia: satu judul = satu kartu, tanpa label penyedia. */
-  search(query: string, opts: { sort?: 'relevance' | 'title' | 'rating'; minScore?: number; providerIds?: string[] } = {}): Promise<AggregatedSearchResult> {
+  search(query: string, opts: { sort?: 'relevance' | 'title' | 'rating'; minScore?: number; providerIds?: string[]; signal?: AbortSignal; onUpdate?: (result: AggregatedSearchResult) => void } = {}): Promise<AggregatedSearchResult> {
     const q = String(query || '').trim();
     const sort = opts.sort || 'relevance';
     const providerIds = opts.providerIds?.length ? [...new Set(opts.providerIds)].sort() : [];
     const providerKey = providerIds.length ? providerIds.join(',') : 'default';
-    return CacheManager.get(`search`, q.toLowerCase() + ':' + sort + ':providers=' + providerKey, TTL.search, async () => {
-      const r = await searchAggregated(q, { sort, providerIds: providerIds.length ? providerIds : undefined });
-      remember(r.items.slice(0, 30));
-      return r;
+    const queryKey = q.normalize('NFKD').replace(/\p{M}+/gu, '').toLowerCase().replace(/\s+/g, ' ');
+    if (opts.onUpdate) {
+      return searchAggregated(q, {
+        sort,
+        minScore: opts.minScore,
+        providerIds: providerIds.length ? providerIds : undefined,
+        signal: opts.signal,
+        onUpdate: result => opts.onUpdate?.(sanitizeSearchResult(result))
+      }).then(result => {
+        const safe = sanitizeSearchResult(result);
+        remember(safe.items.slice(0, 30));
+        return safe;
+      });
+    }
+    const minScoreKey = opts.minScore == null ? 'default' : String(opts.minScore);
+    return CacheManager.get(`search`, queryKey + ':' + sort + ':min=' + minScoreKey + ':providers=' + providerKey, TTL.search, async () =>
+      sanitizeSearchResult(await searchAggregated(q, { sort, minScore: opts.minScore, providerIds: providerIds.length ? providerIds : undefined }))
+    ).then(result => {
+      // Filter old IndexedDB and memory cache entries before they can reach a view.
+      const safe = sanitizeSearchResult(result);
+      remember(safe.items.slice(0, 30));
+      return safe;
     });
   },
 
   /** Detail anime berdasarkan canonicalId — tahan refresh berkat TitleIndex. */
   detail(id: string, opts: { title?: string } = {}): Promise<DetailBundle> {
-    return CacheManager.get('detailBundle', id, TTL.detail, () => buildDetail(id, opts));
+    // Remove older entries that may have been cached before policy checks ran
+    // inside the cache boundary.
+    CacheManager.invalidate('detailBundle', id);
+    CacheManager.invalidate('detailBundleV2', id);
+    return CacheManager.get('detailBundleV3', id, TTL.detail, async () => {
+      const bundle = await buildDetail(id, opts);
+      const entry = await TitleIndex.get(id);
+      const providers = [...new Set([...(bundle.providers || []), ...(entry?.sources || []).map(source => source.provider)])].map(provider => getProvider(provider)).filter(Boolean);
+      const explicitlyAdultProvider = providers.some(provider => provider?.content === 'hentai');
+      const unclassifiedMixedProvider = providers.some(provider => provider?.content === 'mixed') && !bundle.genres.length;
+      if (explicitlyAdultProvider || unclassifiedMixedProvider || isAdultContent({ title: bundle.title, alt: bundle.alt, genres: bundle.genres })) {
+        throw new Error('Konten ini dibatasi oleh kebijakan katalog Nanime.');
+      }
+      policyValidatedDetails.add(id);
+      return bundle;
+    });
   },
 
   /** Sumber putar satu episode dengan 4 kualitas yang selalu tersedia. */
@@ -416,6 +457,9 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
   }
 
   const sources = sortSources(entry);
+  if (sources.some(source => getProvider(source.provider)?.content === 'hentai')) {
+    throw new Error('Konten ini dibatasi oleh kebijakan katalog Nanime.');
+  }
   const { groups, details } = await collectEpisodes(entry, sources);
   let fetched = Math.min(4, sources.length);
 
@@ -456,6 +500,7 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
 
   return {
     id: entry.id,
+    providers: sources.map(source => source.provider),
     title: base.title || entry.title,
     alt: base.alt || '',
     ...artwork,
@@ -484,15 +529,23 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
 async function buildStream(id: string, episode: string, opts: { title?: string; episodeProvider?: string; episodeId?: string; episodeSlug?: string }): Promise<StreamBundle> {
   let entry = await TitleIndex.get(id);
   if (!entry || !entry.sources.length) {
-    /* Detail sekaligus menyembuhkan indeks & mengisi daftar episode per sumber. */
-    try {
-      await buildDetail(id, opts);
-    } catch {
-      /* lanjut ke upaya berikutnya */
-    }
+    // Detail heals a missing index and applies the same content policy before
+    // the stream resolver can use any provider source.
+    await Catalog.detail(id, { title: opts.title });
     entry = await TitleIndex.get(id);
   }
   if (!entry) throw new Error(GENERIC_ERROR);
+  if (entry.sources.some(source => getProvider(source.provider)?.content === 'hentai')) {
+    throw new Error('Konten ini dibatasi oleh kebijakan katalog Nanime.');
+  }
+  if (entry.sources.some(source => getProvider(source.provider)?.content === 'mixed') && !policyValidatedDetails.has(id)) {
+    // Mixed catalog entries require the provider's detail classification
+    // before a direct playback request can resolve any source.
+    await Catalog.detail(id, { title: opts.title });
+    entry = await TitleIndex.get(id);
+    if (!entry) throw new Error(GENERIC_ERROR);
+  }
+  if (isAdultContent({ title: entry.title })) throw new Error('Konten ini dibatasi oleh kebijakan katalog Nanime.');
 
   const want = episodeNumber(episode);
   const sources = sortSources(entry).filter(s => {
@@ -561,26 +614,8 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
 
   if (!entry) throw new Error(GENERIC_ERROR);
 
-  const primaryProvider = results.find(result => result.stream.sourceKind === 'direct-media')?.provider
-    || results[0]?.provider || requests[0]?.provider || sources[0]?.provider || '';
-  const primarySource = sortSources(entry).find(s => s.provider === primaryProvider);
-
-  /* Unduh: gabungan semua penyedia unduhan (tidak pernah melempar). */
-  let downloads: import('../types').DownloadLink[] = [];
-  try {
-    const dl = await DownloadAggregator.collect({
-      title: entry.title,
-      episode: String(want || episode),
-      preferred: primaryProvider,
-      animeId: primarySource?.id,
-      animeSlug: primarySource?.slug,
-      episodeId: requests.find(r => r.provider === primaryProvider)?.params.episodeId,
-      episodeSlug: requests.find(r => r.provider === primaryProvider)?.params.episodeSlug
-    });
-    downloads = dl.links;
-  } catch {
-    downloads = [];
-  }
+  // Stream readiness does not wait for unrelated, sequential download-host
+  // discovery across providers.
 
   // Download pages and file hosts are never converted into playback sources.
   const streams = results;
@@ -615,7 +650,7 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
     qualities: norm.qualities,
     defaultQuality: norm.defaultQuality,
     servers,
-    downloads: groupByQuality(downloads).map(g => ({ quality: g.quality, items: g.items })),
+    downloads: [],
     synopsis: '',
     sourceCount: streams.length,
     availability: sourceKind === 'direct-media' ? 'direct-media' : sourceKind === 'embed-page' ? 'external-embed' : 'unavailable',

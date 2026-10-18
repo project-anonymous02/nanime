@@ -37,22 +37,25 @@ const MAX_BYTES = 50 * 1024 * 1024;
 
 const mem = new Map<string, { data: unknown; expiresAt: number; at?: number }>();
 const inflight = new Map<string, Promise<unknown>>();
+const counters = { memoryHits: 0, indexedDbHits: 0, networkMisses: 0, inflightJoins: 0 };
 
 /** Jendela revalidasi lembut: data di memori lebih tua dari ini disegarkan di latar. */
 const SOFT_REVALIDATE = 10 * 60 * 1000;
 
 async function run<T>(full: string, ttl: number, fn: () => Promise<T>): Promise<T> {
   const hit = mem.get(full);
-  if (hit && hit.expiresAt > Date.now()) return hit.data as T;
+  if (hit && hit.expiresAt > Date.now()) { counters.memoryHits++; return hit.data as T; }
   const running = inflight.get(full);
-  if (running) return running as Promise<T>;
+  if (running) { counters.inflightJoins++; return running as Promise<T>; }
 
   const job = (async () => {
     const persisted = await idbGet<T>(full);
     if (persisted != null) {
+      counters.indexedDbHits++;
       mem.set(full, { data: persisted, expiresAt: Date.now() + Math.min(ttl, 60 * 1000), at: Date.now() });
       return persisted;
     }
+    counters.networkMisses++;
     const data = await fn();
     const expiresAt = Date.now() + ttl;
     mem.set(full, { data, expiresAt, at: Date.now() });
@@ -89,6 +92,7 @@ function refresh<T>(full: string, ttl: number, fn: () => Promise<T>): Promise<T>
 }
 
 export const CacheManager = {
+  metrics() { return { ...counters }; },
   /** Ambil dari cache (memori → IndexedDB), atau hitung lalu simpan. */
   get<T>(ns: string, key: string, ttl: number, fn: () => Promise<T>): Promise<T> {
     return run(ns + ':' + key, ttl, fn);
@@ -196,7 +200,8 @@ export const CacheManager = {
   },
 
   search<T>(provider: string, query: string, fn: () => Promise<T>): Promise<T> {
-    return run('search:' + provider + ':' + query.toLowerCase(), TTL.search, fn);
+    const key = String(query || '').normalize('NFKD').replace(/\p{M}+/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    return run('search:' + provider + ':' + key, TTL.search, fn);
   },
 
   stream<T>(provider: string, episodeId: string, fn: () => Promise<T>): Promise<T> {

@@ -63,6 +63,19 @@ describe('mergeCards — satu judul = satu kartu kanonik', () => {
     expect(out[0].score1000).toBe(1000);
   });
 
+  it('mempertahankan ID berbeda dari provider yang sama meski judulnya sama', () => {
+    const out = mergeCards([
+      card({ provider: 'provider-a', id: 'season-1', title: 'Anime Title', year: '2019' }),
+      card({ provider: 'provider-a', id: 'remake', title: 'Anime Title', year: '2024' }),
+      card({ provider: 'provider-b', id: 'season-1-copy', title: 'Anime Title', year: '2019' })
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out.map(item => item.sources.map(source => source.provider))).toEqual([
+      ['provider-a', 'provider-b'],
+      ['provider-a']
+    ]);
+  });
+
   it('sinonim judul ikut digabung', () => {
     const out = mergeCards([
       card({ provider: 'a', title: 'Attack on Titan' }),

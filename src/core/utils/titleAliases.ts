@@ -44,9 +44,11 @@ const ALIAS_MAP = new Map<string, string>();
 
 const normalizeKey = (s: string): string =>
   String(s || '')
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
     .toLowerCase()
     .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 

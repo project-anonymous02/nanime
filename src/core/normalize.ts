@@ -7,16 +7,33 @@ export function getPoster(item: any): string {
 }
 
 /** Carry explicit source content classification so discovery policy can filter before rendering. */
-function contentMetadata(item: any): Pick<Card, 'genres' | 'tags' | 'contentRating' | 'classification'> {
+function contentMetadata(item: any): Pick<Card, 'genres' | 'tags' | 'contentRating' | 'classification' | 'altTitles' | 'year' | 'externalIds'> {
   const labels = (value: unknown): string[] => {
     if (!Array.isArray(value)) return [];
     return value.map(entry => cleanVal(typeof entry === 'string' ? entry : entry?.title || entry?.name || entry?.label)).filter(Boolean);
   };
+  const altRaw = item?.altTitles || item?.alternativeTitles || item?.titles || [];
+  const altTitles = (Array.isArray(altRaw) ? altRaw : [altRaw])
+    .map(value => cleanVal(typeof value === 'string' ? value : value?.title || value?.name || value?.english || value?.romaji || value?.japanese))
+    .filter(Boolean);
+  const rawIds = item?.externalIds || item?.external_ids || {};
+  const externalIds: Record<string, string> = {};
+  for (const key of ['anilist', 'anilistId', 'mal', 'malId', 'anidb', 'anidbId', 'kitsu', 'kitsuId']) {
+    if (rawIds[key] != null || item?.[key] != null) {
+      const value = cleanVal(rawIds[key] ?? item[key]);
+      if (value) externalIds[key.replace(/Id$/, '').toLowerCase()] = value;
+    }
+  }
+  const rawYear = cleanVal(item?.year || item?.releaseYear || item?.releasedOn || item?.aired);
+  const year = (rawYear.match(/(?:19|20)\d{2}/) || [])[0] || '';
   return {
     genres: labels(item?.genres || item?.genreList),
     tags: labels(item?.tags || item?.tagList),
     contentRating: cleanVal(item?.contentRating || item?.ageRating || item?.ratingAge || item?.certification),
-    classification: cleanVal(item?.contentClassification || item?.classification || item?.category)
+    classification: cleanVal(item?.contentClassification || item?.classification || item?.category),
+    altTitles: [...new Set(altTitles)],
+    year,
+    externalIds
   };
 }
 

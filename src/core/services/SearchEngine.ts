@@ -33,11 +33,11 @@ const PRIORITY: Record<string, number> = (() => {
 
 /** Normalisasi penuh untuk perbandingan (angka & penanda musim DIPERTAHANKAN). */
 function fullNorm(s: string): string {
-  return String(s || '')
+  return String(s || '').normalize('NFKD').replace(/\p{M}+/gu, '')
     .toLowerCase()
     .replace(/&/g, ' and ')
     .replace(/['’`]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -86,6 +86,10 @@ interface Group {
   similarityKey: string;
   alias: string;
   kind: string;
+  year: string;
+  titleKeys: Set<string>;
+  aliases: Set<string>;
+  externalIds: Record<string, string>;
 }
 
 function toSourceRef(card: Card): SourceRef {
@@ -113,6 +117,10 @@ interface PreparedCard {
   similarityKey: string;
   match: number;
   kind: string;
+  year: string;
+  titleKeys: string[];
+  aliases: string[];
+  externalIds: Record<string, string>;
 }
 
 function contentKind(card: Card): string {
@@ -127,14 +135,27 @@ function contentKind(card: Card): string {
 
 /** Aturan penggabungan dua judul; kandidat sudah dipersempit lewat indeks. */
 function canMerge(g: Group, card: PreparedCard): boolean {
+  const sameProvider = g.sources.get(card.card.provider);
+  // A provider's stable item ID is authoritative within that provider. Title
+  // similarity must never collapse two separately identified catalog entries.
+  if (sameProvider && sameProvider.id !== card.card.id) return false;
   if (card.kind !== g.kind) return false;
+  let sharedOfficialId = false;
+  for (const [namespace, id] of Object.entries(card.externalIds)) {
+    const other = g.externalIds[namespace];
+    if (other && other !== id) return false;
+    if (other === id) sharedOfficialId = true;
+  }
+  if (sharedOfficialId) return true;
+  if (g.year && card.year && g.year !== card.year) return false;
   if (card.canonical && card.canonical === g.canonical) return true;
 
   /* Musim eksplisit tidak boleh tercampur musim lain / tanpa musim. */
   if (card.marked !== g.marked) return false;
   if (card.marked && g.marked && card.season !== g.season) return false;
 
-  if (g.alias && card.alias && g.alias === card.alias) return true;
+  if (card.aliases.some(alias => g.aliases.has(alias)) || card.titleKeys.some(key => g.titleKeys.has(key))) return true;
+  if (g.alias && card.alias && g.aliases.has(card.alias)) return true;
 
   const a = g.similarityKey;
   const b = card.similarityKey;
@@ -158,25 +179,29 @@ function createMergeContext(query: string): MergeContext {
   const groups: Group[] = [];
   const canonicalIndex = new Map<string, number>();
   const aliasIndex = new Map<string, number[]>();
+  const exactTitleIndex = new Map<string, number[]>();
   const bigramIndex = new Map<string, number[]>();
   const shortTitleIndex = new Map<string, number[]>();
+  const indexList = (index: Map<string, number[]>, key: string, groupIndex: number) => {
+    if (!key) return;
+    const list = index.get(key) || [];
+    if (!list.includes(groupIndex)) list.push(groupIndex);
+    index.set(key, list);
+  };
 
   const indexGroup = (group: Group, index: number) => {
     if (group.canonical && !canonicalIndex.has(group.canonical)) canonicalIndex.set(group.canonical, index);
-    if (group.alias) {
-      const list = aliasIndex.get(group.alias) || [];
-      list.push(index);
-      aliasIndex.set(group.alias, list);
-    }
+    group.aliases.forEach(alias => {
+      indexList(aliasIndex, alias, index);
+    });
+    group.titleKeys.forEach(key => {
+      indexList(exactTitleIndex, key, index);
+    });
     if (group.similarityKey.length < 3) {
-      const list = shortTitleIndex.get(group.similarityKey) || [];
-      list.push(index);
-      shortTitleIndex.set(group.similarityKey, list);
+      indexList(shortTitleIndex, group.similarityKey, index);
     } else {
       for (const gram of new Set(bigrams(group.similarityKey))) {
-        const list = bigramIndex.get(gram) || [];
-        list.push(index);
-        bigramIndex.set(gram, list);
+        indexList(bigramIndex, gram, index);
       }
     }
   };
@@ -184,6 +209,7 @@ function createMergeContext(query: string): MergeContext {
   const add = (card: Card | null | undefined) => {
     if (!card || !card.title) return;
     const split = splitSeason(card.title);
+    const titles = [card.title, ...(card.altTitles || [])].map(value => String(value || '').trim()).filter(Boolean);
     const prepared: PreparedCard = {
       card,
       canonical: titleKey(card.title),
@@ -193,7 +219,11 @@ function createMergeContext(query: string): MergeContext {
       alias: aliasKey(split.base || card.title),
       similarityKey: normalizeTitle(fullNorm(card.title)),
       match: query ? matchScore(query, card.title) : 0,
-      kind: contentKind(card)
+      kind: contentKind(card),
+      year: String(card.year || '').match(/(?:19|20)\d{2}/)?.[0] || String(card.sub || '').match(/(?:19|20)\d{2}/)?.[0] || '',
+      titleKeys: [...new Set(titles.map(fullNorm).filter(Boolean))],
+      aliases: [...new Set(titles.map(title => aliasKey(splitSeason(title).base || title)).filter(Boolean))],
+      externalIds: card.externalIds || {}
     };
 
     // A title only needs comparison with exact, alias, or fuzzy-neighbour
@@ -201,7 +231,8 @@ function createMergeContext(query: string): MergeContext {
     const candidates = new Set<number>();
     const exact = canonicalIndex.get(prepared.canonical);
     if (exact != null) candidates.add(exact);
-    for (const index of aliasIndex.get(prepared.alias) || []) candidates.add(index);
+    for (const alias of prepared.aliases) for (const index of aliasIndex.get(alias) || []) candidates.add(index);
+    for (const key of prepared.titleKeys) for (const index of exactTitleIndex.get(key) || []) candidates.add(index);
     if (prepared.similarityKey.length < 3) {
       for (const index of shortTitleIndex.get(prepared.similarityKey) || []) candidates.add(index);
     } else {
@@ -233,12 +264,21 @@ function createMergeContext(query: string): MergeContext {
         sources: new Map(),
         similarityKey: prepared.similarityKey,
         alias: prepared.alias,
-        kind: prepared.kind
+        kind: prepared.kind,
+        year: prepared.year,
+        titleKeys: new Set(prepared.titleKeys),
+        aliases: new Set(prepared.aliases),
+        externalIds: { ...prepared.externalIds }
       };
       groups.push(group);
       groupIndex = groups.length - 1;
       indexGroup(group, groupIndex);
     }
+    prepared.titleKeys.forEach(key => group!.titleKeys.add(key));
+    prepared.aliases.forEach(alias => group!.aliases.add(alias));
+    Object.entries(prepared.externalIds).forEach(([namespace, value]) => { if (!group!.externalIds[namespace]) group!.externalIds[namespace] = value; });
+    if (!group.year && prepared.year) group.year = prepared.year;
+    indexGroup(group, groupIndex);
     const ref = toSourceRef(card);
     if (!group.sources.has(card.provider)) group.sources.set(card.provider, ref);
 
@@ -304,28 +344,36 @@ export async function mergeCardsAsync(cards: Card[], opts: { query?: string } = 
 /** Pencarian gabungan lintas penyedia — hasil sudah kanonik (satu judul satu kartu). */
 export async function searchAggregated(
   query: string,
-  opts: { sort?: SearchSort; minScore?: number; timeout?: number; providerIds?: string[] } = {}
+  opts: { sort?: SearchSort; minScore?: number; timeout?: number; providerIds?: string[]; signal?: AbortSignal; onUpdate?: (result: AggregatedSearchResult) => void } = {}
 ): Promise<AggregatedSearchResult> {
   const q = String(query || '').trim();
   if (q.length < 2) return { items: [], sources: [] };
-
-  const sources = await ProviderAggregator.search(q, { timeout: opts.timeout, providerIds: opts.providerIds });
-  const flat: Card[] = [];
-  for (const s of sources) {
-    if (!s.ok) continue;
-    for (const c of s.items) flat.push(c);
-  }
-
-  let items = await mergeCardsAsync(flat, { query: q });
   const minScore = opts.minScore != null ? opts.minScore : 220;
-  items = items.filter(i => i.score1000 >= minScore);
-
   const sort = opts.sort || 'relevance';
-  if (sort === 'title') items.sort((a, b) => a.title.localeCompare(b.title));
-  else if (sort === 'rating') items.sort((a, b) => (parseFloat(b.score) || 0) - (parseFloat(a.score) || 0));
-  else if (sort === 'provider') items.sort((a, b) => b.providerCount - a.providerCount);
-
-  return { items, sources };
+  const buildResult = async (sources: SourceResult[]): Promise<AggregatedSearchResult> => {
+    const flat: Card[] = [];
+    for (const source of sources) if (source.ok) flat.push(...source.items);
+    let items = (await mergeCardsAsync(flat, { query: q })).filter(item => item.score1000 >= minScore);
+    if (sort === 'title') items.sort((a, b) => a.title.localeCompare(b.title));
+    else if (sort === 'rating') items.sort((a, b) => (parseFloat(b.score) || 0) - (parseFloat(a.score) || 0));
+    else if (sort === 'provider') items.sort((a, b) => b.providerCount - a.providerCount);
+    return { items, sources };
+  };
+  let updateSequence = 0;
+  const sources = await ProviderAggregator.search(q, {
+    timeout: opts.timeout,
+    providerIds: opts.providerIds,
+    signal: opts.signal,
+    onUpdate: partial => {
+      if (!opts.onUpdate) return;
+      const sequence = ++updateSequence;
+      void buildResult(partial).then(result => {
+        if (sequence === updateSequence) opts.onUpdate?.(result);
+      });
+    }
+  });
+  updateSequence++;
+  return buildResult(sources);
 }
 
 /* ════════════════════ Ekspor lama (kompatibilitas) ════════════════════ */

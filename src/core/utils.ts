@@ -48,7 +48,7 @@ export function normalizeSearchText(s: unknown): string {
     .trim();
 }
 
-export const isVideoUrl = (u: string): boolean => /\.(mp4|m3u8|webm|mkv|mov)(\?|#|$)/i.test(String(u || ''));
+export const isVideoUrl = (u: string): boolean => /\.(mp4|m3u8|mpd|webm|mkv|mov)(\?|#|$)/i.test(String(u || ''));
 
 export function formatDuration(sec: number): string {
   if (!isFinite(sec) || sec <= 0) return '0m';

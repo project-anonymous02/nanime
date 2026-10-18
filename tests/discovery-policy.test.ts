@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { selectDetailArtwork } from '../src/core/services/Catalog';
-import { filterDiscovery } from '../src/core/services/ContentPolicy';
+import { filterDiscovery, isAdultContent } from '../src/core/services/ContentPolicy';
 import { isProviderSearchAllowed } from '../src/core/services/ProviderAggregator';
 import { normalizeCard } from '../src/core/normalize';
 import type { Card } from '../src/core/types';
@@ -33,11 +33,11 @@ describe('detail hero artwork selection', () => {
 });
 
 describe('discovery content policy', () => {
-  it('only includes an adult search source when that exact provider is selected', () => {
+  it('never includes explicit adult providers even when a caller tries to select one', () => {
     const provider = { id: 'nekopoi', content: 'hentai' as const };
     expect(isProviderSearchAllowed(provider)).toBe(false);
     expect(isProviderSearchAllowed(provider, ['other-adult-provider'])).toBe(false);
-    expect(isProviderSearchAllowed(provider, ['nekopoi'])).toBe(true);
+    expect(isProviderSearchAllowed(provider, ['nekopoi'])).toBe(false);
     expect(isProviderSearchAllowed({ id: 'animasu', content: 'anime' }, ['nekopoi'])).toBe(false);
   });
 
@@ -52,6 +52,18 @@ describe('discovery content policy', () => {
     const safe = card({ genres: ['Romance', 'Comedy'], contentRating: 'PG-13' });
     const adult = card({ genres: ['Drama'], contentRating: 'R18+' });
     expect(filterDiscovery([safe, adult])).toEqual([safe]);
+  });
+
+  it('rejects explicit adult labels in title metadata while retaining unrelated ordinary titles', () => {
+    expect(isAdultContent({ title: '[Hentai] Example' })).toBe(true);
+    expect(isAdultContent({ title: 'Example', altTitles: ['[Hentai] Original Title'] })).toBe(true);
+    expect(isAdultContent({ title: 'Hentai', alt: '別名' })).toBe(true);
+    expect(isAdultContent({ title: 'The Adult Swim Show', genres: ['Comedy'] })).toBe(false);
+  });
+
+  it('fails closed for mixed sources without classification metadata', () => {
+    expect(filterDiscovery([card({ provider: 'gomunime', title: 'Unknown Classification' })])).toEqual([]);
+    expect(filterDiscovery([card({ provider: 'gomunime', genres: ['Action'] })])).toHaveLength(1);
   });
 
   it('preserves category metadata from provider records for the feed filter', () => {

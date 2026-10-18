@@ -20,6 +20,11 @@ export interface Card {
   tags?: string[];
   contentRating?: string;
   classification?: string;
+  /** Alternate provider titles (English, romaji, or original-language titles). */
+  altTitles?: string[];
+  /** Known broadcast year and official identifiers, when explicitly supplied. */
+  year?: string;
+  externalIds?: Record<string, string>;
 }
 
 export interface Genre {
@@ -386,6 +391,8 @@ export interface DownloadGroup {
 /** Bundle lengkap halaman detail (sudah digabung lintas sumber). */
 export interface DetailBundle {
   id: string;
+  /** Provider identities used to validate cache results against source policy. */
+  providers?: string[];
   title: string;
   alt: string;
   poster: string;

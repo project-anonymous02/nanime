@@ -3,9 +3,11 @@ import { aliasKey, aliasesOf, splitSeason } from './titleAliases';
 /** Normalisasi judul untuk perbandingan (bukan untuk ditampilkan). */
 export function normalizeTitle(title: string): string {
   return String(title || '')
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
     .toLowerCase()
     .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .replace(/\b(season|part|subtitle|sub|indo|indonesia|full|batch|episode|ep)\b/g, ' ')
     .replace(/\bs\d+\b/g, ' ')
     .replace(/\b\d+\b/g, ' ')

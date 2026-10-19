@@ -10,6 +10,7 @@ import { detailPath } from '../lib/nav';
 import { countOwnComments, formatWatchDuration, listOwnComments, ownAppUsageSeconds, type OwnCommentRow } from '../lib/community';
 import { isNanimeDeveloper, DEVELOPER_LEVEL, listDeveloperMessages, sendDeveloperMessage, type DeveloperMessage } from '../lib/developer';
 import { RankInsignia } from '../ui/RankInsignia';
+import { CommunityAvatar } from '../ui/CommunityAvatar';
 
 /** Profil — banner, statistik, tab Favorit/Histori, dan sheet foto profil ala referensi. */
 
@@ -114,14 +115,6 @@ export function Profile() {
 
       <div className="prof-chips">
         {developer ? <span className="prof-chip developer-chip"><RankInsignia rank="developer" size={22} />Developer · Lvl. {DEVELOPER_LEVEL}</span> : null}
-        <span className="prof-chip">
-          <Icon name="shield" size={12} strokeWidth={2.2} />
-          Akun Google
-        </span>
-        <span className="prof-chip dark">
-          <Icon name="check" size={12} strokeWidth={2.6} />
-          Tersinkron
-        </span>
       </div>
 
       <div className="prof-stats">
@@ -191,9 +184,16 @@ export function Profile() {
         {commentsError ? <div className="prof-empty" role="alert">Komentar belum dapat dimuat. <button type="button" className="prof-comment-link" onClick={() => { setCommentsLoading(true); setCommentsError(false); void listOwnComments().then(setComments).catch(() => setCommentsError(true)).finally(() => setCommentsLoading(false)); }}>Coba lagi</button></div> : null}
         {!commentsLoading && !commentsError && !comments.length ? <p className="prof-empty">Belum ada komentar.</p> : null}
         {comments.map(comment => <article className="prof-comment" key={comment.id}>
-          <div className="prof-comment-head"><span className="prof-comment-anime">{comment.anime_id}</span><time>{relativeTime(new Date(comment.created_at).getTime())}</time></div>
+          <div className="prof-comment-head">
+            <CommunityAvatar name={user?.name || 'Pengguna Nanime'} src={user?.avatar} />
+            <strong>{user?.name || 'Pengguna Nanime'}</strong>
+            <time>• {relativeTime(new Date(comment.created_at).getTime())}</time>
+          </div>
+          <button type="button" className="prof-comment-anime-row" onClick={() => navigate(detailPath(comment.anime_id, comment.anime_id))}>
+            <span className="pr-thumb"><SmartImage animeId={comment.anime_id} alt={comment.anime_id} /></span>
+            <span className="prof-comment-anime">{comment.anime_id}</span>
+          </button>
           <p>{comment.content}</p>
-          <button type="button" className="prof-comment-link" onClick={() => navigate(detailPath(comment.anime_id, comment.anime_id))}>Buka anime</button>
         </article>)}
       </section> : tab === 'fav'
         ? favList.map(f => (

@@ -5,6 +5,7 @@ import type { RankTier } from './rank';
 export interface CommunityProfile { id: string; username: string; avatar_url: string | null; is_developer: boolean; app_usage_seconds: number; rank: RankTier; }
 export interface CommentRow { id: string; user_id: string; anime_id: string; content: string; created_at: string; updated_at: string; parent_comment_id?: string | null; profile?: CommunityProfile; }
 export type OwnCommentRow = Pick<CommentRow, 'id' | 'anime_id' | 'content' | 'created_at' | 'updated_at'>;
+export type CommentReplyNotice = Pick<CommentRow, 'id' | 'anime_id' | 'content' | 'created_at' | 'profile'> & { parent_comment_id: string };
 export interface DiscussionRow { id: string; user_id: string; title: string; content: string; created_at: string; updated_at: string; profile?: CommunityProfile; replies?: ReplyRow[]; }
 export interface ReplyRow { id: string; discussion_id: string; user_id: string; content: string; created_at: string; profile?: CommunityProfile; }
 
@@ -21,6 +22,20 @@ async function profiles(ids: string[]): Promise<Map<string, CommunityProfile>> {
 }
 export async function listComments(animeId: string, page = 0): Promise<CommentRow[]> { const sb = getClient(); if (!sb) return []; const { data, error } = await sb.from('anime_comments').select('*').eq('anime_id', animeId).order('created_at', { ascending: false }).range(page * 20, page * 20 + 19); if (error) throw error; const rows = (data || []) as CommentRow[]; const ps = await profiles(rows.map(x => x.user_id)); return rows.map(x => ({ ...x, profile: ps.get(x.user_id) })); }
 export async function listOwnComments(page = 0): Promise<OwnCommentRow[]> { const sb = getClient(); const uid = currentUserId(); if (!sb || !uid) return []; const { data, error } = await sb.from('anime_comments').select('id,anime_id,content,created_at,updated_at').eq('user_id', uid).order('created_at', { ascending: false }).range(page * 30, page * 30 + 29); if (error) throw error; return (data || []) as OwnCommentRow[]; }
+/** Real replies to the signed-in user's top-level anime comments. */
+export async function listRepliesToOwnComments(): Promise<CommentReplyNotice[]> {
+  const sb = getClient(); const uid = currentUserId();
+  if (!sb || !uid) return [];
+  const { data: parents, error: parentError } = await sb.from('anime_comments').select('id').eq('user_id', uid).is('parent_comment_id', null).order('created_at', { ascending: false }).limit(100);
+  if (parentError) throw parentError;
+  const ids = (parents || []).map((row: { id: string }) => row.id);
+  if (!ids.length) return [];
+  const { data, error } = await sb.from('anime_comments').select('id,user_id,anime_id,content,created_at,parent_comment_id').in('parent_comment_id', ids).neq('user_id', uid).order('created_at', { ascending: false }).limit(100);
+  if (error) throw error;
+  const rows = (data || []) as CommentRow[];
+  const ps = await profiles(rows.map(row => row.user_id));
+  return rows.map(row => ({ ...row, parent_comment_id: row.parent_comment_id || '', profile: ps.get(row.user_id) }));
+}
 export async function countOwnComments(): Promise<number> { const sb = getClient(); const uid = currentUserId(); if (!sb || !uid) return 0; const { count, error } = await sb.from('anime_comments').select('id', { count: 'exact', head: true }).eq('user_id', uid); if (error) throw error; return count || 0; }
 export async function saveComment(animeId: string, content: string, id?: string, parentCommentId?: string): Promise<void> { const sb = getClient(); const uid = currentUserId(); if (!sb || !uid) throw new Error('Login diperlukan'); const text = content.trim(); if (text.length < 1 || text.length > 2000) throw new Error('Komentar harus 1–2000 karakter'); const q = id ? sb.from('anime_comments').update({ content: text, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', uid) : sb.from('anime_comments').insert({ user_id: uid, anime_id: animeId, content: text, ...(parentCommentId ? { parent_comment_id: parentCommentId } : {}) }); const { error } = await q; if (error) throw error; }
 export async function removeComment(id: string): Promise<void> { const sb = getClient(); const uid = currentUserId(); if (!sb || !uid) throw new Error('Login diperlukan'); const { error } = await sb.from('anime_comments').delete().eq('id', id).eq('user_id', uid); if (error) throw error; }

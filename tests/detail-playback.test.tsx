@@ -124,4 +124,17 @@ describe('episode playback flow', () => {
     await act(async () => (host.querySelector('[aria-label="Penuhi video"]') as HTMLButtonElement).click());
     expect(host.querySelector('[aria-label="Sesuaikan video"]')).not.toBeNull();
   });
+
+  it('player episode controls load the adjacent catalog episode and disable the boundary direction', async () => {
+    api.stream.mockImplementation((_id: string, num: string) => Promise.resolve(stream(num)));
+    await renderDetail(); await clickEpisode('1');
+    await until(() => expect(host.querySelector<HTMLVideoElement>('video')?.src).toBe('https://cdn.test/episode-1.mp4'));
+    expect(host.querySelector<HTMLButtonElement>('[aria-label="Episode sebelumnya"]')?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>('[aria-label="Episode berikutnya"]')?.disabled).toBe(false);
+    await act(async () => (host.querySelector('[aria-label="Episode berikutnya"]') as HTMLButtonElement).click());
+    await until(() => expect(host.querySelector<HTMLVideoElement>('video')?.src).toBe('https://cdn.test/episode-2.mp4'));
+    expect(api.stream).toHaveBeenLastCalledWith('anime-a', '2', expect.objectContaining({ episodeId: 'provider-ep-2' }));
+    expect(host.querySelector<HTMLButtonElement>('[aria-label="Episode sebelumnya"]')?.disabled).toBe(false);
+    expect(host.querySelector<HTMLButtonElement>('[aria-label="Episode berikutnya"]')?.disabled).toBe(true);
+  });
 });

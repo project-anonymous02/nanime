@@ -142,11 +142,17 @@ export function Detail() {
     }
     const startedAt = performance.now();
     lastProgressWrite.current = 0;
+    const episodeIndex = episodes.findIndex(item => item.num === ep.num);
+    const previousEpisode = episodeIndex > 0 ? episodes[episodeIndex - 1] : undefined;
+    const nextEpisode = episodeIndex >= 0 ? episodes[episodeIndex + 1] : undefined;
     const request = startPlayer({
       animeId: id,
       title: bundle?.title || titleHint,
       poster: bundle?.poster || '',
+      synopsis: bundle?.synopsis || '',
       episode: ep.num,
+      onPrevious: previousEpisode ? () => { void playEpisode(previousEpisode); } : undefined,
+      onNext: nextEpisode ? () => { void playEpisode(nextEpisode); } : undefined,
       retry: () => { void playEpisode(ep); },
       onProgress: savePlaybackProgress(ep.num)
     });
@@ -275,17 +281,17 @@ export function Detail() {
             <Icon name={isFav ? 'heartFill' : 'heart'} />
           </button>
         </div>
+        <div className="dt-hero-copy">
+          {bundle.alt ? <p className="dt-alt clamp-1">{bundle.alt}</p> : null}
+          <h1 className="dt-title clamp-2">{bundle.title}</h1>
+          <p className="dt-status">
+            <Icon name="calendar" size={14} strokeWidth={2.2} />
+            {bundle.status || 'Sedang Tayang'}
+          </p>
+        </div>
       </div>
 
       <div className="dt-body">
-        {bundle.alt ? <p className="dt-alt clamp-1">{bundle.alt}</p> : null}
-        <h1 className="dt-title clamp-2">{bundle.title}</h1>
-
-        <p className="dt-status">
-          <Icon name="calendar" size={14} strokeWidth={2.2} />
-          {bundle.status || 'Sedang Tayang'}
-        </p>
-
         <div className="dt-chips">
           {bundle.score && bundle.score !== '-' ? (
             <span className="dt-chip gold">
@@ -300,14 +306,20 @@ export function Detail() {
         </div>
 
         <div className="dt-actions">
+          <button type="button" className="dt-btn primary" disabled={!episodes.length || streamLoading} onClick={() => {
+            const episode = episodes.find(ep => ep.num === resumeEp) || episodes[0];
+            if (episode) void playEpisode(episode);
+          }}>
+            <Icon name="play" size={16} strokeWidth={0} /> Tonton Sekarang
+          </button>
           <button type="button" className={'dt-btn ghost' + (isFav ? ' on' : '')} onClick={onFav}>
             <Icon name={isFav ? 'bellFill' : 'bell'} size={16} strokeWidth={2} />
             {isFav ? 'Subscribed' : 'Subscribe'}
           </button>
-          <button type="button" className="dt-btn ghost" onClick={() => navigate(`/watch-party?animeId=${encodeURIComponent(id)}&title=${encodeURIComponent(bundle.title)}&poster=${encodeURIComponent(bundle.poster || '')}&episode=${encodeURIComponent(resumeEp || episodes[0]?.num || '1')}`)}>
-            <Icon name="users" size={16} /> Nobar
-          </button>
         </div>
+        <button type="button" className="dt-party-link" onClick={() => navigate(`/watch-party?animeId=${encodeURIComponent(id)}&title=${encodeURIComponent(bundle.title)}&poster=${encodeURIComponent(bundle.poster || '')}&episode=${encodeURIComponent(resumeEp || episodes[0]?.num || '1')}`)}>
+          <Icon name="users" size={15} /> Tonton bersama di Nobar
+        </button>
 
         {bundle.genres.length ? (
           <div className="dt-chips" style={{ marginTop: 0 }}>

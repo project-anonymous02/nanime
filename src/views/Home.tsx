@@ -13,7 +13,7 @@ import { SmartImage } from '../ui/SmartImage';
 import { detailPath, searchPath } from '../lib/nav';
 import { getClient } from '../lib/supabase';
 import { filterSubscribedUpdates, subscriptionUpdateId } from '../lib/subscriptions';
-import { leaderboard, type CommunityProfile } from '../lib/community';
+import { leaderboard, listRepliesToOwnComments, type CommunityProfile } from '../lib/community';
 import { loadAffinityLeaderboard, type AffinityLeaderboardRow } from '../lib/affinity';
 import { listPublicChatChannels, listPublicChatMessages } from '../lib/publicChat';
 import { CommunityAvatar } from '../ui/CommunityAvatar';
@@ -38,6 +38,7 @@ export function Home() {
   const favorites = useLibrary(s => s.favorites);
 
   const [feed, setFeed] = useState<HomeFeed | null>(null);
+  const [commentReplyIds, setCommentReplyIds] = useState<string[]>([]);
   const [error, setError] = useState(false);
   const [slide, setSlide] = useState(0);
   const [crystals, setCrystals] = useState<number | null>(null);
@@ -134,9 +135,17 @@ export function Home() {
   const fresh = useMemo(() => filterSubscribedUpdates(feed?.newUpdate || [], favorites), [feed?.newUpdate, favorites]);
   const notifRead = useNotifications(s => s.read);
   const notifRemoved = useNotifications(s => s.removed);
+  useEffect(() => {
+    let alive = true;
+    const refresh = () => { void listRepliesToOwnComments().then(rows => { if (alive) setCommentReplyIds(rows.map(row => `reply:${row.id}`)); }).catch(() => { if (alive) setCommentReplyIds([]); }); };
+    refresh();
+    const interval = window.setInterval(refresh, 60_000);
+    return () => { alive = false; window.clearInterval(interval); };
+  }, [user?.id]);
   const unreadNotifs = useMemo(
-    () => fresh.filter(c => { const id = subscriptionUpdateId(c); return !notifRead.includes(id) && !notifRemoved.includes(id); }).length,
-    [fresh, notifRead, notifRemoved]
+    () => fresh.filter(c => { const id = subscriptionUpdateId(c); return !notifRead.includes(id) && !notifRemoved.includes(id); }).length
+      + commentReplyIds.filter(id => !notifRead.includes(id) && !notifRemoved.includes(id)).length,
+    [fresh, commentReplyIds, notifRead, notifRemoved]
   );
 
   const onCarScroll = () => {

@@ -29,7 +29,6 @@ export function PlayerOverlay() {
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const [downloadsOpen, setDownloadsOpen] = useState(false);
   const [qualitiesOpen, setQualitiesOpen] = useState(false);
-  const [orientationLocked, setOrientationLocked] = useState(false);
   const [brightness, setBrightness] = useState(1);
   const [volume, setVolume] = useState(1);
   const [gestureLabel, setGestureLabel] = useState('');
@@ -37,6 +36,7 @@ export function PlayerOverlay() {
   const [playhead, setPlayhead] = useState(0);
   const [duration, setDuration] = useState(0);
   const [fit, setFit] = useState<'contain' | 'cover'>('contain');
+  const [playbackRate, setPlaybackRate] = useState(1);
   const mediaRef = useRef<HTMLVideoElement | null>(null);
   const gestureRef = useRef<{ pointerId: number; y: number; value: number; kind: 'brightness' | 'volume' } | null>(null);
   const gestureTimer = useRef<number | null>(null);
@@ -59,7 +59,8 @@ export function PlayerOverlay() {
     return () => setNativePipActive(false);
   }, [session?.request, session?.loading, session?.error, session?.stream?.sourceKind, session?.title, session?.episode, playing]);
   useEffect(() => { if (mode === 'mini') setDownloadsOpen(false); }, [mode]);
-  useEffect(() => { setPlayhead(0); setDuration(0); setPlaying(false); }, [session?.request]);
+  useEffect(() => { setPlayhead(0); setDuration(0); setPlaying(false); setPlaybackRate(1); }, [session?.request]);
+  useEffect(() => { if (mediaRef.current) mediaRef.current.playbackRate = playbackRate; }, [session?.request, session?.sourceIndex, playbackRate]);
   useEffect(() => {
     if (!activeParty || !session || session.animeId !== activeParty.anime_id) return;
     let alive = true;
@@ -150,6 +151,12 @@ export function PlayerOverlay() {
     if (video.paused) void video.play().then(() => setPlaying(true)).catch(onError);
     else { video.pause(); setPlaying(false); }
   };
+  const togglePlaybackRate = () => {
+    const rates = [1, 1.25, 1.5, 2, 0.75];
+    const next = rates[(rates.indexOf(playbackRate) + 1) % rates.length];
+    setPlaybackRate(next);
+    if (mediaRef.current) mediaRef.current.playbackRate = next;
+  };
   const toggleFullscreen = async () => {
     try {
       const target = boxRef.current;
@@ -162,15 +169,6 @@ export function PlayerOverlay() {
       } catch { /* orientasi layar tidak didukung browser */ }
     } catch { /* fullscreen tidak tersedia untuk konteks ini */ }
   };
-  const toggleOrientationLock = async () => {
-    try {
-      const orientation = (screen as Screen & { orientation?: { lock?: (value: string) => Promise<void>; unlock?: () => void } }).orientation;
-      if (orientationLocked) orientation?.unlock?.();
-      else await orientation?.lock?.('landscape');
-      setOrientationLocked(value => !value);
-    } catch { /* kunci orientasi tidak didukung perangkat ini */ }
-  };
-
   return <div className={'episode-player-backdrop' + (mode === 'mini' ? ' mini' : '')} role={mode === 'mini' ? undefined : 'presentation'} onMouseDown={event => { if (mode === 'full' && event.target === event.currentTarget) close(); }}>
     <section
       ref={boxRef}
@@ -199,24 +197,35 @@ export function PlayerOverlay() {
           {source.kind === 'file' ? <AdaptiveVideo key={source.url} videoElementRef={mediaRef} src={source.url} poster={session.stream?.poster || session.poster} volume={volume} fit={fit} onTimeUpdate={onTimeUpdate} onPause={event => { setPlaying(false); session.onProgress(event); if (!applyingPartyRef.current) publishPartyState(activeParty, session.animeId, session.episode, event.currentTarget.currentTime, false); }} onPlay={event => { setPlaying(true); if (!applyingPartyRef.current) publishPartyState(activeParty, session.animeId, session.episode, event.currentTarget.currentTime, true); }} onEnded={event => { setPlaying(false); session.onProgress(event); if (!applyingPartyRef.current) publishPartyState(activeParty, session.animeId, session.episode, event.currentTarget.currentTime, false); }} onError={onError} /> : <iframe key={source.url} src={source.url} title={`${session.title} episode ${session.episode}`} allow="autoplay; fullscreen; picture-in-picture" referrerPolicy="no-referrer" allowFullScreen />}
           {mode === 'full' && source.kind === 'file' ? <div className="player-controls" onPointerDown={event => event.stopPropagation()}>
             <div className="player-control-row">
-              <button type="button" aria-label="Mundur 10 detik" onClick={() => { if (mediaRef.current) mediaRef.current.currentTime = Math.max(0, mediaRef.current.currentTime - 10); }}>−10</button>
-              <button type="button" className="player-play" aria-label={playing ? 'Jeda video' : 'Putar video'} onClick={togglePlayback}><Icon name={playing ? 'pause' : 'play'} size={18} /></button>
-              <button type="button" aria-label="Maju 10 detik" onClick={() => { if (mediaRef.current) mediaRef.current.currentTime = Math.min(duration || Infinity, mediaRef.current.currentTime + 10); }}>+10</button>
+              <button type="button" aria-label="Episode sebelumnya" disabled={!session.onPrevious} onClick={() => session.onPrevious?.()}><Icon name="skipPrev" size={19} /></button>
+              <button type="button" aria-label="Mundur 10 detik" onClick={() => { if (mediaRef.current) mediaRef.current.currentTime = Math.max(0, mediaRef.current.currentTime - 10); }}><Icon name="seekBack" size={25} /></button>
+              <button type="button" className="player-play" aria-label={playing ? 'Jeda video' : 'Putar video'} onClick={togglePlayback}><Icon name={playing ? 'pause' : 'play'} size={24} /></button>
+              <button type="button" aria-label="Maju 10 detik" onClick={() => { if (mediaRef.current) mediaRef.current.currentTime = Math.min(duration || Infinity, mediaRef.current.currentTime + 10); }}><Icon name="seekFwd" size={25} /></button>
+              <button type="button" aria-label="Episode berikutnya" disabled={!session.onNext} onClick={() => session.onNext?.()}><Icon name="skipNext" size={19} /></button>
+            </div>
+            <div className="player-control-meta">
               <span className="player-time">{clockTime(playhead)} / {clockTime(duration)}</span>
-              <button type="button" aria-label={fit === 'contain' ? 'Penuhi video' : 'Sesuaikan video'} onClick={() => setFit(value => value === 'contain' ? 'cover' : 'contain')}>FIT</button>
-              <button type="button" aria-label={orientationLocked ? 'Buka kunci orientasi' : 'Kunci orientasi'} onClick={() => void toggleOrientationLock()}><Icon name={orientationLocked ? 'lock' : 'unlock'} size={15} /></button>
-              <button type="button" aria-label="Layar penuh" onClick={() => void toggleFullscreen()}><Icon name="expand" size={17} /></button>
+              {sources.length > 1 ? <button type="button" onClick={() => setQualitiesOpen(true)} aria-label="Pilih kualitas video">{sources[session.sourceIndex]?.label || 'Kualitas'}<Icon name="down" size={12} /></button> : null}
+              <button type="button" onClick={togglePlaybackRate} aria-label="Kecepatan pemutaran">{playbackRate}x</button>
             </div>
             <input aria-label="Posisi video" type="range" min="0" max={duration || 1} step="1" value={Math.min(playhead, duration || 0)} onChange={event => { const value = Number(event.target.value); setPlayhead(value); if (mediaRef.current) mediaRef.current.currentTime = value; }} />
           </div> : null}
+          {mode === 'full' && source.kind === 'file' ? <div className="player-video-top-controls" onPointerDown={event => event.stopPropagation()}>
+            <button type="button" aria-label={fit === 'contain' ? 'Penuhi video' : 'Sesuaikan video'} onClick={() => setFit(value => value === 'contain' ? 'cover' : 'contain')}><span className="player-fit-icon" />{fit === 'contain' ? 'Fit' : 'Fill'}</button>
+            <button type="button" aria-label="Layar penuh" onClick={() => void toggleFullscreen()}><Icon name="expand" size={22} /></button>
+          </div> : null}
           {gestureLabel ? <span className="player-gesture-status" role="status">{gestureLabel}</span> : null}
         </div>
-        {sources.length > 1 ? <button type="button" className="episode-player-source" onClick={() => setQualitiesOpen(true)}><span>Kualitas / sumber</span><strong>{sources[session.sourceIndex]?.label || 'Pilih sumber'}　⌄</strong></button> : null}
+        {source.kind === 'embed' && sources.length > 1 ? <button type="button" className="episode-player-source" onClick={() => setQualitiesOpen(true)}><span>Kualitas / sumber</span><strong>{sources[session.sourceIndex]?.label || 'Pilih sumber'}　⌄</strong></button> : null}
+        <section className="episode-player-info">
+          {session.poster ? <img src={session.poster} alt="" /> : null}
+          <div><h1>{session.title}</h1><p>Episode {session.episode}</p>{session.synopsis ? <p className="episode-player-synopsis">{session.synopsis}</p> : null}</div>
+        </section>
       </> : null}
       {qualitiesOpen && mode === 'full' ? <div className="player-download-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setQualitiesOpen(false); }}>
         <section className="player-download-sheet" role="dialog" aria-modal="true" aria-label="Pilihan kualitas video">
           <span className="player-download-handle" /><header><strong>Pilihan Kualitas Video</strong><button type="button" className="ibtn" onClick={() => setQualitiesOpen(false)} aria-label="Tutup pilihan kualitas"><Icon name="x" /></button></header>
-          <div className="player-download-list">{sources.map((item, index) => <button type="button" className={'player-quality-option' + (session.sourceIndex === index ? ' selected' : '')} key={`${item.url}-${index}`} onClick={() => { update(session.request, { sourceIndex: index, error: '' }); setQualitiesOpen(false); }}><span><strong>{item.label}</strong><small>{item.kind === 'file' ? 'Video langsung' : 'Server eksternal'}</small></span><span>{session.sourceIndex === index ? '✓' : '›'}</span></button>)}</div>
+          <div className="player-download-list">{sources.map((item, index) => <button type="button" className={`player-quality-option ${qualityClass(item.label)}${session.sourceIndex === index ? ' selected' : ''}`} key={`${item.url}-${index}`} onClick={() => { update(session.request, { sourceIndex: index, error: '' }); setQualitiesOpen(false); }}><span><strong>{displayQuality(item.label)}</strong><small>{qualityDescription(item.label, item.kind)}</small></span><span>{session.sourceIndex === index ? '✓' : '›'}</span></button>)}</div>
         </section>
       </div> : null}
       {downloadsOpen && mode === 'full' ? <div className="player-download-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setDownloadsOpen(false); }}>
@@ -241,6 +250,24 @@ function isHttpUrl(value: string): boolean {
 function clockTime(value: number): string {
   const seconds = Math.max(0, Math.floor(value || 0));
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function displayQuality(label: string): string {
+  return label.replace(/\s*\(premium\)/ig, '').replace(/\s*·\s*gratis/ig, '').trim() + ' · Gratis';
+}
+
+function qualityClass(label: string): string {
+  const resolution = Number(label.match(/(\d{3,4})\s*p/i)?.[1] || 0);
+  return resolution ? `quality-${resolution}` : 'quality-source';
+}
+
+function qualityDescription(label: string, kind: PlayableSource['kind']): string {
+  const resolution = Number(label.match(/(\d{3,4})\s*p/i)?.[1] || 0);
+  if (resolution >= 1080) return 'Resolusi tertinggi yang tersedia untuk pemutaran tanpa biaya.';
+  if (resolution >= 720) return 'Tampilan tajam untuk layar besar dan koneksi stabil.';
+  if (resolution >= 480) return 'Pilihan standar dengan penggunaan data lebih hemat.';
+  if (resolution > 0) return 'Pilihan ringan untuk koneksi yang tidak stabil.';
+  return kind === 'file' ? 'Sumber video langsung.' : 'Sumber video dari server eksternal.';
 }
 
 function currentUserIdSafe(): string | null {

@@ -7,11 +7,14 @@ export interface PlayerSession {
   animeId: string;
   title: string;
   poster: string;
+  synopsis?: string;
   episode: string;
   stream: StreamBundle | null;
   loading: boolean;
   error: string;
   sourceIndex: number;
+  onPrevious?: () => void;
+  onNext?: () => void;
   retry: () => void;
   onProgress: (event: SyntheticEvent<HTMLVideoElement>) => void;
 }

@@ -1,6 +1,6 @@
 # Nanime
 Nanime
-buta botak
+
 Nanime adalah platform streaming dan katalog anime berbasis web dengan desain modern, responsif, dan berorientasi pada pengalaman pengguna.
 
 Nanime dirancang sebagai website anime yang menggabungkan pencarian anime, katalog berdasarkan genre, rekomendasi, jadwal tayang, halaman detail anime, daftar episode, pencarian episode, video playback, serta sistem favorit dalam satu antarmuka yang sederhana namun tetap terasa premium.

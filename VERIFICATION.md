@@ -105,3 +105,19 @@ Deep link login APK: `nanime://auth-callback` (dipasang oleh
       halaman lain tanpa menghentikan playback.
 - [x] Sinkronisasi Supabase (profil, favorit, riwayat+progres, pengaturan).
 - [x] APK & web build tetap didukung pipeline yang ada.
+
+## 7. Status build final (19 Okt 2026)
+
+- Commit `186592d` (rekonstruksi pemutar full: prev/next episode, playback rate,
+  info portrait portrait layout, badge/kualitas; notifikasi balasan komentar via
+  polling — Realtime ekstra dihapus karena memicu error WebSocket pada jsdom).
+- Tes: 32 file / 203 tes lulus, `tsc` 0 error, `vite build` sukses.
+- CI `.github/workflows/ci.yml`: sukses (run 39232136474).
+- CI `.github/workflows/android.yml`: sukses semua step termasuk
+  `Gradle assembleRelease` (run 39232178175, dipicu workflow_dispatch pada
+  `main`).
+- Artifact **nanime-apk** tersedia (id 12177211376, 13,7 MB zip / `app-debug.apk`
+  14,3 MB) di https://github.com/project-anonymous02/nanime/actions/runs/39232178175
+- Catatan: APK dibangun pakai debug signing karena secret
+  `ANDROID_KEYSTORE_BASE64` belum diatur. Tambahkan secret tersebut (plus
+  password bila keystore berpassword) untuk mendapatkan APK release-signed.

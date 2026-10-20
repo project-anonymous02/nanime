@@ -344,7 +344,7 @@ export async function mergeCardsAsync(cards: Card[], opts: { query?: string } = 
 /** Pencarian gabungan lintas penyedia — hasil sudah kanonik (satu judul satu kartu). */
 export async function searchAggregated(
   query: string,
-  opts: { sort?: SearchSort; minScore?: number; timeout?: number; providerIds?: string[]; signal?: AbortSignal; onUpdate?: (result: AggregatedSearchResult) => void } = {}
+  opts: { sort?: SearchSort; minScore?: number; timeout?: number; providerIds?: string[]; includeAdult?: boolean; signal?: AbortSignal; onUpdate?: (result: AggregatedSearchResult) => void } = {}
 ): Promise<AggregatedSearchResult> {
   const q = String(query || '').trim();
   if (q.length < 2) return { items: [], sources: [] };
@@ -363,6 +363,7 @@ export async function searchAggregated(
   const sources = await ProviderAggregator.search(q, {
     timeout: opts.timeout,
     providerIds: opts.providerIds,
+    includeAdult: opts.includeAdult,
     signal: opts.signal,
     onUpdate: partial => {
       if (!opts.onUpdate) return;

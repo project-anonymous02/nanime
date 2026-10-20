@@ -1,10 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Nanime v2 — stylesheet utama.
-   Urutan penting: token → base → animasi → komponen.
+   Nanime — entry stylesheet. Semua lapisan ditulis ulang dari source
+   AniBiPlay (palet & radius defpackage) + referensi 47 screenshot.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @import './tokens.css';
 @import './base.css';
 @import './animations.css';
-@import './components.css';
-@import './liquid.css';
+@import './anibiplay.css';
+@import './anibiplay-home.css';
+@import './anibiplay-pages.css';
+@import './anibiplay-social.css';

@@ -1,0 +1,605 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Beranda — header profil (banner maroon dari customBanner AniBiPlay),
+   TOP LEADERBOARD, carousel, promo, diskusi publik, rail update.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.home-hero {
+  margin: calc(-1 * max(env(safe-area-inset-top), 8px)) calc(-1 * var(--pad-x)) 0;
+  padding: max(env(safe-area-inset-top), 8px) var(--pad-x) 13px;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  background:
+    radial-gradient(120% 90% at 12% 0%, rgba(255, 126, 160, 0.16) 0%, transparent 55%),
+    linear-gradient(155deg, #431428 0%, #2c0d1b 52%, #190a12 100%);
+}
+
+.uh-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.uh-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-align: left;
+}
+
+.uh-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-card);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.22);
+}
+
+.uh-avatar.ph {
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+}
+
+.uh-id {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.uh-name-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.uh-name {
+  max-width: 42vw;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.1px;
+}
+
+.uh-user-number {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.uh-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  min-height: 20px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: rgba(13, 19, 32, 0.45);
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.uh-chip svg {
+  color: var(--accent-gold);
+}
+
+.uh-chip .rank-insignia {
+  width: 16px;
+  height: 16px;
+}
+
+.uh-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.uh-actions .ibtn {
+  width: 40px;
+  height: 40px;
+}
+
+.uh-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.uh-crystal {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 4px;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.uh-crystal svg {
+  color: var(--accent-gold);
+}
+
+.uh-games {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border: 1px solid rgba(168, 85, 247, 0.55);
+  border-radius: var(--r-pill);
+  background: linear-gradient(135deg, #6d28d9 0%, #a855f7 100%);
+  color: var(--accent-gold);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.uh-games svg {
+  color: var(--accent-gold);
+}
+
+.uh-games:active,
+.uh-crystal:active {
+  transform: scale(0.96);
+}
+
+/* ── Banner promo (biru #2D8CFF, tile kuning) ──────────────────────────── */
+
+.home-next-banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  background: var(--bg-card);
+  text-align: left;
+  animation: nm-fade-up var(--t-enter) var(--ease);
+}
+
+.home-next-banner:active {
+  transform: scale(0.99);
+}
+
+.pb-free-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  background: var(--grad-gold);
+  color: #3a2600;
+}
+
+.pb-left {
+  display: grid;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  background: var(--accent-strong);
+}
+
+.pb-title {
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pb-sub {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── TOP LEADERBOARD (banner maroon, dua kolom) ────────────────────────── */
+
+.board-card {
+  padding: 12px;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(100% 130% at 100% 0%, rgba(255, 126, 160, 0.14) 0%, transparent 60%),
+    linear-gradient(145deg, #3a1226 0%, #561b30 55%, #641d34 100%);
+}
+
+.board-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  margin-bottom: 9px;
+  color: var(--accent-gold);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+}
+
+.board-head svg {
+  width: 14px;
+  height: 14px;
+  color: var(--accent-gold);
+}
+
+.board-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.board-col {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.board-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  padding: 2px 0 4px;
+  color: var(--accent-gold);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+.board-col:last-child .board-label {
+  color: var(--accent-pink);
+}
+
+.board-label svg {
+  width: 12px;
+  height: 12px;
+}
+
+.board-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  width: 100%;
+  padding: 2px 0;
+  text-align: left;
+}
+
+.board-rank {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text-soft);
+  font-size: 8.5px;
+  font-weight: 800;
+}
+
+.board-rank.r1 {
+  background: var(--accent-gold);
+  color: #3a2600;
+}
+
+.board-rank.r2 {
+  background: #d3dbea;
+  color: #202634;
+}
+
+.board-rank.r3 {
+  background: #e8955a;
+  color: #3a1c00;
+}
+
+.board-rank.r4 {
+  background: #9fb0cb;
+  color: #202634;
+}
+
+.board-row > img,
+.board-row .community-avatar {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.board-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.board-val {
+  flex: none;
+  color: var(--accent-gold);
+  font-size: 9.5px;
+  font-weight: 800;
+}
+
+.affinity-board-row .board-val {
+  color: var(--accent-pink);
+}
+
+.affinity-board-row .affinity-mark {
+  width: 16px;
+  height: 16px;
+}
+
+.board-empty {
+  padding: 4px 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9.5px;
+}
+
+/* ── Carousel ──────────────────────────────────────────────────────────── */
+
+.car-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  margin: 14px calc(-1 * var(--pad-x)) 0;
+  padding: 0 var(--pad-x);
+  gap: 10px;
+}
+
+.car-page {
+  flex: 0 0 calc(100vw - var(--pad-x) * 2);
+  max-width: 728px;
+  scroll-snap-align: center;
+  padding: 1px;
+}
+
+.hero-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background: var(--grad-image);
+  text-align: left;
+}
+
+.hero-card .smart-img,
+.hero-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-shade {
+  position: absolute;
+  inset: 0;
+  background: var(--grad-hero);
+}
+
+.hero-views {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: var(--r-pill);
+  background: rgba(10, 14, 22, 0.6);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  backdrop-filter: blur(4px);
+}
+
+.hero-views svg {
+  width: 10px;
+  height: 10px;
+}
+
+.hero-rank {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 2;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(10, 14, 22, 0.6);
+  color: var(--accent-gold);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.hero-title {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 11px;
+  z-index: 2;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.18;
+  letter-spacing: 0.1px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+}
+
+.car-dots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin: 10px 0 0;
+}
+
+.car-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.26);
+  transition: width var(--t-enter) var(--ease), background var(--t-enter) var(--ease);
+}
+
+.car-dot.on {
+  width: 16px;
+  background: var(--accent-strong);
+}
+
+/* ── Search sticky ─────────────────────────────────────────────────────── */
+
+.home-search-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  height: 0;
+  margin: 0 calc(-1 * var(--pad-x));
+  padding: 0 var(--pad-x);
+  overflow: hidden;
+  opacity: 0;
+  background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
+  backdrop-filter: blur(14px);
+  transition: height var(--t-enter) var(--ease), opacity var(--t-enter) var(--ease);
+  pointer-events: none;
+}
+
+.home-search-sticky.is-pinned {
+  height: 56px;
+  padding-top: 8px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.search-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-pill);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.search-pill > svg {
+  flex: none;
+}
+
+.sp-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.sp-go {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-primary-soft);
+  color: var(--accent-primary);
+}
+
+/* ── Public Diskusi ────────────────────────────────────────────────────── */
+
+.public-discussion-teaser {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  background: var(--bg-card);
+  text-align: left;
+}
+
+.public-discussion-teaser:active {
+  background: var(--bg-card-hover);
+}
+
+.ir-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  color: var(--text-primary);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.ir-title svg {
+  color: var(--accent-primary);
+}
+
+.ir-sep {
+  flex: none;
+  width: 1px;
+  height: 16px;
+  background: var(--border-subtle);
+}
+
+.ir-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.public-discussion-teaser > svg {
+  flex: none;
+  color: var(--accent-gold);
+}
+
+/* ── Penyesuaian beranda ───────────────────────────────────────────────── */
+
+.home-hero .uh-chip .rank-insignia {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+.home-next-banner .pb-left {
+  min-height: 34px;
+  align-content: center;
+}
+
+.page:has(.home-hero) {
+  padding-top: 0;
+}
+
+.page:has(.home-hero) .section:first-of-type {
+  margin-top: 22px;
+}

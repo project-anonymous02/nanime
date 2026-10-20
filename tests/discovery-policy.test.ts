@@ -33,11 +33,12 @@ describe('detail hero artwork selection', () => {
 });
 
 describe('discovery content policy', () => {
-  it('never includes explicit adult providers even when a caller tries to select one', () => {
+  it('keeps explicit adult providers out of default search and allows an opt-in selection', () => {
     const provider = { id: 'nekopoi', content: 'hentai' as const };
     expect(isProviderSearchAllowed(provider)).toBe(false);
     expect(isProviderSearchAllowed(provider, ['other-adult-provider'])).toBe(false);
-    expect(isProviderSearchAllowed(provider, ['nekopoi'])).toBe(false);
+    expect(isProviderSearchAllowed(provider, ['nekopoi'])).toBe(true);
+    expect(isProviderSearchAllowed(provider, undefined, true)).toBe(true);
     expect(isProviderSearchAllowed({ id: 'animasu', content: 'anime' }, ['nekopoi'])).toBe(false);
   });
 

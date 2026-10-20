@@ -1,70 +1,96 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Nanime — Design Tokens (mengikuti map-anibiplay.md PERSIS)
-   Palet, tipografi, radius, elevasi, gerak. JANGAN tambah warna baru
-   di luar token ini.
+   Nanime — token desain hasil ekstraksi source AniBiPlay (defpackage/pz2.java
+   + palet dominan seluruh dex). Jangan tambah warna di luar token ini.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Warna (dari referensi AnibiPlay) ── */
-  --bg-primary: #0c0e16;
-  --bg-card: #151a28;
-  --bg-card-hover: #1b2130;
-  --bg-elevated: #1b2130;
-  --bg-press: #10141f;
-  --bg-sheet: #11151f;
+  /* ── Latar (source: #0F1520 / #0A0F18 / #141925) ── */
+  --bg-primary: #0f1420;
+  --bg-deep: #0a0f18;
+  --bg-nav: #141925;
+  --bg-card: #1a2232;
+  --bg-card-hover: #1f2a3c;
+  --bg-elevated: #1a1e27;
+  --bg-press: #0a0f18;
+  --bg-sheet: #141925;
 
-  --accent-primary: #2e7dff;
-  --accent-primary-hover: #1e6fff;
-  --accent-primary-soft: rgba(46, 125, 255, 0.16);
-  --accent-cyan: #45c4ff;
-  --accent-pink: #f472b6;
+  /* ── Aksen (source) ── */
+  --accent-primary: #1d9bf0;
+  --accent-primary-hover: #2d8cff;
+  --accent-primary-soft: rgba(29, 155, 240, 0.16);
+  --accent-strong: #2d8cff;
+  --accent-cyan: #7ec8ff;
+  --accent-gold: #ffd54f;
+  --accent-purple: #a855f7;
+  --accent-purple-soft: #b388ff;
+  --accent-pink: #ec4899;
   --accent-orange: #f59e0b;
-
-  --accent-gold: #f5c518;
-  --accent-red: #ef4444;
+  --accent-red: #e53935;
+  --accent-red-deep: #dc2626;
   --accent-green: #22c55e;
 
+  /* ── Teks (source) ── */
   --text-primary: #ffffff;
-  --text-secondary: #9aa3b2;
-  --text-muted: #6b7280;
+  --text-soft: #d3dbea;
+  --text-secondary: #b5c6e1;
+  --text-muted: #9fb0cb;
+  --text-dim: #7f8ea8;
 
-  --border-subtle: rgba(154, 163, 178, 0.12);
-  --border-strong: rgba(154, 163, 178, 0.26);
-
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.3);
-  --shadow-float: 0 10px 40px rgba(0, 0, 0, 0.45);
-  --shadow-sheet: 0 -12px 48px rgba(0, 0, 0, 0.5);
-
+  /* ── Garis & scrim (source) ── */
+  --border-subtle: #283041;
+  --border-strong: #2a3346;
+  --border-blue: #1f3a5c;
+  --scrim-80: rgba(13, 19, 32, 0.8);
+  --scrim-33: rgba(13, 19, 32, 0.33);
+  --scrim-29: rgba(13, 19, 32, 0.29);
+  --chip-bg: rgba(20, 24, 32, 0.75);
   --overlay: rgba(6, 7, 10, 0.72);
 
-  /* Gradasi maroon header Home */
-  --home-glow: rgba(60, 26, 40, 0.55);
+  /* ── Gradasi ── */
+  --grad-image: linear-gradient(160deg, #1a2232 0%, #0f1420 100%);
+  --grad-hero: linear-gradient(180deg, rgba(13, 19, 32, 0) 0%, rgba(13, 19, 32, 0.29) 47%, #111827 100%);
+  --grad-home: linear-gradient(160deg, #3b1324 0%, #2a0e1b 48%, #0f1420 100%);
+  --grad-gold: linear-gradient(135deg, #ffd54f 0%, #f59e0b 100%);
+  --grad-purple: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  --grad-blue: linear-gradient(135deg, #1d9bf0 0%, #2d8cff 100%);
+  --grad-deep: linear-gradient(180deg, #1a2130 0%, #0f1420 100%);
 
-  /* ── Radius ── */
-  --r-lg: 24px;
-  --r-md: 20px;
+  /* ── Bayangan ── */
+  --shadow-card: 0 4px 18px rgba(0, 0, 0, 0.32);
+  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.46);
+  --shadow-sheet: 0 -14px 44px rgba(0, 0, 0, 0.55);
+
+  /* ── Radius (source: 8/10/12/14/18) ── */
+  --r-xs: 8px;
+  --r-sm: 10px;
+  --r-11: 11px;
+  --r-md: 12px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+  --r-sheet: 24px;
   --r-btn: 999px;
   --r-input: 999px;
-  --r-poster: 16px;
+  --r-poster: 8px;
   --r-pill: 999px;
 
   /* ── Spasi ── */
   --pad-x: 16px;
-  --pad-top: 24px;
-  --section-gap: 40px;
-  --nav-h: 72px;
-  --tap: 48px;
+  --pad-top: 16px;
+  --section-gap: 26px;
+  --nav-h: 64px;
+  --tap: 44px;
 
-  /* ── Tipografi ── */
+  /* ── Tipografi (Roboto bundled AniBiPlay) ── */
   --font: 'AniBiRoboto', Roboto, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --fs-hero: 42px;
-  --fs-title: 32px;
-  --fs-card: 15px;
+  --font-display: 'AniBiDisplay', 'AniBiRoboto', Roboto, sans-serif;
+  --fs-hero: 34px;
+  --fs-title: 28px;
+  --fs-card: 13px;
   --fs-body: 14px;
   --fs-small: 12px;
   --fs-label: 11px;
 
-  /* ── Gerak (semua GPU-only: transform + opacity) ── */
+  /* ── Gerak (GPU-only) ── */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --t-micro: 130ms;
   --t-enter: 240ms;
@@ -73,20 +99,22 @@
   --t-slow: 800ms;
 }
 
-/* Mode terang opsional (tetap gelap-diutamakan). */
 [data-theme='light'] {
-  --bg-primary: #f1f5f9;
+  --bg-primary: #f3f5f9;
   --bg-card: #ffffff;
   --bg-card-hover: #e8eef7;
   --bg-elevated: #ffffff;
-  --text-primary: #0f172a;
+  --bg-nav: #ffffff;
+  --text-primary: #0b1220;
+  --text-soft: #1f2a3c;
   --text-secondary: #475569;
   --text-muted: #64748b;
-  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-subtle: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(15, 23, 42, 0.2);
   --overlay: rgba(15, 23, 42, 0.4);
+  --grad-home: linear-gradient(160deg, #f8d7df 0%, #f3e8ee 48%, #f3f5f9 100%);
 }
 
-/* Hormati preferensi sistem: kurangi gerak saat diminta. */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --t-micro: 1ms;

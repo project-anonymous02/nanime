@@ -33,3 +33,7 @@ google-services.json
 # Harness screenshot lokal (dev-only, bukan bagian aplikasi)
 src/__shot__/
 vite.config.shot.ts
+
+# Cache lokal tooling compare
+.cache/
+__pycache__/

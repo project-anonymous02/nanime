@@ -13,11 +13,12 @@ describe('provider priority and verified page structure', () => {
   it('places Animasu first and Moenime last among download fallbacks', () => {
     expect(searchProviders()[0]?.id).toBe('animasu');
     expect(streamingProviders()[0]?.id).toBe('animasu');
-    expect(streamingProviders()[1]?.id).toBe('gomunime');
+    expect(streamingProviders()[1]?.id).toBe('anitoki');
     expect(streamingPriority('gomunime')).toBeLessThan(streamingPriority('doronime'));
     const downloadable = downloadProviders();
     expect(downloadable[downloadable.length - 1]?.id).toBe('moenime');
-    expect(allProviders().every(provider => provider.id !== 'nekopoi')).toBe(true);
+    expect(allProviders().some(provider => provider.id === 'nekopoi')).toBe(true);
+    expect(downloadable.some(provider => provider.content === 'hentai')).toBe(false);
   });
 
   it('parses the captured Animasu search page using its actual bsx result link', () => {

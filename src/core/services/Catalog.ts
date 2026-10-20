@@ -1,5 +1,5 @@
 import { getProvider, allProviders } from '../../providers/registry';
-import { legacyResolveServer } from '../../providers/legacy';
+import { legacyResolveServer, otakudesuGenre } from '../../providers/legacy';
 import { ProviderAggregator } from './ProviderAggregator';
 import { searchAggregated, mergeCardsAsync } from './SearchEngine';
 import { FallbackEngine } from './FallbackEngine';
@@ -15,6 +15,7 @@ import type {
   Detail,
   DetailBundle,
   HomeFeed,
+  ListResult,
   ScheduleGroup,
   ScheduleItem,
   StreamBundle,
@@ -134,7 +135,8 @@ function sanitizeDiscoveryFeed(feed: Omit<HomeFeed, 'stale'>): Omit<HomeFeed, 's
   return { ...feed, newUpdate, completed, donghua, movie, weekly };
 }
 
-function sanitizeSearchResult(result: AggregatedSearchResult): AggregatedSearchResult {
+function sanitizeSearchResult(result: AggregatedSearchResult, includeAdult = false): AggregatedSearchResult {
+  if (includeAdult) return result;
   const items = filterDiscovery(result.items || []);
   const sources = (result.sources || []).map(source => {
     const safe = filterDiscovery(source.items || [], source.id);
@@ -237,31 +239,33 @@ export const Catalog = {
   },
 
   /** Pencarian lintas penyedia: satu judul = satu kartu, tanpa label penyedia. */
-  search(query: string, opts: { sort?: 'relevance' | 'title' | 'rating'; minScore?: number; providerIds?: string[]; signal?: AbortSignal; onUpdate?: (result: AggregatedSearchResult) => void } = {}): Promise<AggregatedSearchResult> {
+  search(query: string, opts: { sort?: 'relevance' | 'title' | 'rating'; minScore?: number; providerIds?: string[]; includeAdult?: boolean; signal?: AbortSignal; onUpdate?: (result: AggregatedSearchResult) => void } = {}): Promise<AggregatedSearchResult> {
     const q = String(query || '').trim();
     const sort = opts.sort || 'relevance';
+    const includeAdult = !!opts.includeAdult;
     const providerIds = opts.providerIds?.length ? [...new Set(opts.providerIds)].sort() : [];
-    const providerKey = providerIds.length ? providerIds.join(',') : 'default';
+    const providerKey = (providerIds.length ? providerIds.join(',') : 'default') + (includeAdult ? '+adult' : '');
     const queryKey = q.normalize('NFKD').replace(/\p{M}+/gu, '').toLowerCase().replace(/\s+/g, ' ');
     if (opts.onUpdate) {
       return searchAggregated(q, {
         sort,
         minScore: opts.minScore,
         providerIds: providerIds.length ? providerIds : undefined,
+        includeAdult,
         signal: opts.signal,
-        onUpdate: result => opts.onUpdate?.(sanitizeSearchResult(result))
+        onUpdate: result => opts.onUpdate?.(sanitizeSearchResult(result, includeAdult))
       }).then(result => {
-        const safe = sanitizeSearchResult(result);
+        const safe = sanitizeSearchResult(result, includeAdult);
         remember(safe.items.slice(0, 30));
         return safe;
       });
     }
     const minScoreKey = opts.minScore == null ? 'default' : String(opts.minScore);
     return CacheManager.get(`search`, queryKey + ':' + sort + ':min=' + minScoreKey + ':providers=' + providerKey, TTL.search, async () =>
-      sanitizeSearchResult(await searchAggregated(q, { sort, minScore: opts.minScore, providerIds: providerIds.length ? providerIds : undefined }))
+      sanitizeSearchResult(await searchAggregated(q, { sort, minScore: opts.minScore, providerIds: providerIds.length ? providerIds : undefined, includeAdult }), includeAdult)
     ).then(result => {
       // Filter old IndexedDB and memory cache entries before they can reach a view.
-      const safe = sanitizeSearchResult(result);
+      const safe = sanitizeSearchResult(result, includeAdult);
       remember(safe.items.slice(0, 30));
       return safe;
     });
@@ -277,9 +281,8 @@ export const Catalog = {
       const bundle = await buildDetail(id, opts);
       const entry = await TitleIndex.get(id);
       const providers = [...new Set([...(bundle.providers || []), ...(entry?.sources || []).map(source => source.provider)])].map(provider => getProvider(provider)).filter(Boolean);
-      const explicitlyAdultProvider = providers.some(provider => provider?.content === 'hentai');
       const unclassifiedMixedProvider = providers.some(provider => provider?.content === 'mixed') && !bundle.genres.length;
-      if (explicitlyAdultProvider || unclassifiedMixedProvider || isAdultContent({ title: bundle.title, alt: bundle.alt, genres: bundle.genres })) {
+      if (unclassifiedMixedProvider || isAdultContent({ title: bundle.title, alt: bundle.alt, genres: bundle.genres })) {
         throw new Error('Konten ini dibatasi oleh kebijakan katalog Nanime.');
       }
       policyValidatedDetails.add(id);
@@ -334,9 +337,28 @@ export const Catalog = {
     return resolveMediaUrl(url);
   },
 
+  /** Daftar anime satu genre (halaman genre khusus, dengan paginasi). */
+  async genre(genreUrl: string, page = 1): Promise<ListResult & { stale: boolean }> {
+    const id = String(genreUrl || '').trim().toLowerCase();
+    if (!id) throw new Error(GENERIC_ERROR);
+    const { data, stale } = await CacheManager.getOrStale<ListResult>('genre', id + ':' + page, TTL.genre, async () => {
+      const result = await otakudesuGenre(id, page);
+      return { list: filterDiscovery(result.list), pagination: result.pagination };
+    });
+    if (!data) throw new Error(GENERIC_ERROR);
+    const merged = await SearchEngineMerge(filterDiscovery(data.list));
+    remember(merged);
+    return { ...data, list: merged, stale };
+  },
+
   /** Jumlah penyedia aktif (untuk statistik internal, tidak ditampilkan). */
   providerCount(): number {
     return allProviders().filter(p => p.active).length;
+  },
+
+  /** Penyedia dewasa yang hanya boleh ikut pencarian setelah dipilih pengguna. */
+  adultSearchProviders(): string[] {
+    return allProviders().filter(p => p.active && p.searchable && p.content === 'hentai').map(p => p.id);
   }
 };
 
@@ -457,9 +479,6 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
   }
 
   const sources = sortSources(entry);
-  if (sources.some(source => getProvider(source.provider)?.content === 'hentai')) {
-    throw new Error('Konten ini dibatasi oleh kebijakan katalog Nanime.');
-  }
   const { groups, details } = await collectEpisodes(entry, sources);
   let fetched = Math.min(4, sources.length);
 

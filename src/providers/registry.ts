@@ -17,6 +17,11 @@ import { animekuonline } from './AnimeKuOnlineProvider';
 import { anoboy } from './AnoboyProvider';
 import { animasu } from './AnimasuProvider';
 import { gomunime } from './GomunimeProvider';
+import { anitoki } from './AnitokiProvider';
+import { nontonanime } from './NontonAnimeProvider';
+import { moeclip } from './MoeclipProvider';
+import { kuronime } from './KuronimeProvider';
+import { nekopoi } from './NekopoiProvider';
 
 /**
  * Registry sources. Stream order is distinct from catalog order: sources
@@ -26,6 +31,10 @@ import { gomunime } from './GomunimeProvider';
 
 const PROVIDER_LIST: AnimeProvider[] = [
   animasu,
+  anitoki,
+  nontonanime,
+  moeclip,
+  kuronime,
   doronime,
   ylnime,
   animeindo,
@@ -44,8 +53,9 @@ const PROVIDER_LIST: AnimeProvider[] = [
   moenime,
   alqanime,
   animekuonline,
-  anoboy,
-  gomunime
+  gomunime,
+  nekopoi,
+  anoboy
 ];
 
 const BY_ID: Record<string, AnimeProvider> = {};
@@ -102,7 +112,7 @@ export function streamingPriority(id: string): number {
 
 /** Provider yang menyediakan tautan unduh (untuk tab Download). */
 export function downloadProviders(): AnimeProvider[] {
-  return PROVIDER_LIST.filter(p => p.active && (p.downloadOnly || p.movieOnly || typeof p.downloads === 'function')).sort((a, b) => {
+  return PROVIDER_LIST.filter(p => p.active && p.content !== 'hentai' && (p.downloadOnly || p.movieOnly || typeof p.downloads === 'function')).sort((a, b) => {
     if (a.id === 'moenime') return 1;
     if (b.id === 'moenime') return -1;
     return a.priority - b.priority;

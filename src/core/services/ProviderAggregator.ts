@@ -38,8 +38,14 @@ const metrics: ProviderMetric[] = [];
 export function providerMetrics(): ProviderMetric[] { return metrics.slice(-200); }
 function recordMetric(metric: ProviderMetric): void { metrics.push(metric); if (metrics.length > 200) metrics.splice(0, metrics.length - 200); }
 
-export function isProviderSearchAllowed(provider: Pick<AnimeProvider, 'id' | 'content'>, providerIds?: string[]): boolean {
-  return provider.content !== 'hentai' && (!providerIds?.length || providerIds.includes(provider.id));
+export function isProviderSearchAllowed(
+  provider: Pick<AnimeProvider, 'id' | 'content'>,
+  providerIds?: string[],
+  includeAdult = false
+): boolean {
+  const listed = !providerIds?.length || providerIds.includes(provider.id);
+  if (provider.content === 'hentai') return listed && (includeAdult || !!providerIds?.includes(provider.id));
+  return listed;
 }
 
 function isMovieCard(card: Card): boolean {
@@ -93,12 +99,12 @@ async function runPool<T>(items: T[], limit: number, job: (item: T) => Promise<v
  */
 export const ProviderAggregator = {
   /** Pencarian paralel dari semua penyedia yang mendukung pencarian. */
-  async search(query: string, opts: { timeout?: number; deadline?: number; max?: number; providerIds?: string[]; signal?: AbortSignal; onUpdate?: (sources: SourceResult[]) => void } = {}): Promise<SourceResult[]> {
+  async search(query: string, opts: { timeout?: number; deadline?: number; max?: number; providerIds?: string[]; includeAdult?: boolean; signal?: AbortSignal; onUpdate?: (sources: SourceResult[]) => void } = {}): Promise<SourceResult[]> {
     const q = String(query || '').trim();
     if (!q) return [];
     const timeout = opts.timeout || 12000;
     const deadline = opts.deadline ?? 8500;
-    const providers = searchProviders().filter(p => isProviderSearchAllowed(p, opts.providerIds)).slice(0, opts.max || 99);
+    const providers = searchProviders().filter(p => isProviderSearchAllowed(p, opts.providerIds, opts.includeAdult)).slice(0, opts.max || 99);
 
     const settled: PromiseSettledResult<{ p: AnimeProvider; items: Card[] }>[] = new Array(providers.length);
     let publishing = true;
@@ -123,12 +129,14 @@ export const ProviderAggregator = {
         const p = providers[index];
         try {
           const started = performance.now();
-          const fetched = await withTimeout(CacheManager.search(p.id, q, async () => {
-            const cards = await p.search(q);
-            return filterDiscovery(cards.map(card => ({ ...card, provider: card.provider || p.id })), p.id);
-          }), timeout);
+          const allowAdult = !!opts.includeAdult && p.content === 'hentai';
+          const visible = (cards: Card[]) => {
+            const normalized = cards.map(card => ({ ...card, provider: card.provider || p.id }));
+            return allowAdult ? normalized : filterDiscovery(normalized, p.id);
+          };
+          const fetched = await withTimeout(CacheManager.search(p.id, q, async () => visible(await p.search(q))), timeout);
           // Re-filter cache hits too; persisted search results predate current policy.
-          const items = filterDiscovery(fetched.map(card => ({ ...card, provider: card.provider || p.id })), p.id);
+          const items = visible(fetched);
           settled[index] = { status: 'fulfilled', value: { p, items } };
           recordMetric({ provider: p.id, operation: 'search', ms: Math.round(performance.now() - started), ok: true, count: items.length });
         } catch (reason) {

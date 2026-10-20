@@ -9,6 +9,11 @@ export function searchPath(query: string): string {
   return '/search?q=' + encodeURIComponent(query);
 }
 
+export function genrePath(title: string): string {
+  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return '/genre/' + encodeURIComponent(slug) + '/' + encodeURIComponent(title);
+}
+
 /** Bagikan lewat lembar berbagi sistem; bila tidak ada, salin ke papan klip. */
 export async function shareOrCopy(title: string, url: string): Promise<boolean> {
   const nav = typeof navigator === 'undefined' ? null : navigator;

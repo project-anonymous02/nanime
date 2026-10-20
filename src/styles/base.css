@@ -62,10 +62,13 @@ a {
 }
 
 input,
-textarea,
-select {
+textarea {
   font: inherit;
   color: inherit;
+}
+
+select {
+  font: inherit;
 }
 
 h1,

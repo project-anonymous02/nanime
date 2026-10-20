@@ -18,6 +18,7 @@ import { Onboarding } from './views/Onboarding';
 import { Profile } from './views/Profile';
 import { Schedule } from './views/Schedule';
 import { Search } from './views/Search';
+import { Genre } from './views/Genre';
 import { Settings } from './views/Settings';
 import { Community } from './views/Community';
 import { Friends } from './views/Friends';
@@ -55,7 +56,7 @@ function Gate() {
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<Home />} />
         <Route path="/search" element={<Search />} />
-        <Route path="/genre/:genreUrl/:genreTitle" element={<Search />} />
+        <Route path="/genre/:genreUrl/:genreTitle" element={<Genre />} />
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/favorites" element={<Favorites />} />
         <Route path="/subscribed" element={<Navigate to="/favorites" replace />} />

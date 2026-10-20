@@ -1,0 +1,1117 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-20T11:19:23Z",
+  "repo": {
+    "root": "/workspace/nanime",
+    "version": "2.0.0",
+    "uiStack": "React + Vite + Capacitor"
+  },
+  "references": {
+    "apk": "/tmp/Anibiplay",
+    "decompiled": "/tmp/Anibiplay-decompiled",
+    "apiBaseUrl": "https://api.kisame.cloud/api/v2/",
+    "endpoints": [
+      {
+        "path": "catalog",
+        "params": [
+          "content_origin",
+          "exclude_type",
+          "genre",
+          "limit",
+          "page",
+          "q",
+          "sort",
+          "source_platform",
+          "status",
+          "type"
+        ]
+      },
+      {
+        "path": "episodemeta/{key}",
+        "params": [
+          "key"
+        ]
+      },
+      {
+        "path": "detail/{id}",
+        "params": [
+          "id"
+        ]
+      },
+      {
+        "path": "genres/{key}/series",
+        "params": [
+          "key",
+          "limit",
+          "page",
+          "source_platform"
+        ]
+      },
+      {
+        "path": "topseries",
+        "params": [
+          "content_origin"
+        ]
+      },
+      {
+        "path": "home",
+        "params": []
+      },
+      {
+        "path": "jadwal",
+        "params": [
+          "origin"
+        ]
+      },
+      {
+        "path": "announcement",
+        "params": [
+          "platform",
+          "ts"
+        ]
+      }
+    ],
+    "screenshotCount": 56,
+    "drawableCount": 122
+  },
+  "summary": {
+    "open": 3,
+    "weighted": 24,
+    "bySeverity": {
+      "critical": 1,
+      "medium": 1,
+      "low": 1
+    },
+    "resolved": 6,
+    "reopened": 0
+  },
+  "issues": [
+    {
+      "id": "bc5ccd5e5b20cd3c",
+      "category": "provider",
+      "severity": "critical",
+      "title": "AniBiPlay provider adapter missing",
+      "detail": "No adapter for the AniBiPlay v2 API (https://api.kisame.cloud/api/v2/) exists. Reference endpoints: catalog, episodemeta/{key}, detail/{id}, genres/{key}/series, topseries, home, jadwal, announcement.",
+      "locations": [
+        "src/providers"
+      ],
+      "recommendation": "Implement the adapter against the same contract, with normalized cards/detail/streams and graceful auth failure.",
+      "kind": "anibi-adapter-missing",
+      "status": "open",
+      "data": {}
+    },
+    {
+      "id": "124fd3015073a6ef",
+      "category": "screenshot",
+      "severity": "medium",
+      "title": "Screenshot aggregate diverges from AniBiPlay",
+      "detail": "Deltas (Nanime - reference): {'luminance': 21.04, 'luminanceStd': 3.4, 'edge': -9.71, 'saturation': -6.44, 'darkRatio': -0.04}",
+      "locations": [
+        "screenshot/home.jpg",
+        "screenshot/detail.jpg",
+        "screenshot/player.jpg",
+        "screenshot/watch-page.jpg",
+        "screenshot/player-floating.jpg"
+      ],
+      "recommendation": "Capture matching screens at the same viewport and inspect the highest-delta surfaces.",
+      "kind": "screenshot-aggregate",
+      "status": "open",
+      "data": {
+        "deltas": {
+          "luminance": 21.04,
+          "luminanceStd": 3.4,
+          "edge": -9.71,
+          "saturation": -6.44,
+          "darkRatio": -0.04
+        }
+      }
+    },
+    {
+      "id": "90abcc6c2d566d98",
+      "category": "ui",
+      "severity": "low",
+      "title": "135 CSS classes look unused",
+      "detail": "Potential dead selectors: affinity-card, affinity-card.is-active, affinity-result, affinity-result.selected, anim-pop, anim-shake, anime-card:active, app-main, app-main.public-chat-main, board-col:last-child, board-rank, board-rank.r1, board-rank.r2, board-rank.r3, board-rank.r4, car-dot, car-dot.on, chat-offline, chat-online, clamp-3, clan-chat-message, clan-chat-message.mine, comment-card, comment-reply, community-error.games-success, community-identity-link:active, community-refresh:active, community-refresh:disabled, community-secondary:active, community-secondary:disabled, community-submit:active, community-submit:disabled, community-user, community-user.developer, cr-card:active, cr-img::after, day-pill, day-pill.active, dm-bubble, dm-bubble.mine",
+      "locations": [],
+      "recommendation": "Prune dead selectors after verifying dynamic class construction.",
+      "kind": "unused-css",
+      "status": "open",
+      "data": {
+        "classes": [
+          "affinity-card",
+          "affinity-card.is-active",
+          "affinity-result",
+          "affinity-result.selected",
+          "anim-pop",
+          "anim-shake",
+          "anime-card:active",
+          "app-main",
+          "app-main.public-chat-main",
+          "board-col:last-child",
+          "board-rank",
+          "board-rank.r1",
+          "board-rank.r2",
+          "board-rank.r3",
+          "board-rank.r4",
+          "car-dot",
+          "car-dot.on",
+          "chat-offline",
+          "chat-online",
+          "clamp-3",
+          "clan-chat-message",
+          "clan-chat-message.mine",
+          "comment-card",
+          "comment-reply",
+          "community-error.games-success",
+          "community-identity-link:active",
+          "community-refresh:active",
+          "community-refresh:disabled",
+          "community-secondary:active",
+          "community-secondary:disabled",
+          "community-submit:active",
+          "community-submit:disabled",
+          "community-user",
+          "community-user.developer",
+          "cr-card:active",
+          "cr-img::after",
+          "day-pill",
+          "day-pill.active",
+          "dm-bubble",
+          "dm-bubble.mine",
+          "dt-btn.ghost",
+          "dt-btn.ghost.on",
+          "dt-btn.primary",
+          "dt-btn:active",
+          "dt-btn:disabled",
+          "dt-chip.dim",
+          "dt-chip.gold",
+          "dt-epcell",
+          "dt-epcell.on",
+          "dt-eprow",
+          "dt-eprow.on",
+          "dt-sq.on",
+          "dt-sticky",
+          "dt-sticky.show",
+          "dt-syn-text",
+          "ep-row",
+          "ep-row.current",
+          "episode-player-backdrop",
+          "episode-player-backdrop.mini",
+          "episode-player-backdrop:not(.mini)",
+          "episode-player-state.error",
+          "fav-sort-item",
+          "fav-sort-item.active",
+          "games-ledger-row:last-child",
+          "games-success",
+          "google-btn",
+          "hist-check",
+          "hist-check.on",
+          "hist-single",
+          "hist-single.on",
+          "hm-rail::before",
+          "hm-row",
+          "hm-row.on",
+          "hm-seg",
+          "hm-seg.on",
+          "home-next-banner:active",
+          "home-search-sticky",
+          "home-search-sticky.is-pinned",
+          "input-wrap:focus-within",
+          "is-active"
+        ]
+      }
+    }
+  ],
+  "resolved": [
+    {
+      "id": "2df3ed5c6bc282ed",
+      "title": "1 JSX classes have no CSS selector",
+      "category": "ui",
+      "resolvedAt": 1792495163531,
+      "evidence": "Not detected in the latest automated comparison."
+    },
+    {
+      "id": "f38b14b989b50649",
+      "title": "Broken module imports",
+      "category": "system",
+      "resolvedAt": 1792495099446,
+      "evidence": "Not detected in the latest automated comparison."
+    },
+    {
+      "id": "72fdd2fdb0579966",
+      "title": "Provider role flags changed",
+      "category": "provider",
+      "resolvedAt": 1792495099446,
+      "evidence": "Not detected in the latest automated comparison."
+    },
+    {
+      "id": "fc3494fdd9f56bad",
+      "title": "4 cross-file style conflicts",
+      "category": "ui",
+      "resolvedAt": 1792495099446,
+      "evidence": "Not detected in the latest automated comparison."
+    },
+    {
+      "id": "3f3385fe8b613456",
+      "title": "10 cross-file style conflicts",
+      "category": "ui",
+      "resolvedAt": 1792494919422,
+      "evidence": "Not detected in the latest automated comparison."
+    },
+    {
+      "id": "f85eb226c5400d19",
+      "title": "Registry order puts another provider after Anoboy",
+      "category": "provider",
+      "resolvedAt": 1792494679294,
+      "evidence": "Not detected in the latest automated comparison."
+    }
+  ],
+  "reopened": [],
+  "metrics": {
+    "ui": {
+      "cssFiles": [
+        "src/styles/tokens.css",
+        "src/styles/anibiplay.css",
+        "src/styles/anibiplay-home.css",
+        "src/styles/anibiplay-pages.css",
+        "src/styles/anibiplay-social.css",
+        "src/styles/app.css",
+        "src/styles/base.css",
+        "src/styles/animations.css"
+      ],
+      "cssRules": 1060,
+      "cssClasses": 725,
+      "jsxClassTokens": 598,
+      "missingClasses": [],
+      "unusedClasses": [
+        "affinity-card",
+        "affinity-card.is-active",
+        "affinity-result",
+        "affinity-result.selected",
+        "anim-pop",
+        "anim-shake",
+        "anime-card:active",
+        "app-main",
+        "app-main.public-chat-main",
+        "board-col:last-child",
+        "board-rank",
+        "board-rank.r1",
+        "board-rank.r2",
+        "board-rank.r3",
+        "board-rank.r4",
+        "car-dot",
+        "car-dot.on",
+        "chat-offline",
+        "chat-online",
+        "clamp-3",
+        "clan-chat-message",
+        "clan-chat-message.mine",
+        "comment-card",
+        "comment-reply",
+        "community-error.games-success",
+        "community-identity-link:active",
+        "community-refresh:active",
+        "community-refresh:disabled",
+        "community-secondary:active",
+        "community-secondary:disabled",
+        "community-submit:active",
+        "community-submit:disabled",
+        "community-user",
+        "community-user.developer",
+        "cr-card:active",
+        "cr-img::after",
+        "day-pill",
+        "day-pill.active",
+        "dm-bubble",
+        "dm-bubble.mine",
+        "dt-btn.ghost",
+        "dt-btn.ghost.on",
+        "dt-btn.primary",
+        "dt-btn:active",
+        "dt-btn:disabled",
+        "dt-chip.dim",
+        "dt-chip.gold",
+        "dt-epcell",
+        "dt-epcell.on",
+        "dt-eprow",
+        "dt-eprow.on",
+        "dt-sq.on",
+        "dt-sticky",
+        "dt-sticky.show",
+        "dt-syn-text",
+        "ep-row",
+        "ep-row.current",
+        "episode-player-backdrop",
+        "episode-player-backdrop.mini",
+        "episode-player-backdrop:not(.mini)",
+        "episode-player-state.error",
+        "fav-sort-item",
+        "fav-sort-item.active",
+        "games-ledger-row:last-child",
+        "games-success",
+        "google-btn",
+        "hist-check",
+        "hist-check.on",
+        "hist-single",
+        "hist-single.on",
+        "hm-rail::before",
+        "hm-row",
+        "hm-row.on",
+        "hm-seg",
+        "hm-seg.on",
+        "home-next-banner:active",
+        "home-search-sticky",
+        "home-search-sticky.is-pinned",
+        "input-wrap:focus-within",
+        "is-active"
+      ],
+      "keyframes": [
+        "nm-char-in",
+        "nm-dot-in",
+        "nm-fade",
+        "nm-fade-down",
+        "nm-fade-up",
+        "nm-float",
+        "nm-gold-glow",
+        "nm-line-grow",
+        "nm-page-in",
+        "nm-page-out",
+        "nm-pop",
+        "nm-ripple",
+        "nm-shake",
+        "nm-shimmer",
+        "nm-slide-left",
+        "nm-slide-right",
+        "nm-spin",
+        "nm-wiggle",
+        "nm-zoom-in",
+        "nm-zoom-out"
+      ],
+      "routes": [
+        "*",
+        "/",
+        "/affinity",
+        "/anibi-games",
+        "/auth/callback",
+        "/chat/:friendId",
+        "/community",
+        "/detail/:id",
+        "/favorites",
+        "/friends",
+        "/friends/:friendId",
+        "/friends/search",
+        "/games",
+        "/genre/:genreUrl/:genreTitle",
+        "/history",
+        "/home",
+        "/leaderboard",
+        "/notifications",
+        "/profile",
+        "/profile/:userId",
+        "/profile/affinity",
+        "/public-chat",
+        "/ranking/anime",
+        "/schedule",
+        "/search",
+        "/settings",
+        "/socialline",
+        "/subscribed",
+        "/watch-party",
+        "/watch-party/:id"
+      ],
+      "navLabels": [
+        "Home",
+        "Jadwal",
+        "Subscribed",
+        "Riwayat",
+        "SocialLine"
+      ],
+      "palette": [
+        "#000000",
+        "#03050a",
+        "#052e14",
+        "#06070a",
+        "#0a0e16",
+        "#0a0f18",
+        "#0b1220",
+        "#0d1320",
+        "#0f1420",
+        "#0f1520",
+        "#0f172a",
+        "#111827",
+        "#141820",
+        "#141925",
+        "#15233a",
+        "#190a12",
+        "#1a1e27",
+        "#1a2130",
+        "#1a2232",
+        "#1d9bf0",
+        "#1f1f1f",
+        "#1f2a3c",
+        "#1f3a5c",
+        "#202634",
+        "#22c55e",
+        "#253d62",
+        "#283041",
+        "#2a0d1b",
+        "#2a0e1b",
+        "#2a3346",
+        "#2c0d1b",
+        "#2d8cff",
+        "#3a1226",
+        "#3a1c00",
+        "#3a2600",
+        "#3b1324",
+        "#431428",
+        "#475569",
+        "#561b30",
+        "#641d34",
+        "#64748b",
+        "#6d28d9",
+        "#79aaff",
+        "#7c3aed",
+        "#7ec8ff",
+        "#7f8ea8",
+        "#86efac",
+        "#9fb0cb",
+        "#a855f7",
+        "#b388ff",
+        "#b5c6e1",
+        "#d3dbea",
+        "#dc2626",
+        "#e53935",
+        "#e8955a",
+        "#e8eef7",
+        "#ec4899",
+        "#f3e8ee",
+        "#f3f5f9",
+        "#f59e0b",
+        "#f8d7df",
+        "#fca5a5",
+        "#ff7ea0",
+        "#ffd54f",
+        "#ffffff"
+      ],
+      "missingColours": [],
+      "referenceAssets": 184,
+      "publicAssets": 187
+    },
+    "screenshots": {
+      "available": true,
+      "reference": {
+        "count": 56,
+        "luminance": 49.46,
+        "luminanceStd": 35.82,
+        "edge": 29.41,
+        "saturation": 72.84,
+        "darkRatio": 0.652,
+        "aspects": [
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44,
+          0.44
+        ]
+      },
+      "nanime": {
+        "count": 9,
+        "luminance": 70.5,
+        "luminanceStd": 39.22,
+        "edge": 19.7,
+        "saturation": 66.4,
+        "darkRatio": 0.614,
+        "aspects": [
+          0.47,
+          0.47,
+          1.61,
+          0.47,
+          1.77,
+          0.47,
+          0.47,
+          0.45,
+          0.45
+        ]
+      },
+      "referenceCount": 56,
+      "nanimeCount": 9,
+      "method": "aggregate luminance/edge/saturation/dark-ratio + palette, not pixel diff"
+    },
+    "providers": {
+      "order": [
+        "animasu",
+        "anitoki",
+        "nontonanime",
+        "moeclip",
+        "kuronime",
+        "doronime",
+        "ylnime",
+        "animeindo",
+        "animekulol",
+        "nimegami",
+        "sakunime",
+        "animekuindo",
+        "otakudesu",
+        "oploverz",
+        "kuramanime",
+        "kusonime",
+        "samehadaku",
+        "samehadakuhow",
+        "anichin",
+        "lendrive",
+        "moenime",
+        "alqanime",
+        "animekuonline",
+        "gomunime",
+        "nekopoi",
+        "anoboy"
+      ],
+      "providerCount": 26,
+      "activeCount": 26,
+      "streamingCount": 20,
+      "downloadOnly": [
+        "moenime",
+        "alqanime",
+        "animekuonline",
+        "nekopoi"
+      ],
+      "priorities": {
+        "otakudesu": {
+          "id": "otakudesu",
+          "priority": 10,
+          "file": "src/providers/legacy.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "oploverz": {
+          "id": "oploverz",
+          "priority": 11,
+          "file": "src/providers/legacy.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "kuramanime": {
+          "id": "kuramanime",
+          "priority": 12,
+          "file": "src/providers/legacy.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "kusonime": {
+          "id": "kusonime",
+          "priority": 13,
+          "file": "src/providers/legacy.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": true,
+          "hasDownloads": false
+        },
+        "anichin": {
+          "id": "anichin",
+          "priority": 40,
+          "file": "src/providers/anichin.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": true
+        },
+        "samehadaku": {
+          "id": "samehadaku",
+          "priority": 30,
+          "file": "src/providers/samehadaku.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": true
+        },
+        "lendrive": {
+          "id": "lendrive",
+          "priority": 70,
+          "file": "src/providers/lendrive.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": true,
+          "hasDownloads": true
+        },
+        "doronime": {
+          "id": "doronime",
+          "priority": 1,
+          "file": "src/providers/DoronimeProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "ylnime": {
+          "id": "ylnime",
+          "priority": 2,
+          "file": "src/providers/YlnimeProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "animeindo": {
+          "id": "animeindo",
+          "priority": 3,
+          "file": "src/providers/AnimeIndoProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "animekulol": {
+          "id": "animekulol",
+          "priority": 4,
+          "file": "src/providers/AnimeKuLolProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "nimegami": {
+          "id": "nimegami",
+          "priority": 5,
+          "file": "src/providers/NimegamiProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "sakunime": {
+          "id": "sakunime",
+          "priority": 6,
+          "file": "src/providers/SakunimeProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "animekuindo": {
+          "id": "animekuindo",
+          "priority": 7,
+          "file": "src/providers/AnimeKuindoProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "samehadakuhow": {
+          "id": "samehadakuhow",
+          "priority": 31,
+          "file": "src/providers/SamehadakuHowProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "moenime": {
+          "id": "moenime",
+          "priority": 999,
+          "file": "src/providers/MoenimeProvider.ts",
+          "active": true,
+          "downloadOnly": true,
+          "movieOnly": false,
+          "hasDownloads": true
+        },
+        "alqanime": {
+          "id": "alqanime",
+          "priority": 61,
+          "file": "src/providers/AlqanimeProvider.ts",
+          "active": true,
+          "downloadOnly": true,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "animekuonline": {
+          "id": "animekuonline",
+          "priority": 62,
+          "file": "src/providers/AnimeKuOnlineProvider.ts",
+          "active": true,
+          "downloadOnly": true,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "anoboy": {
+          "id": "anoboy",
+          "priority": 999,
+          "file": "src/providers/AnoboyProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "animasu": {
+          "id": "animasu",
+          "priority": 1,
+          "file": "src/providers/AnimasuProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": false
+        },
+        "gomunime": {
+          "id": "gomunime",
+          "priority": 6,
+          "file": "src/providers/GomunimeProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": true
+        },
+        "anitoki": {
+          "id": "anitoki",
+          "priority": 4,
+          "file": "src/providers/AnitokiProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": true
+        },
+        "nontonanime": {
+          "id": "nontonanime",
+          "priority": 3,
+          "file": "src/providers/NontonAnimeProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": true
+        },
+        "moeclip": {
+          "id": "moeclip",
+          "priority": 7,
+          "file": "src/providers/MoeclipProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": true
+        },
+        "kuronime": {
+          "id": "kuronime",
+          "priority": 8,
+          "file": "src/providers/KuronimeProvider.ts",
+          "active": true,
+          "downloadOnly": false,
+          "movieOnly": false,
+          "hasDownloads": true
+        },
+        "nekopoi": {
+          "id": "nekopoi",
+          "priority": 60,
+          "file": "src/providers/NekopoiProvider.ts",
+          "active": true,
+          "downloadOnly": true,
+          "movieOnly": false,
+          "hasDownloads": true
+        }
+      },
+      "anibiBaseUrl": "https://api.kisame.cloud/api/v2/",
+      "anibiEndpoints": [
+        "catalog",
+        "episodemeta/{key}",
+        "detail/{id}",
+        "genres/{key}/series",
+        "topseries",
+        "home",
+        "jadwal",
+        "announcement"
+      ],
+      "anibiDtoContracts": {
+        "AnimeDto": [
+          "anime_name",
+          "author",
+          "banner_url",
+          "category",
+          "cover",
+          "cover_url",
+          "episode",
+          "episode_count",
+          "episodes",
+          "genre",
+          "genres",
+          "id",
+          "judul",
+          "lastch",
+          "latest_episode",
+          "link",
+          "poster_url",
+          "published_text",
+          "rating",
+          "score",
+          "series_id",
+          "series_slug",
+          "slug",
+          "status",
+          "synopsis",
+          "thumb",
+          "title",
+          "title2",
+          "total_episode",
+          "type",
+          "updated_at",
+          "url",
+          "views",
+          "year"
+        ],
+        "AnimeListResponseDto": [
+          "data",
+          "limit",
+          "page",
+          "total",
+          "total_pages"
+        ],
+        "SeriesEpisodeDto": [
+          "chapter_label",
+          "chapter_slug",
+          "history",
+          "id",
+          "release_date_text",
+          "source_episode_id",
+          "stream_count",
+          "views"
+        ],
+        "SeriesEpisodesResponseDto": [
+          "data",
+          "limit",
+          "page",
+          "series_id",
+          "total",
+          "total_pages"
+        ],
+        "DetailMergedResponseDto": [
+          "data"
+        ],
+        "EpisodeMetaResponseDto": [
+          "data",
+          "episode_id",
+          "source_platform",
+          "stream_headers",
+          "stream_priority"
+        ],
+        "EpisodeMetaStreamDto": [
+          "created_at",
+          "enc",
+          "exp",
+          "id",
+          "link",
+          "playToken",
+          "provide",
+          "reso",
+          "resolution",
+          "size_kb",
+          "stream_source_id",
+          "stream_url"
+        ],
+        "EpisodeStreamDto": [
+          "id",
+          "link",
+          "provide",
+          "reso",
+          "resolution",
+          "size_kb",
+          "stream_source_id",
+          "stream_url"
+        ],
+        "EpisodeStreamsResponseDto": [
+          "data",
+          "episode_id"
+        ],
+        "PlayResolveResponseDto": [
+          "expires_in",
+          "stream_url"
+        ],
+        "HomeResponseDto": [
+          "data",
+          "meta"
+        ],
+        "HomeSectionAnimeDto": [
+          "data",
+          "limit",
+          "page",
+          "total",
+          "total_pages"
+        ],
+        "ScheduleResponseDto": [
+          "data",
+          "total"
+        ],
+        "ScheduleAnimeDto": [
+          "anime_name",
+          "content_origin",
+          "cover",
+          "cover_url",
+          "day_of_week",
+          "hasReleasedToday",
+          "id",
+          "isAiringToday",
+          "last_episode",
+          "link",
+          "rating",
+          "schedule_id",
+          "series_id",
+          "series_slug",
+          "sort_order",
+          "source_platform",
+          "status",
+          "time_label",
+          "title",
+          "type",
+          "updated",
+          "views"
+        ],
+        "GenreDto": [
+          "id",
+          "name",
+          "series_count",
+          "total_series"
+        ],
+        "GenreListResponseDto": [
+          "data",
+          "total"
+        ],
+        "TopSeriesResponseDto": [
+          "all_time",
+          "content_origin",
+          "limit_per_period",
+          "monthly",
+          "weekly"
+        ],
+        "UserFavoriteEntryDto": [
+          "animeTitle",
+          "createdAt",
+          "episodeCount",
+          "id",
+          "posterUrl",
+          "rating",
+          "seriesId",
+          "seriesUrl",
+          "views"
+        ],
+        "UserHistoryEntryDto": [
+          "animeId",
+          "anime_id",
+          "episodeLabel",
+          "episodeNumber",
+          "episodeUrl",
+          "episode_label",
+          "episode_number",
+          "episode_url",
+          "posterUrl",
+          "poster_url",
+          "progressPercent",
+          "progress_percent",
+          "seriesUrl",
+          "series_url",
+          "title",
+          "totalDuration",
+          "totalDurationMs",
+          "total_duration",
+          "total_duration_ms",
+          "watchedAt",
+          "watchedDuration",
+          "watchedDurationMs",
+          "watched_at",
+          "watched_duration",
+          "watched_duration_ms"
+        ],
+        "UserProgressResponseDto": [
+          "data"
+        ]
+      },
+      "anibiStreamHosts": [
+        "anichin.stream",
+        "anichin.watch",
+        "animein.net",
+        "buzzheavier.com",
+        "fafda.to",
+        "filedon.co",
+        "krakencloud.net",
+        "krakenfiles.com",
+        "kuramadrive.com",
+        "mediafire.com",
+        "mp4upload.com",
+        "odnoklassniki.ru",
+        "ok.ru",
+        "otakufiles.net",
+        "rubyvidhub.com",
+        "streamruby.net",
+        "vkuser.net"
+      ],
+      "anibiAdapter": [],
+      "matrix": [
+        {
+          "capability": "catalog/search",
+          "reference": "catalog/search",
+          "nanime": "present"
+        },
+        {
+          "capability": "detail merge",
+          "reference": "detail merge",
+          "nanime": "present"
+        },
+        {
+          "capability": "episode metadata",
+          "reference": "episode metadata",
+          "nanime": "present"
+        },
+        {
+          "capability": "streams",
+          "reference": "streams",
+          "nanime": "present"
+        },
+        {
+          "capability": "play resolve",
+          "reference": "play resolve",
+          "nanime": "present"
+        },
+        {
+          "capability": "downloads",
+          "reference": "downloads",
+          "nanime": "present"
+        },
+        {
+          "capability": "schedule",
+          "reference": "schedule",
+          "nanime": "present"
+        },
+        {
+          "capability": "genres",
+          "reference": "genres",
+          "nanime": "present"
+        },
+        {
+          "capability": "top series",
+          "reference": "top series",
+          "nanime": "present"
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "AniBiPlay is a decompiled Compose/Media3 APK; comparisons are capability-based, not line-by-line.",
+    "Screenshot metrics are aggregate colour/edge/luminance signals, not a pixel diff; matching screens must be captured at the same viewport.",
+    "The AniBiPlay v2 backend needs app auth; the adapter must fail gracefully when credentials/token are absent.",
+    "The upstream platform/origin catalogue is server-side and is not fabricated in Nanime."
+  ]
+}

@@ -10,7 +10,7 @@ import { ErrorState, ListSkel, OfflineBar, PosterSkel, RailSkel, SectionHead } f
 import { Icon } from '../ui/icons';
 import { usePullToRefresh } from '../ui/hooks';
 import { SmartImage } from '../ui/SmartImage';
-import { detailPath, searchPath } from '../lib/nav';
+import { detailPath, genrePath } from '../lib/nav';
 import { getClient } from '../lib/supabase';
 import { filterSubscribedUpdates, subscriptionUpdateId } from '../lib/subscriptions';
 import { leaderboard, listRepliesToOwnComments, type CommunityProfile } from '../lib/community';
@@ -332,7 +332,7 @@ export function Home() {
             <SectionHead title="Genre Series" />
             <div className="genre-chips">
               {GENRES.map(g => (
-                <button key={g} type="button" className="chip" onClick={() => navigate(searchPath(g))}>
+                <button key={g} type="button" className="chip" onClick={() => navigate(genrePath(g))}>
                   {g}
                 </button>
               ))}

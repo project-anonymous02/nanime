@@ -36,7 +36,7 @@ function analyzeProviderContracts(providers: AnimeProvider[]): ContractProblem[]
     if (provider.downloadOnly && streamingProviders().some(item => item.id === provider.id)) {
       problems.push({ code: 'download-only-in-stream-order', detail: provider.id });
     }
-    if ((provider.downloadOnly || provider.movieOnly || provider.downloads) && !downloadProviders().some(item => item.id === provider.id)) {
+    if (provider.content !== 'hentai' && (provider.downloadOnly || provider.movieOnly || provider.downloads) && !downloadProviders().some(item => item.id === provider.id)) {
       problems.push({ code: 'download-capability-not-registered', detail: provider.id });
     }
     if (provider.content === 'hentai') {

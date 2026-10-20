@@ -1,0 +1,47 @@
+{
+  "schema": 2,
+  "resolved": [
+    {
+      "id": "2df3ed5c6bc282ed",
+      "title": "1 JSX classes have no CSS selector",
+      "category": "ui",
+      "resolvedAt": 1792495163531,
+      "evidence": "Not detected in the latest automated comparison."
+    },
+    {
+      "id": "f38b14b989b50649",
+      "title": "Broken module imports",
+      "category": "system",
+      "resolvedAt": 1792495099446,
+      "evidence": "Not detected in the latest automated comparison."
+    },
+    {
+      "id": "72fdd2fdb0579966",
+      "title": "Provider role flags changed",
+      "category": "provider",
+      "resolvedAt": 1792495099446,
+      "evidence": "Not detected in the latest automated comparison."
+    },
+    {
+      "id": "fc3494fdd9f56bad",
+      "title": "4 cross-file style conflicts",
+      "category": "ui",
+      "resolvedAt": 1792495099446,
+      "evidence": "Not detected in the latest automated comparison."
+    },
+    {
+      "id": "3f3385fe8b613456",
+      "title": "10 cross-file style conflicts",
+      "category": "ui",
+      "resolvedAt": 1792494919422,
+      "evidence": "Not detected in the latest automated comparison."
+    },
+    {
+      "id": "f85eb226c5400d19",
+      "title": "Registry order puts another provider after Anoboy",
+      "category": "provider",
+      "resolvedAt": 1792494679294,
+      "evidence": "Not detected in the latest automated comparison."
+    }
+  ]
+}

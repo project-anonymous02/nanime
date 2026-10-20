@@ -174,7 +174,9 @@ describe('registry ordering', () => {
   });
 
   it('semua provider terdaftar lengkap', () => {
-    expect(allProviders().length).toBe(21);
+    const ids = allProviders().map(p => p.id);
+    expect(allProviders().length).toBe(26);
+    expect(ids).toEqual(expect.arrayContaining(['anitoki', 'nontonanime', 'moeclip', 'kuronime', 'nekopoi']));
   });
 });
 

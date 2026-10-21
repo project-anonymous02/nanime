@@ -46,6 +46,8 @@ export interface AnimeProvider {
   }): Promise<DownloadLink[]>;
   ongoing?(page?: number): Promise<ListResult>;
   completed?(page?: number): Promise<ListResult>;
+  movies?(page?: number): Promise<ListResult>;
+  genre?(genreId: string, page?: number): Promise<ListResult>;
   schedule?(): Promise<ScheduleGroup[]>;
   genres?(): Promise<{ genreId: string; title: string }[]>;
 }

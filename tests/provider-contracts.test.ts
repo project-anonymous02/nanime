@@ -53,9 +53,13 @@ function analyzeProviderContracts(providers: AnimeProvider[]): ContractProblem[]
     }
   }
   const downloadable = downloadProviders();
-  const lastDownloadProvider = downloadable[downloadable.length - 1]?.id;
-  if (lastDownloadProvider !== 'moenime') {
-    problems.push({ code: 'moenime-not-final-download-fallback', detail: lastDownloadProvider || 'empty' });
+  if (downloadable.some(provider => provider.id === 'animeku')) {
+    problems.push({ code: 'unverified-download-capability', detail: 'animeku' });
+  }
+  for (let i = 1; i < downloadable.length; i++) {
+    if (downloadable[i - 1].priority > downloadable[i].priority) {
+      problems.push({ code: 'download-priority-inversion', detail: `${downloadable[i - 1].id} > ${downloadable[i].id}` });
+    }
   }
 
   return problems;
@@ -86,17 +90,12 @@ describe('provider and feature contradiction analyzer', () => {
     }
   });
 
-  it('requires classification metadata before mixed-provider cards enter discovery', () => {
-    expect(isAllowedInDiscovery({ provider: 'gomunime' }, 'gomunime')).toBe(false);
-    expect(isAllowedInDiscovery({ provider: 'gomunime', genres: ['Action'] }, 'gomunime')).toBe(true);
-  });
-
-  it('separates download-only catalogs from movie-only sources', () => {
+  it('separates the adult download-only catalog from streaming sources', () => {
     const byId = new Map(allProviders().map(provider => [provider.id, provider]));
-    expect(byId.get('alqanime')?.downloadOnly).toBe(true);
-    expect(byId.get('alqanime')?.movieOnly).not.toBe(true);
-    expect(streamingProviders().some(provider => provider.id === 'alqanime')).toBe(false);
-    expect(byId.get('kusonime')?.movieOnly).toBe(true);
+    expect(byId.get('nekopoi')?.downloadOnly).toBe(true);
+    expect(byId.get('nekopoi')?.movieOnly).not.toBe(true);
+    expect(streamingProviders().some(provider => provider.id === 'nekopoi')).toBe(false);
+    expect(downloadProviders().some(provider => provider.id === 'nekopoi')).toBe(false);
   });
 
   it('honors an explicitly selected detail provider regardless of its default priority', () => {

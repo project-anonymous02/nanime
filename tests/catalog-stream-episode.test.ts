@@ -15,7 +15,7 @@ async function setupProvider(streamImpl?: (episodeId: string) => Promise<Episode
   })));
   const id = `stream-episode-test-${++serial}`;
   const episodeId = (n: number) => `${id}-episode-id-${n}`;
-  const provider = getProvider('doronime');
+  const provider = getProvider('otakudesu');
   if (!provider) throw new Error('Provider fixture missing');
   await TitleIndex.upsert({
     id,
@@ -46,7 +46,7 @@ describe('Catalog.stream episode identity', () => {
     for (const n of [1, 2, 3, 1]) {
       const expectedId = `${id}-episode-id-${n}`;
       const result = await Catalog.stream(id, String(n), {
-        episodeProvider: 'doronime',
+        episodeProvider: 'otakudesu',
         episodeId: expectedId,
         episodeSlug: `${id}-episode-${n}`
       });
@@ -61,7 +61,7 @@ describe('Catalog.stream episode identity', () => {
     const { id, streamSpy } = await setupProvider(async episodeId => {
       if (episodeId === `${id}-episode-id-2`) await waitForEpisode2;
       return {
-        provider: 'doronime',
+        provider: 'otakudesu',
         title: episodeId,
         playerUrl: `https://media.test/${episodeId}.mp4`,
         qualities: [], servers: [], downloads: [], info: { episodeId }
@@ -69,9 +69,9 @@ describe('Catalog.stream episode identity', () => {
     });
     const episode2Id = `${id}-episode-id-2`;
     const episode3Id = `${id}-episode-id-3`;
-    const episode2 = Catalog.stream(id, '2', { episodeProvider: 'doronime', episodeId: episode2Id });
+    const episode2 = Catalog.stream(id, '2', { episodeProvider: 'otakudesu', episodeId: episode2Id });
     await vi.waitFor(() => expect(streamSpy.mock.calls.some(([params]) => params.episodeId === episode2Id)).toBe(true));
-    const episode3 = await Catalog.stream(id, '3', { episodeProvider: 'doronime', episodeId: episode3Id });
+    const episode3 = await Catalog.stream(id, '3', { episodeProvider: 'otakudesu', episodeId: episode3Id });
     finishEpisode2();
     const lateEpisode2 = await episode2;
     expect(episode3.servers[0].url).toBe(`https://media.test/${episode3Id}.mp4`);
@@ -81,11 +81,36 @@ describe('Catalog.stream episode identity', () => {
   it('reports unavailable rather than turning a download/error URL into playback', async () => {
     const { id } = await setupProvider(async () => { throw new Error('media unavailable'); });
     const result = await Catalog.stream(id, '2', {
-      episodeProvider: 'doronime', episodeId: `${id}-episode-id-2`, episodeSlug: `${id}-episode-2`
+      episodeProvider: 'otakudesu', episodeId: `${id}-episode-id-2`, episodeSlug: `${id}-episode-2`
     });
     expect(result.availability).toBe('unavailable');
     expect(result.qualities).toEqual([]);
     expect(result.servers).toEqual([]);
+  });
+
+  it('groups only http download links exposed by the episode page', async () => {
+    const { id } = await setupProvider(async episodeId => ({
+      provider: 'otakudesu',
+      title: `episode ${episodeId}`,
+      playerUrl: `https://media.test/${episodeId}.mp4`,
+      qualities: [],
+      servers: [],
+      info: {},
+      downloads: [
+        { quality: '720p', name: 'A', url: 'https://dl.test/a' },
+        { quality: '720p', name: 'A duplicate', url: 'https://dl.test/a' },
+        { quality: '1080p', name: 'Broken', url: 'javascript:alert(1)' },
+        { quality: '1080p', name: 'C', url: 'https://dl.test/c' }
+      ]
+    }));
+    const result = await Catalog.stream(id, '1', {
+      episodeProvider: 'otakudesu', episodeId: `${id}-episode-id-1`, episodeSlug: `${id}-episode-1`
+    });
+    expect(result.downloads.map(group => [group.quality, group.items.map(item => item.url)])).toEqual([
+      ['720p', ['https://dl.test/a']],
+      ['1080p', ['https://dl.test/c']]
+    ]);
+    expect(result.downloads.flatMap(group => group.items).every(item => item.availability === 'unverified')).toBe(true);
   });
 });
 

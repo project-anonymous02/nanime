@@ -10,7 +10,7 @@ import { ProviderAggregator } from './ProviderAggregator';
 import { levenshtein, matchScore, normalizeTitle } from '../utils/fuzzyMatch';
 import { aliasKey, aliasesOf, splitSeason } from '../utils/titleAliases';
 import { titleKey } from './TitleIndex';
-import { allProviders } from '../../providers/registry';
+import { allProviders, getProvider } from '../../providers/registry';
 
 export interface SearchFilters {
   providers?: string[];
@@ -351,9 +351,20 @@ export async function searchAggregated(
   const minScore = opts.minScore != null ? opts.minScore : 220;
   const sort = opts.sort || 'relevance';
   const buildResult = async (sources: SourceResult[]): Promise<AggregatedSearchResult> => {
-    const flat: Card[] = [];
-    for (const source of sources) if (source.ok) flat.push(...source.items);
-    let items = (await mergeCardsAsync(flat, { query: q })).filter(item => item.score1000 >= minScore);
+    // Separate sources are never merged into the main catalog: adult results
+    // keep their own identity and only appear after explicit opt-in.
+    const normal: Card[] = [];
+    const adult: Card[] = [];
+    for (const source of sources) {
+      if (!source.ok) continue;
+      if (getProvider(source.id)?.content === 'hentai') adult.push(...source.items);
+      else normal.push(...source.items);
+    }
+    const normalItems = (await mergeCardsAsync(normal, { query: q })).filter(item => item.score1000 >= minScore);
+    const adultItems = adult.length
+      ? (await mergeCardsAsync(adult, { query: q })).filter(item => item.score1000 >= minScore)
+      : [];
+    let items = [...normalItems, ...adultItems];
     if (sort === 'title') items.sort((a, b) => a.title.localeCompare(b.title));
     else if (sort === 'rating') items.sort((a, b) => (parseFloat(b.score) || 0) - (parseFloat(a.score) || 0));
     else if (sort === 'provider') items.sort((a, b) => b.providerCount - a.providerCount);

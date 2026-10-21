@@ -1,7 +1,7 @@
 import type { AnimeProvider } from '../../providers/types';
-import { searchProviders, allProviders } from '../../providers/registry';
+import { searchProviders, allProviders, officialProviders } from '../../providers/registry';
 import { markHealth } from '../../providers/registry';
-import type { Card, ScheduleGroup, ScheduleItem, SourceResult } from '../types';
+import type { Card, ListResult, ScheduleGroup, ScheduleItem, SourceResult } from '../types';
 import { CacheManager, TTL } from './CacheManager';
 import { matchScore } from '../utils/fuzzyMatch';
 import { filterDiscovery } from './ContentPolicy';
@@ -79,198 +79,160 @@ export interface HomeFeedRaw {
   sources: SourceResult[];
 }
 
-/** Jalankan tugas dengan batas konkurensi (urutan masuk dipertahankan). */
-async function runPool<T>(items: T[], limit: number, job: (item: T) => Promise<void>): Promise<void> {
-  const queue = items.slice();
-  const workers = Array.from({ length: Math.max(1, Math.min(limit, queue.length)) }, async () => {
-    for (;;) {
-      const item = queue.shift();
-      if (item === undefined) return;
-      await job(item);
-    }
-  });
-  await Promise.all(workers);
-}
-
 /**
- * ProviderAggregator — menjalankan semua penyedia secara paralel
- * (Promise.allSettled) dan melaporkan status per sumber.
+ * ProviderAggregator — menjalankan penyedia resmi secara berurutan dan hanya
+ * melanjutkan ke sumber cadangan bila sumber utama tidak punya data.
  * Nama penyedia TIDAK PERNAH keluar ke UI; hanya dipakai internal.
  */
 export const ProviderAggregator = {
-  /** Pencarian paralel dari semua penyedia yang mendukung pencarian. */
+  /**
+   * Pencarian berjenjang: Otakudesu → Samehadaku → Animeku. Sumber berikutnya
+   * hanya dipanggil ketika sumber sebelumnya gagal atau tidak menemukan judul
+   * yang relevan. Nekopoi (bila diaktifkan) berjalan sebagai jalur terpisah.
+   */
   async search(query: string, opts: { timeout?: number; deadline?: number; max?: number; providerIds?: string[]; includeAdult?: boolean; signal?: AbortSignal; onUpdate?: (sources: SourceResult[]) => void } = {}): Promise<SourceResult[]> {
     const q = String(query || '').trim();
     if (!q) return [];
     const timeout = opts.timeout || 12000;
     const deadline = opts.deadline ?? 8500;
-    const providers = searchProviders().filter(p => isProviderSearchAllowed(p, opts.providerIds, opts.includeAdult)).slice(0, opts.max || 99);
+    const started = Date.now();
+    const available = searchProviders().filter(p => isProviderSearchAllowed(p, opts.providerIds, opts.includeAdult));
+    const explicit = !!opts.providerIds?.length;
+    const normalChain = available.filter(p => p.content !== 'hentai');
+    const adultChain = available.filter(p => p.content === 'hentai');
+    const chain = explicit ? available : normalChain;
+    const results: SourceResult[] = [];
 
-    const settled: PromiseSettledResult<{ p: AnimeProvider; items: Card[] }>[] = new Array(providers.length);
-    let publishing = true;
-    const sourceResult = (result: PromiseSettledResult<{ p: AnimeProvider; items: Card[] }>, index: number): SourceResult => {
-      const p = providers[index];
-      if (result.status === 'fulfilled') {
-        const items = (result.value.items || []).map(card => ({ ...card, match: matchScore(q, card.title) }));
-        return { id: p.id, ok: true, count: items.length, items };
-      }
-      return { id: p.id, ok: false, count: 0, items: [], error: String((result.reason && result.reason.message) || result.reason || 'error') };
-    };
-    const publishSnapshot = () => {
-      if (!publishing || opts.signal?.aborted || !opts.onUpdate) return;
-      try { opts.onUpdate(settled.flatMap((result, index) => result ? [sourceResult(result, index)] : [])); } catch { /* UI observers cannot fail provider work. */ }
-    };
-    let cursor = 0;
-    const worker = async () => {
-      for (;;) {
-        if (opts.signal?.aborted) return;
-        const index = cursor++;
-        if (index >= providers.length) return;
-        const p = providers[index];
-        try {
-          const started = performance.now();
-          const allowAdult = !!opts.includeAdult && p.content === 'hentai';
-          const visible = (cards: Card[]) => {
-            const normalized = cards.map(card => ({ ...card, provider: card.provider || p.id }));
-            return allowAdult ? normalized : filterDiscovery(normalized, p.id);
-          };
-          const fetched = await withTimeout(CacheManager.search(p.id, q, async () => visible(await p.search(q))), timeout);
-          // Re-filter cache hits too; persisted search results predate current policy.
-          const items = visible(fetched);
-          settled[index] = { status: 'fulfilled', value: { p, items } };
-          recordMetric({ provider: p.id, operation: 'search', ms: Math.round(performance.now() - started), ok: true, count: items.length });
-        } catch (reason) {
-          settled[index] = { status: 'rejected', reason };
-          recordMetric({ provider: p.id, operation: 'search', ms: timeout, ok: false, count: 0 });
-        }
-        publishSnapshot();
-      }
-    };
-    const workers = Promise.all(Array.from({ length: Math.min(8, Math.max(1, providers.length)) }, worker));
-    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
-    let abortListener: (() => void) | undefined;
-    const aborted = new Promise<void>(resolve => {
-      if (opts.signal?.aborted) resolve();
-      else if (opts.signal) {
-        abortListener = () => resolve();
-        opts.signal.addEventListener('abort', abortListener, { once: true });
-      }
-    });
-    await Promise.race([workers, aborted, new Promise<void>(resolve => { deadlineTimer = setTimeout(resolve, deadline); })]);
-    if (deadlineTimer) clearTimeout(deadlineTimer);
-    if (abortListener) opts.signal?.removeEventListener('abort', abortListener);
-    publishing = false;
-    // A canceled query is not a provider failure and must not poison health
-    // state based on requests that the caller no longer needs.
-    if (opts.signal?.aborted) return [];
-    const snapshot = settled.map((result, index) => result || ({ status: 'rejected', reason: new Error('deadline') } as const));
-
-    return snapshot.map((r, i) => {
-      const p = providers[i];
-      if (r.status === 'fulfilled') {
-        const items = (r.value.items || []).map(c => ({ ...c, match: matchScore(q, c.title) }));
+    const searchOne = async (p: AnimeProvider): Promise<SourceResult> => {
+      const t0 = performance.now();
+      try {
+        const allowAdult = !!opts.includeAdult && p.content === 'hentai';
+        const visible = (cards: Card[]) => {
+          const normalized = cards.map(card => ({ ...card, provider: card.provider || p.id }));
+          return allowAdult ? normalized : filterDiscovery(normalized, p.id);
+        };
+        const fetched = await withTimeout(CacheManager.search(p.id, q, async () => visible(await p.search(q))), timeout);
+        // Re-filter cache hits too; persisted search results predate current policy.
+        const items = visible(fetched).map(card => ({ ...card, match: matchScore(q, card.title) }));
         markHealth(p.id, true);
-        return { id: p.id, ok: true, count: items.length, items } as SourceResult;
+        recordMetric({ provider: p.id, operation: 'search', ms: Math.round(performance.now() - t0), ok: true, count: items.length });
+        return { id: p.id, ok: true, count: items.length, items };
+      } catch (reason) {
+        markHealth(p.id, false, String((reason as Error)?.message || reason || 'error'));
+        recordMetric({ provider: p.id, operation: 'search', ms: Math.round(performance.now() - t0), ok: false, count: 0 });
+        return { id: p.id, ok: false, count: 0, items: [], error: String((reason as Error)?.message || reason || 'error') };
       }
-      markHealth(p.id, false, String((r.reason && r.reason.message) || r.reason || 'error'));
-      return {
-        id: p.id,
-        ok: false,
-        count: 0,
-        items: [],
-        error: String((r.reason && r.reason.message) || r.reason || 'error')
-      } as SourceResult;
-    });
+    };
+
+    const publish = () => {
+      if (opts.signal?.aborted || !opts.onUpdate) return;
+      try { opts.onUpdate(results.slice()); } catch { /* UI observers cannot fail provider work. */ }
+    };
+
+    const remaining = () => deadline - (Date.now() - started);
+
+    // Jalur normal: berhenti pada sumber pertama yang punya hasil relevan.
+    for (const p of chain.slice(0, opts.max || 99)) {
+      if (opts.signal?.aborted || remaining() <= 0) break;
+      const result = await searchOne(p);
+      results.push(result);
+      publish();
+      if (result.ok && result.items.some(card => matchScore(q, card.title) >= 40)) break;
+    }
+
+    // Jalur dewasa terpisah: hanya saat pengguna memilih opt-in.
+    if (!explicit && opts.includeAdult && !opts.signal?.aborted) {
+      for (const p of adultChain) {
+        if (remaining() <= 0) break;
+        const result = await searchOne(p);
+        results.push(result);
+        publish();
+      }
+    }
+
+    return results;
   },
 
   /**
-   * Beranda mentah dari seluruh penyedia, dipisah per rail:
-   * update baru / selesai / donghua / movie. Penggabungan kanonik
-   * (satu judul = satu kartu) dilakukan oleh lapisan katalog.
-   *
-   * Cepat: maksimal 8 scraping serentak dan ada
-   * `deadline` — begitu waktunya habis, hasil yang sudah masuk langsung
-   * dipakai; penyedia yang belum selesai tetap berjalan di latar dan
-   * mengisi cache per-penyedia untuk panggilan berikutnya.
+   * Beranda mentah dengan fallback per rail:
+   * update baru / selesai / movie. Otakudesu diambil lebih dulu; sumber
+   * berikutnya hanya dipanggil untuk rail yang masih kosong.
    */
   async homeFeed(opts: {
     timeout?: number;
     deadline?: number;
-    concurrency?: number;
     onUpdate?: (feed: HomeFeedRaw) => void;
   } = {}): Promise<HomeFeedRaw> {
     const timeout = opts.timeout || 15000;
     const deadline = opts.deadline ?? 10000;
-    const concurrency = opts.concurrency ?? 8;
-    const providers = allProviders()
-      // Catalog providers can contribute discovery cards independently of
-      // whether their media capability is streaming or download-only.
-      .filter(p => p.active && p.content !== 'hentai')
-      .sort((a, b) => a.priority - b.priority);
+    const startedAt = Date.now();
+    const providers = officialProviders();
 
-    const results: Array<{ p: AnimeProvider; ok: boolean; data?: Awaited<ReturnType<AnimeProvider['home']>>; error?: string }> =
-      new Array(providers.length);
+    const feed: HomeFeedRaw = { newUpdate: [], completed: [], donghua: [], movie: [], sources: [] };
+    const filled = () => feed.newUpdate.length > 0 && feed.completed.length > 0 && feed.movie.length > 0;
 
-    const snapshot = (): HomeFeedRaw => {
-      const newUpdate: Card[] = [];
-      const completed: Card[] = [];
-      const donghua: Card[] = [];
-      const movie: Card[] = [];
-      const sources: SourceResult[] = [];
-      results.forEach(r => {
-        if (!r) return;
-        const p = r.p;
-        if (r.ok && r.data) {
-          const d = r.data;
-          const items = filterDiscovery((d.ongoing || []).concat(d.completed || []).concat(d.movie || []).map(c => ({
-            ...c,
-            provider: c.provider || p.id
-          })), p.id);
-          const safeMovies = filterDiscovery(d.movie || [], p.id);
-          const movieItems = safeMovies.concat(items.filter(isMovieCard));
-          if (p.movieOnly) movie.push(...movieItems);
-          else if (p.content === 'donghua') donghua.push(...items);
-          else {
-            newUpdate.push(...filterDiscovery(d.ongoing || [], p.id).filter(c => !isMovieCard(c)));
-            completed.push(...filterDiscovery(d.completed || [], p.id).filter(c => !isMovieCard(c)));
-            movie.push(...movieItems);
-          }
-          markHealth(p.id, true);
-          sources.push({ id: p.id, ok: true, count: (d.ongoing || []).length + (d.completed || []).length, items: [] });
-        } else {
-          markHealth(p.id, false, r.error || 'timeout');
-          sources.push({ id: p.id, ok: false, count: 0, items: [], error: r.error || '' });
-        }
-      });
-      return { newUpdate, completed, donghua, movie, sources };
-    };
-
-    // Maksimal `concurrency` scraping serentak — urutan prioritas dipertahankan.
-    const running = runPool(providers, concurrency, async p => {
-      const i = providers.indexOf(p);
+    for (const p of providers) {
+      if (filled()) break;
+      const remaining = deadline - (Date.now() - startedAt);
+      if (remaining <= 0) break;
       const started = performance.now();
       try {
-        const data = await withTimeout(
-          CacheManager.home(p.id, () => p.home()),
-          timeout
+        const data = await withTimeout(CacheManager.home(p.id, () => p.home()), Math.min(timeout, remaining));
+        const ongoing = filterDiscovery((data.ongoing || []).map(c => ({ ...c, provider: c.provider || p.id })), p.id).filter(c => !isMovieCard(c));
+        const completed = filterDiscovery((data.completed || []).map(c => ({ ...c, provider: c.provider || p.id })), p.id).filter(c => !isMovieCard(c));
+        const movie = filterDiscovery(
+          [...(data.movie || []), ...(data.ongoing || []), ...(data.completed || [])]
+            .map(c => ({ ...c, provider: c.provider || p.id }))
+            .filter(isMovieCard),
+          p.id
         );
-        results[i] = { p, ok: true, data };
-        recordMetric({ provider: p.id, operation: 'home', ms: Math.round(performance.now() - started), ok: true, count: (data.ongoing?.length || 0) + (data.completed?.length || 0) + (data.movie?.length || 0) });
+        let contributed = (feed.newUpdate.length ? 0 : ongoing.length) +
+          (feed.completed.length ? 0 : completed.length) +
+          (feed.movie.length ? 0 : movie.length);
+        if (!feed.newUpdate.length) feed.newUpdate.push(...ongoing);
+        if (!feed.completed.length) feed.completed.push(...completed);
+        if (!feed.movie.length) feed.movie.push(...movie);
+
+        const rails: { key: 'newUpdate' | 'completed' | 'movie'; method: 'ongoing' | 'completed' | 'movies' }[] = [
+          { key: 'newUpdate', method: 'ongoing' },
+          { key: 'completed', method: 'completed' },
+          { key: 'movie', method: 'movies' }
+        ];
+        for (const rail of rails) {
+          if (feed[rail.key].length) continue;
+          const fetchList = p[rail.method] as ((page?: number) => Promise<ListResult>) | undefined;
+          if (!fetchList) continue;
+          try {
+            const remaining = deadline - (Date.now() - startedAt);
+            if (remaining <= 0) break;
+            const result = await withTimeout(fetchList.call(p, 1), Math.min(timeout, remaining));
+            const cards = filterDiscovery((result.list || []).map(c => ({ ...c, provider: c.provider || p.id })), p.id);
+            const picked = rail.key === 'movie' ? cards.filter(isMovieCard) : cards.filter(card => !isMovieCard(card));
+            if (!picked.length) continue;
+            feed[rail.key].push(...picked);
+            contributed += picked.length;
+          } catch {
+            /* daftar khusus tidak tersedia; rail tetap kosong */
+          }
+        }
+        markHealth(p.id, true);
+        feed.sources.push({ id: p.id, ok: true, count: contributed, items: [] });
+        recordMetric({
+          provider: p.id,
+          operation: 'home',
+          ms: Math.round(performance.now() - started),
+          ok: true,
+          count: (data.ongoing?.length || 0) + (data.completed?.length || 0) + (data.movie?.length || 0)
+        });
+        if (contributed > 0) opts.onUpdate?.({ ...feed, sources: feed.sources.slice() });
       } catch (e) {
-        results[i] = { p, ok: false, error: String((e as Error)?.message || e) };
-        recordMetric({ provider: p.id, operation: 'home', ms: timeout, ok: false, count: 0 });
+        markHealth(p.id, false, String((e as Error)?.message || e));
+        feed.sources.push({ id: p.id, ok: false, count: 0, items: [], error: String((e as Error)?.message || e) });
+        recordMetric({ provider: p.id, operation: 'home', ms: Math.round(performance.now() - started), ok: false, count: 0 });
       }
-      const result = results[i];
-      if (result?.ok && result.data &&
-        ((result.data.ongoing?.length || 0) + (result.data.completed?.length || 0) + (result.data.movie?.length || 0) > 0)) {
-        opts.onUpdate?.(snapshot());
-      }
-    });
+    }
 
-    // Tunggu semua ATAU batas waktu habis — yang penting UI bisa lanjut.
-    await Promise.race([running, new Promise(r => setTimeout(r, deadline))]);
-
-    return snapshot();
+    return feed;
   },
 
   /**

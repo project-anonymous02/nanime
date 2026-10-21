@@ -153,30 +153,28 @@ describe('ProviderAggregator.dedupe', () => {
 });
 
 describe('registry ordering', () => {
-  it('Animasu menjadi sumber katalog awal, Anoboy tetap paling akhir', () => {
-    const ids = orderedProviders('animasu').map(p => p.id);
-    expect(ids[0]).toBe('animasu');
-    expect(ids[ids.length - 1]).toBe('anoboy');
+  it('Otakudesu menjadi sumber katalog awal, Animeku fallback terakhir', () => {
+    const ids = orderedProviders('otakudesu').map(p => p.id);
+    expect(ids).toEqual(['otakudesu', 'samehadaku', 'animeku']);
+    expect(orderedProviders('samehadaku')[0]?.id).toBe('samehadaku');
   });
 
-  it('sumber unduhan murni tidak ikut streaming', () => {
+  it('sumber unduhan/dewasa tidak ikut streaming', () => {
     const ids = streamingProviders().map(p => p.id);
-    expect(ids).not.toContain('moenime');
-    expect(ids).not.toContain('alqanime');
-    expect(ids).not.toContain('animekuonline');
+    expect(ids).toEqual(['otakudesu', 'samehadaku', 'animeku']);
+    expect(ids).not.toContain('nekopoi');
   });
 
-  it('downloadProviders menyertakan sumber unduhan', () => {
+  it('downloadProviders hanya menyertakan sumber yang benar-benar punya unduhan', () => {
     const ids = downloadProviders().map(p => p.id);
-    expect(ids).toContain('moenime');
-    expect(ids).toContain('kusonime');
-    expect(ids).toContain('samehadakuhow');
+    expect(ids).toContain('otakudesu');
+    expect(ids).toContain('samehadaku');
+    expect(ids).not.toContain('animeku');
+    expect(ids).not.toContain('nekopoi');
   });
 
-  it('semua provider terdaftar lengkap', () => {
-    const ids = allProviders().map(p => p.id);
-    expect(allProviders().length).toBe(26);
-    expect(ids).toEqual(expect.arrayContaining(['anitoki', 'nontonanime', 'moeclip', 'kuronime', 'nekopoi']));
+  it('registry hanya memuat empat provider resmi', () => {
+    expect(allProviders().map(p => p.id)).toEqual(['otakudesu', 'samehadaku', 'animeku', 'nekopoi']);
   });
 });
 
@@ -211,8 +209,8 @@ describe('DownloadAggregator.pickBestCard', () => {
 });
 
 describe('autoProviderId', () => {
-  it('mengembalikan Animasu sesuai prioritas provider yang diminta', () => {
+  it('mengembalikan Otakudesu sesuai prioritas provider', () => {
     expect(autoProviderId()).toBe(streamingProviders()[0].id);
-    expect(autoProviderId()).toBe('animasu');
+    expect(autoProviderId()).toBe('otakudesu');
   });
 });

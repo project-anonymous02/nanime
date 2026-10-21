@@ -30,7 +30,7 @@ async function goto(hash: string): Promise<void> {
   });
 }
 
-const SOURCE_NAMES = /otakudesu|anoboy|doronime|ylnime|kuramanime|moenime|kusonime|oploverz|anichin|samehadaku/i;
+const SOURCE_NAMES = /otakudesu|samehadaku|animeku|nekopoi/i;
 
 let root: Root | null = null;
 let container: HTMLElement;

@@ -1,4 +1,4 @@
-import { getProvider, allProviders } from '../../providers/registry';
+import { getProvider, allProviders, officialProviders } from '../../providers/registry';
 import { legacyResolveServer, otakudesuGenre } from '../../providers/legacy';
 import { ProviderAggregator } from './ProviderAggregator';
 import { searchAggregated, mergeCardsAsync } from './SearchEngine';
@@ -6,14 +6,20 @@ import { FallbackEngine } from './FallbackEngine';
 import { TitleIndex, titleFromKey, titleKey, type IndexedEntry } from './TitleIndex';
 import { CacheManager, TTL } from './CacheManager';
 import { buildForcedQualities } from './QualityNormalizer';
-import { episodeNumber, mergeEpisodes } from './EpisodeMatcher';
+import { episodeKey, episodeNumber, mergeEpisodes } from './EpisodeMatcher';
 import { resolveMediaUrl, type ResolvedMedia } from './StreamExtractor';
 import { filterDiscovery, isAdultContent } from './ContentPolicy';
+import { matchScore } from '../utils/fuzzyMatch';
+import { splitSeason } from '../utils/titleAliases';
 import type {
   AggregatedCard,
   AggregatedSearchResult,
+  Card,
   Detail,
   DetailBundle,
+  DownloadGroup,
+  DownloadLink,
+  EpisodeItem,
   HomeFeed,
   ListResult,
   ScheduleGroup,
@@ -277,7 +283,8 @@ export const Catalog = {
     // inside the cache boundary.
     CacheManager.invalidate('detailBundle', id);
     CacheManager.invalidate('detailBundleV2', id);
-    return CacheManager.get('detailBundleV3', id, TTL.detail, async () => {
+    CacheManager.invalidate('detailBundleV3', id);
+    return CacheManager.get('detailBundleV4', id, TTL.detail, async () => {
       const bundle = await buildDetail(id, opts);
       const entry = await TitleIndex.get(id);
       const providers = [...new Set([...(bundle.providers || []), ...(entry?.sources || []).map(source => source.provider)])].map(provider => getProvider(provider)).filter(Boolean);
@@ -293,7 +300,7 @@ export const Catalog = {
   /** Sumber putar satu episode dengan 4 kualitas yang selalu tersedia. */
   stream(id: string, episode: string, opts: { title?: string; episodeProvider?: string; episodeId?: string; episodeSlug?: string } = {}): Promise<StreamBundle> {
     const episodeKey = [episode, opts.episodeProvider || '', opts.episodeId || '', opts.episodeSlug || ''].join(':');
-    return CacheManager.get('streamBundleV2', id + ':' + episodeKey, TTL.stream, () =>
+    return CacheManager.get('streamBundleV4', id + ':' + episodeKey, TTL.stream, () =>
       buildStream(id, episode, opts)
     );
   },
@@ -342,8 +349,23 @@ export const Catalog = {
     const id = String(genreUrl || '').trim().toLowerCase();
     if (!id) throw new Error(GENERIC_ERROR);
     const { data, stale } = await CacheManager.getOrStale<ListResult>('genre', id + ':' + page, TTL.genre, async () => {
-      const result = await otakudesuGenre(id, page);
-      return { list: filterDiscovery(result.list), pagination: result.pagination };
+      let result: ListResult | null = null;
+      try {
+        result = await otakudesuGenre(id, page);
+      } catch {
+        result = null;
+      }
+      if (!result?.list.length) {
+        const fallback = getProvider('samehadaku');
+        if (fallback?.genre) {
+          try {
+            result = await fallback.genre(id, page);
+          } catch {
+            result = result || null;
+          }
+        }
+      }
+      return { list: filterDiscovery(result?.list || []), pagination: result?.pagination || null };
     });
     if (!data) throw new Error(GENERIC_ERROR);
     const merged = await SearchEngineMerge(filterDiscovery(data.list));
@@ -368,50 +390,22 @@ function SearchEngineMerge(cards: AggregatedCard[] | import('../types').Card[]):
   return mergeCardsAsync(cards as import('../types').Card[], {});
 }
 
-async function collectEpisodes(
-  entry: IndexedEntry,
-  sources: IndexedEntry['sources'],
-  limit = 4
-): Promise<{ groups: { provider: string; items: { num: string; id: string; slug: string; date: string; title?: string }[] }[]; details: { provider: string; detail: Detail }[] }> {
-  const picked = sources.slice(0, limit);
-  const settled = await Promise.allSettled(
-    picked.map(async s => {
-      const p = getProvider(s.provider);
-      if (!p) throw new Error('missing');
-      const detail = await withTimeout(
-        CacheManager.detail(s.provider, s.id, () => p.detail(s.id, s.slug)),
-        12000
-      );
-      return { provider: s.provider, detail };
-    })
-  );
+type EpisodeGroup = { provider: string; items: EpisodeItem[] };
 
-  const details: { provider: string; detail: Detail }[] = [];
-  settled.forEach(r => {
-    if (r.status === 'fulfilled') details.push(r.value);
-  });
-
-  const groups = details.map(d => ({
-    provider: d.provider,
-    items: (d.detail.episodeList || []).map(ep => ({
+function episodeGroup(provider: string, detail: Detail): EpisodeGroup {
+  return {
+    provider,
+    items: (detail.episodeList || []).map(ep => ({
       num: String(episodeNumber(ep.title || ep.num || '') || ep.num || ''),
       id: ep.id,
       slug: ep.slug,
       date: ep.date || '',
       title: ep.title
     }))
-  }));
-
-  /* Simpan pemetaan episode per penyedia agar pemutaran tak perlu fetch ulang. */
-  for (const g of groups) {
-    await TitleIndex.setEpisodes(entry.id, g.provider, g.items);
-  }
-
-  return { groups, details };
+  };
 }
 
-/** Jumlah episode unik hasil penggabungan beberapa kelompok sumber. */
-function mergedLength(groups: { provider: string; items: { num: string; id: string; slug: string; date: string; title?: string }[] }[]): number {
+function mergedLength(groups: EpisodeGroup[]): number {
   return mergeEpisodes(
     groups.map(g => ({
       provider: g.provider,
@@ -420,12 +414,152 @@ function mergedLength(groups: { provider: string; items: { num: string; id: stri
   ).length;
 }
 
-/** Perkiraan jumlah episode sebenarnya (klaim detail atau jumlah sumber terbanyak). */
-function expectedEpisodeCount(base: Detail | undefined, sources: IndexedEntry['sources']): number {
-  const claimed = base ? episodeNumber(base.episodes || '') : NaN;
-  if (!isNaN(claimed) && claimed > 0) return claimed;
-  const known = sources.reduce((n, s) => Math.max(n, (s.episodes || []).length), 0);
-  return known;
+function hasSynopsis(detail: Detail): boolean {
+  const value = String(detail.synopsis || '').trim();
+  return !!value && !/^sinopsis tidak tersedia\.?$/i.test(value);
+}
+
+function contentKind(title: string, type = ''): string {
+  const value = `${type} ${title}`.toLowerCase();
+  if (/movie|film|gekijouban|the movie/.test(value)) return 'movie';
+  if (/ova/.test(value)) return 'ova';
+  if (/special/.test(value)) return 'special';
+  return 'series';
+}
+
+function yearOf(value: string | undefined): string {
+  return (String(value || '').match(/(?:19|20)\d{2}/) || [''])[0];
+}
+
+/** Pilih kartu fallback yang benar-benar merujuk judul & musim yang sama. */
+function pickFallbackCard(cards: Card[], entry: IndexedEntry): Card | null {
+  const targetKind = contentKind(entry.title, entry.type);
+  const targetSeason = splitSeason(entry.title).season;
+  const targetYear = yearOf(entry.year);
+  let best: Card | null = null;
+  let bestScore = 0;
+  for (const card of cards) {
+    if (!card?.title) continue;
+    if (splitSeason(card.title).season !== targetSeason) continue;
+    const cardYear = yearOf(card.year);
+    if (targetYear && cardYear && targetYear !== cardYear) continue;
+    const score = matchScore(entry.title, card.title);
+    /* Judul yang praktis identik boleh berbeda label tipe antar-situs;
+       judul mirip tetapi beda jenis (mis. seri vs movie) tetap ditolak. */
+    if (score < 96 && contentKind(card.title, card.type) !== targetKind) continue;
+    if (score >= 88 && score > bestScore) {
+      best = card;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+async function fetchSourceDetail(
+  source: IndexedEntry['sources'][number]
+): Promise<{ provider: string; detail: Detail } | null> {
+  const p = getProvider(source.provider);
+  if (!p) return null;
+  try {
+    const detail = await withTimeout(CacheManager.detail(source.provider, source.id, () => p.detail(source.id, source.slug)), 12000);
+    return { provider: p.id, detail };
+  } catch {
+    return null;
+  }
+}
+
+/** Cari sumber cadangan hanya saat dibutuhkan, lalu daftarkan ke indeks. */
+async function lookupFallback(
+  entry: IndexedEntry,
+  providerId: string
+): Promise<{ provider: string; detail: Detail; source: IndexedEntry['sources'][number] } | null> {
+  const existing = entry.sources.find(source => source.provider === providerId);
+  if (existing) {
+    const fetched = await fetchSourceDetail(existing);
+    if (fetched) return { ...fetched, source: existing };
+  }
+  const p = getProvider(providerId);
+  if (!p?.search) return null;
+  const title = entry.title || titleFromKey(entry.id);
+  if (!title) return null;
+  try {
+    const cards = await withTimeout(CacheManager.search(p.id, title, () => p.search(title)), 12000);
+    const card = pickFallbackCard(cards, entry);
+    if (!card) return null;
+    const detail = await withTimeout(
+      CacheManager.detail(p.id, card.id, () => p.detail(card.id, card.slug || card.id)),
+      12000
+    );
+    await TitleIndex.upsert({
+      id: entry.id,
+      title: entry.title,
+      poster: entry.poster,
+      score: entry.score,
+      type: entry.type,
+      status: entry.status,
+      year: entry.year,
+      sources: [{ provider: p.id, id: card.id, slug: card.slug || card.id }]
+    });
+    const refreshed = await TitleIndex.get(entry.id);
+    if (refreshed) entry.sources = refreshed.sources;
+    return {
+      provider: p.id,
+      detail,
+      source: { provider: p.id, id: card.id, slug: card.slug || card.id, updatedAt: Date.now() }
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Episode yang belum ada di sumber utama; klaim jumlah episode menjadi batas. */
+function missingEpisodes(base: Detail, extra: Detail): EpisodeItem[] {
+  const claimed = episodeNumber(base.episodes || '');
+  const baseKeys = new Set(base.episodeList.map(episodeKey));
+  const baseNums = new Set(
+    base.episodeList
+      .map(ep => episodeNumber(ep.title || ep.num))
+      .filter(num => !isNaN(num))
+  );
+  return extra.episodeList.filter(ep => {
+    if (baseKeys.has(episodeKey(ep))) return false;
+    const num = episodeNumber(ep.title || ep.num);
+    if (!isNaN(num)) {
+      if (baseNums.has(num)) return false;
+      if (!isNaN(claimed) && claimed > 0 && num > claimed) return false;
+      return true;
+    }
+    return base.episodeList.length === 0;
+  });
+}
+
+/** Isi hanya field yang kosong; data lengkap dari sumber utama tidak ditimpa. */
+function fillMissing(base: Detail, extra: Detail): Detail {
+  return {
+    ...base,
+    alt: base.alt || extra.alt,
+    poster: validArtwork(base.poster) ? base.poster : extra.poster,
+    score: base.score || extra.score,
+    type: base.type || extra.type,
+    status: base.status || extra.status,
+    year: base.year || extra.year,
+    episodes: base.episodes || extra.episodes,
+    duration: base.duration || extra.duration,
+    studio: base.studio || extra.studio,
+    genres: base.genres?.length ? base.genres : extra.genres,
+    synopsis: hasSynopsis(base) ? base.synopsis : hasSynopsis(extra) ? extra.synopsis : base.synopsis,
+    recommendations: base.recommendations?.length ? base.recommendations : extra.recommendations
+  };
+}
+
+function hasGaps(detail: Detail, groups: EpisodeGroup[], indexedPoster?: string): boolean {
+  if (!hasSynopsis(detail)) return true;
+  if (!detail.genres?.length) return true;
+  if (!validArtwork(detail.poster) && !validArtwork(indexedPoster)) return true;
+  const claimed = episodeNumber(detail.episodes || '');
+  if (!isNaN(claimed) && claimed > 0 && mergedLength(groups) < claimed) return true;
+  if (!detail.episodeList.length && !detail.episodes && contentKind(detail.title, detail.type) !== 'movie') return true;
+  return false;
 }
 
 /**
@@ -479,47 +613,76 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
   }
 
   const sources = sortSources(entry);
-  const { groups, details } = await collectEpisodes(entry, sources);
-  let fetched = Math.min(4, sources.length);
+  const order = officialProviders().map(p => p.id);
 
-  if (!details.length && sources.length > 4) {
-    /* Coba gelombang kedua (sumber prioritas rendah) sebelum menyerah. */
-    const second = await collectEpisodes(entry, sources.slice(4, 8), 4);
-    fetched = Math.min(8, sources.length);
-    details.push(...second.details);
-    groups.push(...second.groups);
+  /* Sumber utama: sumber berprioritas tertinggi yang benar-benar merespons.
+     Tidak ada pengambilan massal lintas penyedia. */
+  let primary: { provider: string; detail: Detail } | null = null;
+  for (const source of sources) {
+    const found = await fetchSourceDetail(source);
+    if (found) {
+      primary = found;
+      break;
+    }
+  }
+  if (!primary) {
+    for (const providerId of order) {
+      const found = await lookupFallback(entry, providerId);
+      if (found) {
+        primary = { provider: found.provider, detail: found.detail };
+        break;
+      }
+    }
+  }
+  if (!primary) throw new Error(GENERIC_ERROR);
+
+  let base = primary.detail;
+  const details: Detail[] = [base];
+  const providers = [primary.provider];
+  const groups: EpisodeGroup[] = [];
+  const primaryGroup = episodeGroup(primary.provider, base);
+  if (primaryGroup.items.length) {
+    groups.push(primaryGroup);
+    await TitleIndex.setEpisodes(entry.id, primary.provider, primaryGroup.items);
   }
 
-  /* Provider lain belum tentu punya episode yang sama — tarik sumber
-     berikutnya juga bila daftar hasil masih jauh lebih pendek dari jumlah
-     episode yang diklaim (mis. provider A hanya punya 1–12, provider B 1–24). */
-  const expected = expectedEpisodeCount(details[0]?.detail, sources);
-  while (details.length && expected > 0 && mergedLength(groups) < expected && fetched < sources.length) {
-    const next = await collectEpisodes(entry, sources.slice(fetched, fetched + 4), 4);
-    fetched += 4;
-    if (!next.details.length) break;
-    details.push(...next.details);
-    groups.push(...next.groups);
+  /* Fallback lazy: panggil penyedia berikutnya hanya bila ada bagian yang
+     benar-benar kosong (sinopsis/genre/poster/episode). Provider berprioritas
+     lebih tinggi tetap dicoba lebih dulu bila sumber utama bukan Otakudesu. */
+  const start = order.indexOf(primary.provider);
+  const chain = [
+    ...(start > 0 ? order.slice(0, start) : []),
+    ...(start >= 0 ? order.slice(start + 1) : order)
+  ].filter(id => !providers.includes(id));
+  for (const providerId of chain) {
+    if (!hasGaps(base, groups, entry.poster)) break;
+    const found = await lookupFallback(entry, providerId);
+    if (!found) continue;
+    const missing = missingEpisodes(base, found.detail);
+    if (missing.length) {
+      groups.push({ provider: found.provider, items: missing });
+      await TitleIndex.setEpisodes(entry.id, found.provider, missing);
+    }
+    base = fillMissing(base, found.detail);
+    details.push(found.detail);
+    providers.push(found.provider);
   }
 
-  if (!details.length) throw new Error(GENERIC_ERROR);
-
-  const base = details[0].detail;
   // A provider may return a non-empty placeholder or a relative/broken URL.
   // Keep the indexed search artwork and choose the first validated artwork
   // across all fetched sources instead of letting one bad detail overwrite it.
-  const artwork = selectDetailArtwork(entry.poster, details.map(d => d.detail as Detail & { cover?: string; banner?: string; image?: string; thumbnail?: string }));
+  const artwork = selectDetailArtwork(entry.poster, details.map(d => d as Detail & { cover?: string; banner?: string; image?: string; thumbnail?: string }));
   const merged = mergeEpisodes(
     groups.map(g => ({ provider: g.provider, items: g.items.map(i => ({ num: i.num, id: i.id, slug: i.slug, date: i.date, title: i.title })) }))
   );
 
-      const recCards = filterDiscovery(base.recommendations || []).slice(0, 12);
+  const recCards = filterDiscovery(base.recommendations || []).slice(0, 12);
   const recommendations = recCards.length ? await SearchEngineMerge(recCards) : [];
   if (recommendations.length) remember(recommendations);
 
   return {
     id: entry.id,
-    providers: sources.map(source => source.provider),
+    providers,
     title: base.title || entry.title,
     alt: base.alt || '',
     ...artwork,
@@ -532,7 +695,7 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
     studio: base.studio || '',
     genres: (base.genres || []).map(g => g.t),
     synopsis: base.synopsis || '',
-    sourceCount: sources.length,
+    sourceCount: providers.length,
     episodeList: merged.map(m => ({
       num: String(episodeNumber(m.title || m.num) || m.num || ''),
       id: m.id,
@@ -543,6 +706,26 @@ async function buildDetail(id: string, opts: { title?: string }): Promise<Detail
     })),
     recommendations
   };
+}
+
+/** Gabungkan tautan unduhan yang benar-benar disediakan halaman episode. */
+function groupDownloadLinks(links: DownloadLink[]): DownloadGroup[] {
+  const groups = new Map<string, DownloadLink[]>();
+  const seen = new Set<string>();
+  for (const link of links) {
+    const url = String(link.url || '').trim();
+    if (!/^https?:\/\//i.test(url) || seen.has(url)) continue;
+    seen.add(url);
+    const quality = String(link.quality || '').trim() || 'Lainnya';
+    const items = groups.get(quality) || [];
+    items.push({ ...link, url, availability: link.availability || 'unverified' });
+    groups.set(quality, items);
+  }
+  return Array.from(groups, ([quality, items]) => ({ quality, items }));
+}
+
+function groupDownloads(streams: import('../types').EpisodeStream[]): DownloadGroup[] {
+  return groupDownloadLinks(streams.flatMap(stream => stream.downloads || []));
 }
 
 async function buildStream(id: string, episode: string, opts: { title?: string; episodeProvider?: string; episodeId?: string; episodeSlug?: string }): Promise<StreamBundle> {
@@ -567,7 +750,7 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
   if (isAdultContent({ title: entry.title })) throw new Error('Konten ini dibatasi oleh kebijakan katalog Nanime.');
 
   const want = episodeNumber(episode);
-  const sources = sortSources(entry).filter(s => {
+  const orderedSources = (current: IndexedEntry) => sortSources(current).filter(s => {
     const p = getProvider(s.provider);
     return p && p.active && !p.downloadOnly;
   }).sort((a, b) => {
@@ -576,7 +759,7 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
     return ap - bp || Number(b.provider === opts.episodeProvider) - Number(a.provider === opts.episodeProvider);
   });
 
-  const makeRequests = (list: typeof sources) => list
+  const makeRequests = (list: ReturnType<typeof orderedSources>) => list
     .map(s => {
       const eps = s.episodes || [];
       const targeted = !!opts.episodeProvider && s.provider === opts.episodeProvider && (opts.episodeId || opts.episodeSlug);
@@ -598,34 +781,38 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
       };
     })
     .filter((x): x is NonNullable<typeof x> => !!x);
-  const requests = makeRequests(sources);
 
   let results: { provider: string; stream: import('../types').EpisodeStream; ms: number }[] = [];
-  if (requests.length) {
-    const r = await FallbackEngine.resolveAll(requests, { timeout: 8000, max: 12 });
-    results = r.results;
-  }
+  const attempted = new Set<string>();
 
-  if (!results.length && !requests.length) {
-    /* Indeks episode belum ada (mis. setelah refresh): bangun ulang lalu coba sekali lagi. */
+  /* Resolusi bertahap: sumber utama dulu; sumber cadangan hanya dipanggil
+     bila sumber utama gagal atau kualitas 360p belum tersedia. */
+  const resolveLazily = async (list: ReturnType<typeof makeRequests>) => {
+    for (const request of list) {
+      const key = `${request.provider}:${request.params.episodeId}`;
+      if (attempted.has(key)) continue;
+      attempted.add(key);
+      const r = await FallbackEngine.resolveAll([request], { timeout: 8000, max: 1 });
+      const hit = r.results[0];
+      if (!hit) continue;
+      results.push(hit);
+      const labels = buildForcedQualities({
+        streams: results.map(item => ({ provider: item.provider, stream: item.stream })),
+        downloads: []
+      }).qualities.map(quality => quality.label);
+      if (labels.includes('360p')) break;
+    }
+  };
+
+  await resolveLazily(makeRequests(orderedSources(entry)));
+
+  if (!results.length) {
+    /* Indeks episode belum ada atau sumber utama gagal: lengkapi detail lalu
+       coba sekali lagi dengan sumber yang benar-benar memiliki episode itu. */
     try {
       await buildDetail(id, opts);
       entry = await TitleIndex.get(id);
-      if (entry) {
-        const retrySources = sortSources(entry).filter(s => {
-          const p = getProvider(s.provider);
-          return p && p.active && !p.downloadOnly;
-        }).sort((a, b) => {
-          const ap = getProvider(a.provider)?.priority ?? 999;
-          const bp = getProvider(b.provider)?.priority ?? 999;
-          return ap - bp || Number(b.provider === opts.episodeProvider) - Number(a.provider === opts.episodeProvider);
-        });
-        const retry = makeRequests(retrySources);
-        if (retry.length) {
-          const r2 = await FallbackEngine.resolveAll(retry, { timeout: 8000, max: 12 });
-          results = r2.results;
-        }
-      }
+      if (entry) await resolveLazily(makeRequests(orderedSources(entry)));
     } catch {
       /* tetap gagal → pesan generik di bawah */
     }
@@ -638,6 +825,35 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
 
   // Download pages and file hosts are never converted into playback sources.
   const streams = results;
+  let downloads = groupDownloads(streams.map(stream => stream.stream));
+  if (!downloads.length) {
+    for (const source of orderedSources(entry)) {
+      const provider = getProvider(source.provider);
+      if (!provider?.downloads) continue;
+      const episodes = source.episodes || [];
+      const hit = !isNaN(want)
+        ? episodes.find(item => Number(item.num) === want) || episodes.find(item => episodeNumber(item.title || '') === want)
+        : episodes.find(item => item.id === episode || item.slug === episode);
+      if (!hit) continue;
+      try {
+        const links = await CacheManager.downloads(provider.id, `${provider.id}:${hit.id}`, () =>
+          provider.downloads!({
+            animeId: source.id,
+            animeSlug: source.slug,
+            episodeId: hit.id,
+            episodeSlug: hit.slug,
+            episode: String(want || episode)
+          })
+        );
+        if (links.length) {
+          downloads = groupDownloadLinks(links);
+          break;
+        }
+      } catch {
+        /* provider unduhan berikutnya */
+      }
+    }
+  }
   const sourceKind = streams.some(entry => entry.stream.sourceKind === 'direct-media')
     ? 'direct-media'
     : streams.some(entry => entry.stream.sourceKind === 'embed-page')
@@ -646,7 +862,7 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
 
   const norm = buildForcedQualities({
     streams: streams.map(r => ({ provider: r.provider, stream: r.stream })),
-    downloads: []
+    downloads: downloads.flatMap(group => group.items)
   });
 
   const servers: StreamServerRef[] = norm.servers;
@@ -669,11 +885,11 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
     qualities: norm.qualities,
     defaultQuality: norm.defaultQuality,
     servers,
-    downloads: [],
+    downloads,
     synopsis: '',
     sourceCount: streams.length,
     availability: sourceKind === 'direct-media' ? 'direct-media' : sourceKind === 'embed-page' ? 'external-embed' : 'unavailable',
     sourceKind,
-    unavailableReason: streams.length ? undefined : 'Sumber stream tidak ditemukan; tautan download ditampilkan terpisah.'
+    unavailableReason: streams.length ? undefined : 'Sumber stream tidak ditemukan.'
   };
 }

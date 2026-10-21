@@ -56,6 +56,7 @@ describe('utils', () => {
     expect(isVideoUrl('https://x.test/a.mp4')).toBe(true);
     expect(isVideoUrl('https://x.test/a.m3u8?token=1')).toBe(true);
     expect(isVideoUrl('https://x.test/a.mpd?token=1')).toBe(true);
+    expect(isVideoUrl('https://rr2---sn-test.googlevideo.com/videoplayback?mime=video%2Fmp4')).toBe(true);
     expect(isVideoUrl('https://x.test/watch')).toBe(false);
   });
 });

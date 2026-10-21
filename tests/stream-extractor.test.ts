@@ -11,6 +11,13 @@ describe('media URL resolution', () => {
     expect(pickBestCandidate(['https://cdn.test/480p.mp4', 'https://cdn.test/720p.mpd'])).toBe('https://cdn.test/720p.mpd');
   });
 
+  it('recognizes a googlevideo source URL as direct media', () => {
+    const html = '<video><source src="https://rr2---sn-test.googlevideo.com/videoplayback?expire=1&mime=video%2Fmp4&itag=18#frag" type="video/mp4"></video>';
+    expect(extractMediaCandidates(html, 'https://desustream.test/e/abc')).toEqual([
+      'https://rr2---sn-test.googlevideo.com/videoplayback?expire=1&mime=video%2Fmp4&itag=18#frag'
+    ]);
+  });
+
   it('accepts a direct manifest URL as media but keeps a missing source unavailable', async () => {
     await expect(resolveMediaUrl('https://cdn.test/master.m3u8')).resolves.toEqual({ url: 'https://cdn.test/master.m3u8', kind: 'file' });
     await expect(resolveMediaUrl('https://cdn.test/manifest.mpd')).resolves.toEqual({ url: 'https://cdn.test/manifest.mpd', kind: 'file' });

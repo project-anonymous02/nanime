@@ -1,5 +1,5 @@
 import { httpGetText, NetError } from '../core/http';
-import type { Detail, EpisodeStream, ListResult } from '../core/types';
+import type { Card, Detail, DownloadLink, EpisodeStream, ListResult } from '../core/types';
 import {
   attr,
   nodes,
@@ -8,6 +8,7 @@ import {
   parseDoc,
   parseIframeEmbeds,
   parseSoraDownloads,
+  pathSlug,
   txt
 } from './shared';
 import type { AnimeProvider } from './types';
@@ -18,6 +19,25 @@ const ROOT = 'https://samehadaku.li';
 const HEADERS = { Referer: ROOT + '/', Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' };
 
 const get = (path: string) => httpGetText(ROOT + path, { timeout: 20000, headers: HEADERS });
+
+const dedupeCards = (cards: Card[]): Card[] => {
+  const seen = new Set<string>();
+  return cards.filter(card => {
+    const key = card.slug || card.sourceUrl;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const listResult = (cards: Card[], doc: Document, page: number): ListResult => ({
+  list: cards,
+  pagination: {
+    currentPage: page,
+    hasNextPage: !!doc.querySelector('a.next.page-numbers, .pagination a.next, a.nextpostslink'),
+    nextPage: page + 1
+  }
+});
 
 const toDetail = (id: string, parsed: ReturnType<typeof parseAnimestreamDetail>): Detail => {
   const info = parsed.info;
@@ -55,19 +75,28 @@ export const samehadaku: AnimeProvider = {
   async home() {
     const { text, url } = await get('/');
     const doc = parseDoc(text);
-    let ongoing: ReturnType<typeof parseBsxCards> = [];
-    let completed: ReturnType<typeof parseBsxCards> = [];
-    let movie: ReturnType<typeof parseBsxCards> = [];
-    nodes(doc, '.bixbox').forEach(box => {
-      const head = txt(box.querySelector('.releases h3, h2, h3')).toLowerCase();
+    let explicitOngoing: Card[] = [];
+    let latest: Card[] = [];
+    let completed: Card[] = [];
+    let movie: Card[] = [];
+    const boxes = nodes(doc, '.bixbox');
+    const roots = boxes.length ? boxes : [doc.documentElement];
+    roots.forEach(box => {
+      const head = txt(box.querySelector('.releases h2, .releases h3, h2, h3')).toLowerCase();
       const cards = parseBsxCards(box, url, 'samehadaku');
       if (!cards.length) return;
       if (/tamat|complete|selesai/.test(head)) completed.push(...cards);
       else if (/movie|film/.test(head)) movie.push(...cards);
-      else ongoing.push(...cards);
+      else if (/ongoing|airing|berjalan/.test(head)) explicitOngoing.push(...cards);
+      else latest.push(...cards);
     });
-    if (!ongoing.length) ongoing = parseBsxCards(doc, url, 'samehadaku');
-    return { ongoing, completed, movie };
+    const ongoing = dedupeCards(explicitOngoing.length ? explicitOngoing : latest);
+    if (!ongoing.length) ongoing.push(...parseBsxCards(doc, url, 'samehadaku'));
+    return {
+      ongoing: dedupeCards(ongoing),
+      completed: dedupeCards(completed),
+      movie: dedupeCards(movie)
+    };
   },
 
   async search(query: string) {
@@ -125,16 +154,39 @@ export const samehadaku: AnimeProvider = {
   },
 
   async ongoing(page = 1): Promise<ListResult> {
-    const url = page > 1 ? `${ROOT}/page/${page}/` : `${ROOT}/`;
+    const url = page > 1 ? `${ROOT}/anime/page/${page}/?status=ongoing` : `${ROOT}/anime/?status=ongoing`;
     const { text, url: finalUrl } = await httpGetText(url, { timeout: 20000, headers: HEADERS });
     const doc = parseDoc(text);
-    return {
-      list: parseBsxCards(doc, finalUrl, 'samehadaku'),
-      pagination: {
-        currentPage: page,
-        hasNextPage: !!doc.querySelector('a.next.page-numbers, .pagination a.next, a.nextpostslink'),
-        nextPage: page + 1
-      }
-    };
+    return listResult(parseBsxCards(doc, finalUrl, 'samehadaku'), doc, page);
+  },
+
+  async completed(page = 1): Promise<ListResult> {
+    const url = page > 1 ? `${ROOT}/anime/page/${page}/?status=completed` : `${ROOT}/anime/?status=completed`;
+    const { text, url: finalUrl } = await httpGetText(url, { timeout: 20000, headers: HEADERS });
+    const doc = parseDoc(text);
+    return listResult(parseBsxCards(doc, finalUrl, 'samehadaku'), doc, page);
+  },
+
+  async movies(page = 1): Promise<ListResult> {
+    const url = page > 1 ? `${ROOT}/anime/page/${page}/?type=movie` : `${ROOT}/anime/?type=movie`;
+    const { text, url: finalUrl } = await httpGetText(url, { timeout: 20000, headers: HEADERS });
+    const doc = parseDoc(text);
+    return listResult(parseBsxCards(doc, finalUrl, 'samehadaku'), doc, page);
+  },
+
+  async genre(genreId: string, page = 1): Promise<ListResult> {
+    const slug = pathSlug(genreId) || genreId.replace(/^\/+|\/+$/g, '');
+    const url = page > 1 ? `${ROOT}/genres/${slug}/page/${page}/` : `${ROOT}/genres/${slug}/`;
+    const { text, url: finalUrl } = await httpGetText(url, { timeout: 20000, headers: HEADERS });
+    const doc = parseDoc(text);
+    return listResult(parseBsxCards(doc, finalUrl, 'samehadaku'), doc, page);
+  },
+
+  async downloads(params): Promise<DownloadLink[]> {
+    const raw = params.episodeId || params.episodeSlug || '';
+    if (!raw) return [];
+    const target = /^https?:/i.test(raw) ? raw : `${ROOT}/${raw.replace(/^\/+/, '')}`;
+    const { text, url } = await httpGetText(target, { timeout: 20000, headers: HEADERS });
+    return parseSoraDownloads(parseDoc(text), url);
   }
 };

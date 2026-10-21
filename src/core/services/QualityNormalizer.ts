@@ -4,13 +4,12 @@ import { qualityRank } from '../utils/qualitySorter';
 import { isVideoUrl } from '../utils';
 
 /**
- * QualityNormalizer — menyatukan sumber dari SEMUA penyedia ke empat slot
- * resolusi internal (1080p / 720p / 480p / 360p):
- * jika penyedia A hanya punya 720p dan penyedia B punya 1080p, hasil akhir
- * tetap menampilkan keempat kualitas tanpa teks "tidak tersedia".
+ * QualityNormalizer — menyatukan sumber yang benar-benar berhasil divalidasi
+ * ke label kualitas (1080p / 720p / 480p / 360p).
  *
- * Slot kualitas yang dipinjam ditandai `approx`; UI pemilihan harus menyaring
- * slot tersebut agar kualitas tak tersedia tidak ditampilkan sebagai nyata.
+ * Hanya kualitas yang benar-benar disediakan sumber yang diekspos; tidak ada
+ * slot yang dikarang atau dipinjam dari label lain. `approx` dipertahankan
+ * untuk kompatibilitas tipe, tetapi hasil normalisasi selalu `exact`.
  */
 
 export interface NormalizeInput {
@@ -60,8 +59,11 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
 
     if (st.playerUrl) {
       const directMedia = st.sourceKind === 'direct-media' || (!st.sourceKind && isVideoUrl(st.playerUrl));
-      const label = directMedia ? guessQuality(st.playerUrl) || guessQuality(st.title || '') : null;
-      if (label) put(label, { url: st.playerUrl, providerRef: provider, label: st.title || label, kind: 'file', exact: true });
+      const primary = (st.servers || []).find(server => server.id === st.playerUrl);
+      const label = directMedia
+        ? guessQuality(st.playerUrl) || guessQuality(primary?.quality || '') || guessQuality(st.title || '')
+        : null;
+      if (label) put(label, { url: st.playerUrl, providerRef: provider, label: primary?.quality || label, kind: 'file', exact: true });
       const ref = provider + ':main:' + idx;
       if (!seenServer.has(ref)) {
         seenServer.add(ref);
@@ -80,12 +82,23 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
       const ref = provider + ':srv:' + (s.id || si);
       if (seenServer.has(ref)) return;
       seenServer.add(ref);
+      const label = guessQuality(s.quality || s.name || '') || guessQuality(s.id || '');
+      const directMedia = st.sourceKind === 'direct-media' || isVideoUrl(s.id || '');
+      if (label && directMedia) {
+        put(label, {
+          url: s.id,
+          providerRef: provider,
+          label: s.quality || s.name || label,
+          kind: 'file',
+          exact: true
+        });
+      }
       servers.push({
         ref,
         label: s.name || 'Server ' + (si + 1),
         url: /^https?:\/\//i.test(s.id || '') ? s.id : '',
         providerRef: provider,
-        quality: st.sourceKind === 'direct-media' && isVideoUrl(s.id || '') ? guessQuality(s.quality || s.name || '') || undefined : undefined
+        quality: directMedia ? label || undefined : undefined
       });
     });
   });

@@ -100,9 +100,6 @@ async function collectOne(p: AnimeProvider, q: DownloadQuery): Promise<DownloadL
 export const DownloadAggregator = {
   async collect(q: DownloadQuery): Promise<DownloadCollection> {
     const providers = downloadProviders().slice().sort((a, b) => {
-      // Moenime is the explicitly requested final download fallback.
-      if (a.id === 'moenime') return 1;
-      if (b.id === 'moenime') return -1;
       if (a.id === q.preferred) return -1;
       if (b.id === q.preferred) return 1;
       return a.priority - b.priority;

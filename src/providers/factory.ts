@@ -21,7 +21,7 @@ import type { AnimeProvider } from './types';
 
 /**
  * Pabrik adapter HTML generik untuk keluarga tema ala "animestream"/"themeresia"
- * (Anoboy, Animekuindo, Samehadaku, Animekulol, Animebatch, dsb.).
+ * (dipakai Animeku dan adapter sejenis).
  * Semua penanganan galat dinaikkan sebagai NetError agar aggregator bisa fallback.
  */
 export interface HtmlProviderConfig {

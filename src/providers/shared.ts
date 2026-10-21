@@ -1,6 +1,6 @@
 import type { Card, DownloadLink, EpisodeItem } from '../core/types';
 
-/** Util parsing HTML untuk keluarga tema animestream/themeresia (Anichin, Samehadaku, Lendrive, dsb). */
+/** Util parsing HTML untuk keluarga tema animestream (Samehadaku dan adapter sejenis). */
 
 export const clean = (s: string | null | undefined): string => (s || '').replace(/\s+/g, ' ').trim();
 export const txt = (el: Element | null | undefined): string => clean(el?.textContent);
@@ -64,7 +64,7 @@ export function parseContentMetadata(root: ParentNode): Pick<Card, 'genres' | 't
 /**
  * Slug halaman post episode/batch → slug seri.
  * "one-piece-episode-1180-subtitle-indonesia" → "one-piece"
- * "…-ep-02-dual-subs-…" → "…" (Lendrive), "…-batch-dual-subs-…" → "…"
+ * "…-ep-02-dual-subs-…" → "…", "…-batch-dual-subs-…" → "…"
  * Dipakai agar kartu "rilis terbaru" (link post) tetap bisa dibuka ke halaman detail /anime/.
  */
 export function seriesSlugFromPost(slug: string): string {
@@ -88,7 +88,7 @@ export function detailHrefFromCard(href: string): { href: string; slug: string; 
 }
 
 /**
- * Parse kartu daftar standar `.bs .bsx` (dipakai Anichin, Samehadaku, Lendrive, Oploverz).
+ * Parse kartu daftar standar `.bs .bsx` (dipakai Samehadaku dan adapter sejenis).
  * sourceUrl diusahakan selalu berupa link /anime/ bila tersedia agar bisa buka detail.
  */
 export function parseBsxCards(doc: ParentNode, base: string, provider: string, opts: CardOpts = {}): Card[] {
@@ -240,20 +240,37 @@ export function parseIframeEmbeds(doc: ParentNode, base: string): { name: string
 }
 
 /**
- * Blok unduhan gaya themesia baru (`.soraddlx .sorattlx` + `.soraurlx`)
- * yang dipakai Lendrive: header kualitas + label ukuran + tautan host.
+ * Blok unduhan gaya themesia baru (`.soraddlx .sorattlx` + `.soraurlx`):
+ * header kualitas + label ukuran + tautan host.
  */
 export function parseSoraDownloads(doc: ParentNode, base: string): DownloadLink[] {
   const out: DownloadLink[] = [];
+  const seen = new Set<string>();
+  const push = (quality: string, name: string, url: string) => {
+    if (!/^https?:/i.test(url) || seen.has(url)) return;
+    seen.add(url);
+    out.push({ quality: quality || 'Unduhan', name: name || 'Link', url });
+  };
   nodes(doc, '.soraddlx, .soradlg').forEach(block => {
     const quality = txt(block.querySelector('.sorattlx')) || 'Unduhan';
     nodes(block, '.soraurlx').forEach(row => {
       const label = txt(row.querySelector('strong'));
       nodes(row, 'a[href]').forEach(a => {
-        const url = abs(base, attr(a, 'href'));
-        if (!/^https?:/i.test(url)) return;
-        out.push({ quality: quality || 'Unduhan', name: label || txt(a) || 'Link', url });
+        push(quality, label || txt(a), abs(base, attr(a, 'href')));
       });
+    });
+  });
+  nodes(doc, '.aspd-download, .aspd-downloads').forEach(block => {
+    const quality =
+      txt(block.querySelector('.aspd-download-title, .aspd-quality, .sorattlx, h3, h4, .title')) || 'Unduhan';
+    nodes(block, 'a[href]').forEach(a => {
+      let host = '';
+      try {
+        host = new URL(abs(base, attr(a, 'href')), base).hostname.replace(/^www\./, '');
+      } catch {
+        host = '';
+      }
+      push(quality, txt(a) || host, abs(base, attr(a, 'href')));
     });
   });
   return out;

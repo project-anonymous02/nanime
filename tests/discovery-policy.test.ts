@@ -7,7 +7,7 @@ import type { Card } from '../src/core/types';
 
 function card(overrides: Partial<Card> = {}): Card {
   return {
-    id: 'one-piece', provider: 'doronime', title: 'One Piece', poster: 'https://img.test/one-piece.jpg',
+    id: 'one-piece', provider: 'otakudesu', title: 'One Piece', poster: 'https://img.test/one-piece.jpg',
     score: '', type: 'TV', status: '', epLabel: '', sub: '', sourceUrl: '', ...overrides
   };
 }
@@ -39,7 +39,7 @@ describe('discovery content policy', () => {
     expect(isProviderSearchAllowed(provider, ['other-adult-provider'])).toBe(false);
     expect(isProviderSearchAllowed(provider, ['nekopoi'])).toBe(true);
     expect(isProviderSearchAllowed(provider, undefined, true)).toBe(true);
-    expect(isProviderSearchAllowed({ id: 'animasu', content: 'anime' }, ['nekopoi'])).toBe(false);
+    expect(isProviderSearchAllowed({ id: 'samehadaku', content: 'anime' }, ['nekopoi'])).toBe(false);
   });
 
   it('filters adult metadata before results are exposed to discovery feeds', () => {
@@ -60,11 +60,6 @@ describe('discovery content policy', () => {
     expect(isAdultContent({ title: 'Example', altTitles: ['[Hentai] Original Title'] })).toBe(true);
     expect(isAdultContent({ title: 'Hentai', alt: '別名' })).toBe(true);
     expect(isAdultContent({ title: 'The Adult Swim Show', genres: ['Comedy'] })).toBe(false);
-  });
-
-  it('fails closed for mixed sources without classification metadata', () => {
-    expect(filterDiscovery([card({ provider: 'gomunime', title: 'Unknown Classification' })])).toEqual([]);
-    expect(filterDiscovery([card({ provider: 'gomunime', genres: ['Action'] })])).toHaveLength(1);
   });
 
   it('preserves category metadata from provider records for the feed filter', () => {

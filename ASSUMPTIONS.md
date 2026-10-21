@@ -47,15 +47,26 @@ perlu disesuaikan.
 - Akses halaman sumber dari **browser** bisa diblokir CORS; APK memakai
   `CapacitorHttp` bawaan perangkat (`src/core/http.ts`). Tidak ada backend
   scraper/proxy.
-- Urutan prioritas 19 provider ada di `src/providers/registry.ts`; **Anoboy
-  selalu terakhir**; `moenime`/`alqanime`/`animekuonline` hanya sumber unduhan.
-  Daftar lengkap: `PROVIDERS.md`.
+- Registry final hanya memuat empat sumber (`src/providers/registry.ts`):
+  **Otakudesu** (utama), **Samehadaku** (pelengkap), **Animeku**
+  (fallback terakhir), dan **Nekopoi** (jalur pencarian terpisah, opt-in,
+  hanya unduhan). Tidak ada provider lain yang dipanggil.
+- Pencarian berjalan sekuensial Otakudesu → Samehadaku → Animeku dan berhenti
+  pada hasil relevan pertama; fallback detail hanya mengisi bagian yang kosong
+  (sinopsis, genre, poster, episode yang hilang) tanpa menimpa data lengkap.
+  Nekopoi tidak pernah masuk home/jadwal/rekomendasi/katalog umum.
 - Struktur halaman sumber dapat berubah sewaktu-waktu; setiap provider punya
   adapter sendiri (`src/providers/*.ts`). Kegagalan satu provider tidak
-  menghentikan yang lain (fallback diam-diam, 8 detik per percobaan).
-- Kualitas stream dinormalisasi paksa menjadi 4 slot (1080p/720p/480p/360p);
-  slot tanpa sumber eksplisit meminjam kualitas terdekat dengan penanda
-  `approx` — tidak pernah menampilkan teks "tidak tersedia".
+  menghentikan yang lain (fallback diam-diam, timeout per percobaan).
+- Kualitas stream hanya ditampilkan bila sumber benar-benar menyediakannya;
+  tidak ada kualitas yang dikarang. Fallback pemutaran mencari sumber lain
+  hanya ketika sumber utama gagal atau 360p tidak tersedia.
+- Animeku memakai tema kustom `aku-*` (bukan animestream): detail `/{slug}/`,
+  daftar episode di `.aku-eplist`, dan halaman play `/play/…` dengan iframe
+  `.aku-layar`. Halaman play tidak menyediakan tautan unduhan.
+- Mirror Otakudesu diselesaikan lewat token admin-ajax, lalu URL media langsung
+  diekstrak dari halaman embed. Iframe desustream tidak dipakai karena header
+  CSP `frame-ancestors` memblokir pemuatan dari origin aplikasi.
 
 ## 4. Cache & penyimpanan
 

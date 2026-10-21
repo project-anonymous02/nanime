@@ -2,8 +2,10 @@ import type { AnimeProvider } from '../../providers/types';
 import { markHealth, getProvider, streamingPriority } from '../../providers/registry';
 import type { DownloadLink, EpisodeStream } from '../types';
 import { httpGetText, httpProbe } from '../http';
+import { isVideoUrl } from '../utils';
 import { CacheManager } from './CacheManager';
 import { mergeDownloads } from './EpisodeMatcher';
+import { resolveMediaUrl } from './StreamExtractor';
 
 export interface StreamAttempt {
   provider: string;
@@ -36,21 +38,24 @@ async function verifyDirectMedia(url: string): Promise<boolean> {
   const path = parsed.pathname.toLowerCase();
   const isHls = path.endsWith('.m3u8');
   const isDash = path.endsWith('.mpd');
-  const isFile = /\.(?:mp4|webm|mov)$/.test(path);
-  if (!isHls && !isDash && !isFile) return false;
+  const isKnownFile = isVideoUrl(parsed.href);
+  if (!isHls && !isDash && !isKnownFile) return false;
   const probe = await httpProbe(parsed.href);
   if (probe.status < 200 || probe.status >= 300) return false;
-  if (isFile) return probe.contentType.startsWith('video/');
-  const expectedMime = isHls
-    ? ['application/vnd.apple.mpegurl', 'application/x-mpegurl', 'audio/mpegurl', 'audio/x-mpegurl']
-    : ['application/dash+xml'];
-  if (!expectedMime.includes(probe.contentType) && probe.contentType !== 'text/plain') return false;
-  // Manifests are small text documents; verify their signature instead of
-  // trusting a filename or content type alone.
-  const response = await httpGetText(parsed.href, { timeout: 5000, retries: 0, corsOk: true });
-  return isHls
-    ? /^\s*#EXTM3U(?:\s|$)/.test(response.text)
-    : /<MPD(?:\s|>)/i.test(response.text.slice(0, 4096));
+  if (probe.contentType.startsWith('video/')) return true;
+  if (isHls || isDash) {
+    const expectedMime = isHls
+      ? ['application/vnd.apple.mpegurl', 'application/x-mpegurl', 'audio/mpegurl', 'audio/x-mpegurl']
+      : ['application/dash+xml'];
+    if (!expectedMime.includes(probe.contentType) && probe.contentType !== 'text/plain') return false;
+    // Manifests are small text documents; verify their signature instead of
+    // trusting a filename or content type alone.
+    const response = await httpGetText(parsed.href, { timeout: 5000, retries: 0, corsOk: true });
+    return isHls
+      ? /^\s*#EXTM3U(?:\s|$)/.test(response.text)
+      : /<MPD(?:\s|>)/i.test(response.text.slice(0, 4096));
+  }
+  return false;
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
@@ -80,38 +85,93 @@ async function tryProvider(
     const result = await withTimeout((async () => {
       const stream = await CacheManager.stream(p.id, params.episodeId, () => p.stream(params));
       if (!stream) return null;
-      const candidates = [stream.playerUrl, ...(stream.servers || []).map(server => server.id)].filter(Boolean).slice(0, 4);
-      let embedFallback = '';
+
+      const qualityByRef = new Map<string, string>();
+      for (const group of stream.qualities || []) {
+        for (const server of group.servers || []) {
+          if (server.id && group.title) qualityByRef.set(server.id, group.title);
+        }
+      }
+      const raw: { name: string; ref: string; quality?: string }[] = [];
+      const seen = new Set<string>();
+      const pushRef = (ref: string, name: string, quality?: string) => {
+        if (!ref || seen.has(ref)) return;
+        seen.add(ref);
+        raw.push({ name, ref, quality: quality || qualityByRef.get(ref) || undefined });
+      };
+      (stream.servers || []).forEach(server => pushRef(server.id, server.name, server.quality));
+      pushRef(stream.playerUrl, 'Utama');
+      const distinctQualities: typeof raw = [];
+      const extras: typeof raw = [];
+      const seenQuality = new Set<string>();
+      for (const item of raw) {
+        const label = item.quality || '';
+        if (label && !seenQuality.has(label)) {
+          seenQuality.add(label);
+          distinctQualities.push(item);
+        } else {
+          extras.push(item);
+        }
+      }
+      const candidates = [...distinctQualities, ...extras].slice(0, 8);
+      if (!candidates.length) return null;
+
+      const media: typeof raw = [];
+      const embeds: typeof raw = [];
       for (const candidate of candidates) {
-        let url = candidate;
+        let url = candidate.ref;
         if (!/^https?:\/\//i.test(url)) {
           if (!p.resolveServer) continue;
           try { url = await p.resolveServer(url); } catch { continue; }
         }
+        if (!url) continue;
         try {
-          if (await verifyDirectMedia(url)) return { stream, url };
-        } catch { /* try next server from this same episode/provider */ }
+          if (await verifyDirectMedia(url)) {
+            media.push({ ...candidate, ref: url });
+            continue;
+          }
+        } catch { /* try extraction or the next server */ }
+        if (!isVideoUrl(url)) {
+          try {
+            const resolved = await resolveMediaUrl(url);
+            if (resolved.kind === 'file' && resolved.url && (await verifyDirectMedia(resolved.url))) {
+              media.push({ ...candidate, ref: resolved.url });
+              continue;
+            }
+          } catch { /* embed tidak dapat diekstrak */ }
+        }
         try {
           const probe = await httpProbe(url, 4000);
           if (probe.status >= 200 && probe.status < 300 && /^(?:text\/html|application\/xhtml\+xml)$/.test(probe.contentType)) {
-            if (!/^https?:\/\//i.test(params.episodeId) || new URL(url).href !== new URL(params.episodeId).href) embedFallback ||= url;
+            if (!/^https?:\/\//i.test(params.episodeId) || new URL(url).href !== new URL(params.episodeId).href) embeds.push({ ...candidate, ref: url });
           }
         } catch { /* an inaccessible embed is not a source */ }
       }
-      if (embedFallback) return { stream, url: embedFallback, kind: 'embed-page' as const };
-      return null;
+      if (!media.length && !embeds.length) return null;
+      const chosen = media.length ? media : embeds;
+      return { stream, chosen, kind: media.length ? ('direct-media' as const) : ('embed-page' as const) };
     })(), timeout);
     if (!result) {
       markHealth(p.id, false, 'provider tidak menyediakan file/manifest yang tervalidasi');
       return { ok: false, error: 'Tidak ada file video/manifest yang dapat divalidasi; embed bukan stream langsung.', ms: Date.now() - t0 };
     }
-    result.stream.playerUrl = result.url;
-    result.stream.sourceKind = result.kind || 'direct-media';
-    result.stream.servers = [{
-      name: result.stream.sourceKind === 'direct-media' ? 'Terverifikasi' : 'Embed eksternal',
-      id: result.url,
-      def: true
-    }];
+    const servers = result.chosen.map((candidate, i) => ({
+      name: candidate.name || (result.kind === 'direct-media' ? 'Server ' + (i + 1) : 'Embed'),
+      id: candidate.ref,
+      quality: candidate.quality,
+      def: i === 0
+    }));
+    result.stream.playerUrl = result.chosen[0].ref;
+    result.stream.sourceKind = result.kind;
+    result.stream.servers = servers;
+    const grouped = new Map<string, typeof servers>();
+    servers.forEach(server => {
+      const label = server.quality || 'Server';
+      const list = grouped.get(label) || [];
+      list.push(server);
+      grouped.set(label, list);
+    });
+    result.stream.qualities = Array.from(grouped, ([title, list]) => ({ title, servers: list }));
     markHealth(p.id, true);
     return { ok: true, stream: result.stream, ms: Date.now() - t0 };
   } catch (e: any) {

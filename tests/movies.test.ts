@@ -50,15 +50,15 @@ describe('mergeCards — satu judul = satu kartu kanonik', () => {
   it('judul sama dari beberapa penyedia digabung, wakil = prioritas tertinggi', () => {
     const out = mergeCards(
       [
-        card({ provider: 'ylnime', id: 'y1', title: 'Bleach' }),
-        card({ provider: 'doronime', id: 'd1', title: 'Bleach' })
+        card({ provider: 'samehadaku', id: 'y1', title: 'Bleach' }),
+        card({ provider: 'otakudesu', id: 'd1', title: 'Bleach' })
       ],
       { query: 'Bleach' }
     );
     expect(out).toHaveLength(1);
     expect(out[0].providerCount).toBe(2);
-    expect(out[0].provider).toBe('doronime');
-    expect(out[0].sources.map(s => s.provider)).toEqual(['doronime', 'ylnime']);
+    expect(out[0].provider).toBe('otakudesu');
+    expect(out[0].sources.map(s => s.provider)).toEqual(['otakudesu', 'samehadaku']);
     expect(out[0].canonicalId).toBe('bleach');
     expect(out[0].score1000).toBe(1000);
   });

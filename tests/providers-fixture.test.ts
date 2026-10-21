@@ -26,7 +26,7 @@ describe('slug post → detail seri (shared)', () => {
   });
 
   it('link post episode diserder ke /anime/{series}/', () => {
-    const r = detailHrefFromCard('https://lendrive.web.id/spy-x-family-ep-02-dual-subs/');
+    const r = detailHrefFromCard('https://example.test/spy-x-family-ep-02-dual-subs/');
     expect(r.rewritten).toBe(true);
     expect(r.slug).toBe('spy-x-family');
     expect(r.href).toContain('/anime/spy-x-family/');
@@ -36,40 +36,6 @@ describe('slug post → detail seri (shared)', () => {
     const r = detailHrefFromCard('https://example.test/anime/one-piece/');
     expect(r.rewritten).toBe(false);
     expect(r.slug).toBe('one-piece');
-  });
-});
-
-describe('Anichin (fixture nyata)', () => {
-  it('daftar/home menghasilkan kartu bsx dengan judul & slug', () => {
-    const doc = parseDoc(fx('anichin-list.html'));
-    const cards = parseBsxCards(doc, 'https://ani-chin.id/', 'anichin');
-    expect(cards.length).toBeGreaterThan(10);
-    const c = cards[0];
-    expect(c.title.length).toBeGreaterThan(2);
-    expect((c.slug || '').length).toBeGreaterThan(0);
-    expect(c.provider).toBe('anichin');
-    expect(c.sourceUrl).toMatch(/^https:\/\//);
-  });
-
-  it('halaman detail: judul, genre, daftar episode', () => {
-    const doc = parseDoc(fx('anichin-detail.html'));
-    const d = parseAnimestreamDetail(doc, 'https://ani-chin.id/anime/x/', 'anichin');
-    expect(d.title.length).toBeGreaterThan(2);
-    expect(d.episodeList.length).toBeGreaterThan(0);
-    const nums = d.episodeList.filter(e => /\d/.test(e.num));
-    expect(nums.length).toBeGreaterThan(0);
-    // link episode memakai pola {slug}-episode-N
-    expect(d.episodeList.some(e => /-episode-\d+/.test(e.slug || e.id))).toBe(true);
-    // batch tidak ikut sebagai episode
-    expect(d.episodeList.every(e => !/^batch$/i.test(e.num))).toBe(true);
-  });
-
-  it('halaman episode menyimpan episodeId untuk API servers', () => {
-    const doc = parseDoc(fx('anichin-episode.html'));
-    const el = doc.querySelector('#as-servers[data-episode]');
-    expect(el).not.toBeNull();
-    expect(/^\d+$/.test(el!.getAttribute('data-episode') || '')).toBe(true);
-    expect(el!.getAttribute('data-episode')).toBe('5213');
   });
 });
 
@@ -101,27 +67,5 @@ describe('Samehadaku (fixture nyata)', () => {
     const d = parseAnimestreamDetail(doc, 'https://samehadaku.li/anime/x/', 'samehadaku');
     expect(d.title.length).toBeGreaterThan(2);
     expect(d.genres.length).toBeGreaterThan(0);
-  });
-});
-
-describe('Lendrive (fixture nyata, provider unduhan)', () => {
-  it('beranda menghasilkan kartu post → slug seri terserder', () => {
-    const doc = parseDoc(fx('lendrive-home.html'));
-    const cards = parseBsxCards(doc, 'https://lendrive.web.id/', 'lendrive');
-    expect(cards.length).toBeGreaterThan(5);
-    // kartu home adalah post episode → sourceUrl harus sudah /anime/{seri}/
-    const withPost = cards.filter(c => /-(?:ep|episode)-\d+/.test(c.id) || /-(?:ep|episode)-/.test(c.title));
-    for (const c of cards) expect(c.sourceUrl).toMatch(/\/anime\//);
-    expect(withPost.length).toBeGreaterThanOrEqual(0);
-    // slug tak lagi membawa ep-NN
-    expect(cards.some(c => /-ep-\d+-/.test(c.slug || ''))).toBe(false);
-  });
-
-  it('halaman episode punya link unduhan sora', () => {
-    const doc = parseDoc(fx('lendrive-episode.html'));
-    const dl = parseSoraDownloads(doc, 'https://lendrive.web.id/');
-    expect(dl.length).toBeGreaterThan(0);
-    expect(dl.some(d => /acefile|pndk|drive|mega|pixeldrain|terabox/i.test(d.url) || d.quality.length > 0)).toBe(true);
-    expect(dl[0].url).toMatch(/^https?:\/\//);
   });
 });

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parseHtml, sourcePath } from '../src/core/scraper';
+import { parseHtml } from '../src/core/scraper';
 
-/* HTML mini: meniru struktur asli otakudesu, oploverz, dan kusonime. */
+/* HTML mini: meniru struktur asli otakudesu. */
 const ODU_EPISODE = `
 <html><body>
 <div class="venutama"><h1 class="posttl">Boruto: Naruto Next Generations Episode 293 Subtitle Indonesia</h1></div>
@@ -22,32 +22,6 @@ const ODU_EPISODE = `
 </ul>
 </div>
 </body></html>`;
-
-const OPLZ_EPISODE = `
-<html><body>
-<h1 class="entry-title">Naruto Episode 220</h1>
-<iframe src="https://www.blogger.com/video.g?token=AD6v5d"></iframe>
-<div class="item video-nav"><div class="mobius">
-<select class="mirror" name="mirror" onchange="loadMi(this);">
-  <option value="">Select Video Server</option>
-  <option value="PGlmcmFtZSBzcmM9Imh0dHBzOi8vZXhhbXBsZS5jb20vYS5pc3RyZWFtIj48L2lmcmFtZT4=" data-index="1">Server 1 | sd]google-v2</option>
-  <option value="PGlmcmFtZSBzcmM9Imh0dHBzOi8vZXhhbXBsZS5jb20vYi5pc3RyZWFtIj48L2lmcmFtZT4=">Server 2 | mirror-mp4</option>
-</select></div></div>
-</body></html>`;
-
-const KUS_SEARCH = `
-<html><body><div class="vezone"><div class="venz">
-<div class="kover"><a class="thumb" href="https://kusonime.com/suzume/"><img src="https://i.example/suzume.jpg"></a>
-<div class="content"><h2><a href="https://kusonime.com/suzume/">Suzume Batch Subtitle Indonesia</a></h2></div></div>
-<div class="kover"><a class="thumb" href="https://kusonime.com/your-name/"><img src="https://i.example/yn.jpg"></a>
-<div class="content"><h2><a href="https://kusonime.com/your-name/">Your Name [Movie] Batch</a></h2></div></div>
-</div></div></body></html>`;
-
-const KUS_MOVIES = `
-<html><body><div class="penzbar"><div class="jdlbar"><ul>
-<li><a class="kmz" href="https://kusonime.com/spirited-away/">Spirited Away</a></li>
-<li><a class="kmz" href="https://kusonime.com/chihiro/">Chihiro Movie</a></li>
-</ul></div></div></body></html>`;
 
 const CF_BEACON = `
 <html><head><title>Naruto - Nanime</title></head><body>
@@ -72,38 +46,6 @@ describe('parseHtml — daftar server streaming otakudesu', () => {
     const def = all.find((s: any) => s.default);
     expect(def.title).toBe('updesu');
     expect(atob(def.serverId)).toBe(JSON.stringify({ id: 138366, i: 0, q: '480p' }));
-  });
-});
-
-describe('parseHtml — daftar server oploverz', () => {
-  it('mengurai select.mirror menjadi qualityList berprefix oplz:', () => {
-    const r = parseHtml({ provider: 'oploverz', action: 'episode', id: 'naruto-episode-220' }, OPLZ_EPISODE, 'https://oploverz.am/naruto-episode-220/');
-    const d = r.data.details;
-    expect(d.streamingUrl).toContain('blogger.com');
-    const ql = d.server.qualityList;
-    expect(ql.length).toBe(1);
-    expect(ql[0].serverList.length).toBe(2);
-    expect(ql[0].serverList[0].title).toBe('sd]google-v2');
-    expect(ql[0].serverList[0].serverId.startsWith('oplz:')).toBe(true);
-    expect(ql[0].serverList[0].default).toBe(true);
-  });
-});
-
-describe('parseHtml — kusonime', () => {
-  it('mengurai daftar movie', () => {
-    const r = parseHtml({ provider: 'kusonime', action: 'movies' }, KUS_MOVIES, 'https://kusonime.com/anime-movie-list/');
-    expect(r.data.length).toBe(2);
-    expect(r.data[0].endpoint).toBe('spirited-away');
-  });
-
-  it('mengurai hasil search dengan url & thumbnail', () => {
-    const r = parseHtml({ provider: 'kusonime', action: 'search', query: 'suzume' }, KUS_SEARCH, 'https://kusonime.com/?s=suzume&post_type=post');
-    const list = r.data.listAnime;
-    expect(list.length).toBe(2);
-    expect(list[0].title).toContain('Suzume');
-    expect(list[0].thumbnail).toContain('suzume.jpg');
-    expect(list[0].url).toContain('kusonime.com/suzume');
-    expect(list[0].endpoint).toBe('suzume');
   });
 });
 
@@ -164,22 +106,5 @@ describe('parseHtml — false positive Cloudflare', () => {
     expect(() =>
       parseHtml({ provider: 'otakudesu', action: 'search', query: 'naruto' }, CF_BEACON, 'https://otakudesu.blog/?s=naruto')
     ).not.toThrow();
-  });
-});
-
-describe('Kuramanime routing and card identity', () => {
-  it('builds the live search route and preserves the anime slug for detail navigation', () => {
-    expect(sourcePath({ provider: 'kuramanime', action: 'search', query: 'Naruto Shippuden' })).toBe(
-      '/anime?search=Naruto%20Shippuden'
-    );
-
-    const html = `<div class="product__item"><div class="product__item__pic" data-setbg="/poster.jpg"><span class="ep">Ep 1</span></div><div class="product__item__text"><h5><a href="/anime/3/boruto-naruto-next-generations">Boruto: Naruto Next Generations</a></h5><ul><a>TV</a><a>1080p</a></ul></div></div>`;
-    const result = parseHtml({ provider: 'kuramanime', action: 'search', query: 'Boruto' }, html, 'https://v20.kuramanime.ing/anime?search=Boruto');
-    const card = result.data.animeList[0];
-    expect(card.animeId).toBe('3');
-    expect(card.animeSlug).toBe('boruto-naruto-next-generations');
-    expect(sourcePath({ provider: 'kuramanime', action: 'detail', id: card.animeId, animeId: card.animeId, animeSlug: card.animeSlug })).toBe(
-      '/anime/3/boruto-naruto-next-generations'
-    );
   });
 });

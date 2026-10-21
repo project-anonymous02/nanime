@@ -950,24 +950,12 @@ def analyze_providers(ref: Reference, idx: NanimeIndex, issues: Issues) -> dict[
     download_only = [p['id'] for p in active if p['downloadOnly']]
     priorities = [p['priority'] for p in providers.values() if p['priority'] is not None]
 
-    if len(order) < 10:
+    if len(order) < 3:
         issues.add('provider', 'high', 'Provider registry is unexpectedly small',
                    f'Only {len(order)} providers are registered: {order}',
                    'Restore verified adapters; do not fabricate unavailable ones.', 'registry-size',
                    [os.path.join(SRC, 'providers', 'registry.ts')])
-    if 'anoboy' in by_id:
-        max_priority = max(priorities) if priorities else 0
-        if by_id['anoboy'].get('priority') != max_priority:
-            issues.add('provider', 'high', 'Anoboy is not the final provider priority',
-                       f'Anoboy priority={by_id["anoboy"].get("priority")}, maximum={max_priority}. Earlier product rule requires Anoboy last.',
-                       'Raise Anoboy priority above all other active providers.', 'anoboy-last',
-                       [os.path.join(SRC, 'providers', 'registry.ts')])
-        if order and order[-1] != 'anoboy' and 'gomunime' in order and order.index('gomunime') > order.index('anoboy'):
-            issues.add('provider', 'medium', 'Registry order puts another provider after Anoboy',
-                       f'order tail: {order[-5:]}',
-                       'Keep the registry declaration order consistent with the Anoboy-last rule.', 'anoboy-order',
-                       [os.path.join(SRC, 'providers', 'registry.ts')])
-    expected_download_only = {'moenime', 'alqanime', 'animekuonline', 'nekopoi'}
+    expected_download_only = {'nekopoi'}
     bad_roles = [p['id'] for p in active if (p['id'] in expected_download_only) != p['downloadOnly']]
     if bad_roles:
         issues.add('provider', 'high', 'Provider role flags changed',

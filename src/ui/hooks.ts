@@ -113,8 +113,11 @@ export function useOnline() {
   return online;
 }
 
+const PULL_THRESHOLD = 80;
+
 export interface PullState {
   pull: number;
+  armed: boolean;
   refreshing: boolean;
 }
 
@@ -125,7 +128,7 @@ export interface PullState {
  * minimal 80px — gerakan scroll biasa TIDAK PERNAH memicu penyegaran.
  */
 export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabled = true) {
-  const [state, setState] = useState<PullState>({ pull: 0, refreshing: false });
+  const [state, setState] = useState<PullState>({ pull: 0, armed: false, refreshing: false });
   const startY = useRef<number | null>(null);
   const startX = useRef<number | null>(null);
   const pullRef = useRef(0);
@@ -143,7 +146,8 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
       pullRaf.current = requestAnimationFrame(() => {
         pullRaf.current = 0;
         const next = pendingPull.current;
-        setState(s => (s.pull === next ? s : { ...s, pull: next }));
+        const armed = next >= PULL_THRESHOLD;
+        setState(s => (s.pull === next && s.armed === armed ? s : { ...s, pull: next, armed }));
       });
     }
   }, []);
@@ -187,7 +191,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
       startX.current = null;
       const dist = pullRef.current;
       setPull(0);
-      if (dist < 80 || refreshingRef.current) return;
+      if (dist < PULL_THRESHOLD || refreshingRef.current) return;
       refreshingRef.current = true;
       setState(s => ({ ...s, refreshing: true }));
       try {
@@ -197,7 +201,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, enabl
         refreshTimer.current = window.setTimeout(() => {
           refreshTimer.current = null;
           refreshingRef.current = false;
-          setState(s => ({ ...s, refreshing: false }));
+          setState(s => ({ ...s, armed: false, refreshing: false }));
         }, 420);
       }
     };

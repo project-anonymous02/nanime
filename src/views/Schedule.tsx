@@ -5,6 +5,7 @@ import type { ScheduleGroup } from '../core/types';
 import { ErrorState, ListSkel, OfflineBar } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 import { usePullToRefresh } from '../ui/hooks';
+import { PullToRefreshIndicator } from '../ui/PullToRefresh';
 import { SmartImage } from '../ui/SmartImage';
 import { detailPath } from '../lib/nav';
 import { titleKey } from '../core/services/TitleIndex';
@@ -63,9 +64,7 @@ export function Schedule() {
 
   return (
     <>
-      <div className="ptr" style={{ height: pull.refreshing ? 42 : pull.pull, opacity: pull.pull > 0 || pull.refreshing ? 1 : 0 }}>
-        <span className="ptr-ring" />
-      </div>
+      <PullToRefreshIndicator state={pull} />
 
       <h1 className="sch-title">Jadwal Tayang</h1>
       <div className="sch-divider" />

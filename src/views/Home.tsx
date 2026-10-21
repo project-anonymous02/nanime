@@ -9,6 +9,7 @@ import { ContinueRailCard, Grid, RankCard, Rail, UpdateCard } from '../ui/Cards'
 import { ErrorState, ListSkel, OfflineBar, PosterSkel, RailSkel, SectionHead } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
 import { usePullToRefresh } from '../ui/hooks';
+import { PullToRefreshIndicator } from '../ui/PullToRefresh';
 import { SmartImage } from '../ui/SmartImage';
 import { detailPath, genrePath } from '../lib/nav';
 import { getClient } from '../lib/supabase';
@@ -158,9 +159,7 @@ export function Home() {
 
   return (
     <>
-      <div className="ptr" style={{ height: pull.refreshing ? 42 : pull.pull, opacity: pull.pull > 0 || pull.refreshing ? 1 : 0 }}>
-        <span className="ptr-ring" />
-      </div>
+      <PullToRefreshIndicator state={pull} />
 
       <header className="home-hero">
         <div className="uh-top">

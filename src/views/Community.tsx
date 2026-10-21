@@ -133,6 +133,7 @@ export function Community() {
   const currentId = authUser?.id;
 
   const load = useCallback(async (nextPage = 0, refresh = false) => {
+    const startedAt = Date.now();
     if (refresh || nextPage === 0) setRefreshing(refresh);
     else setLoading(true);
     setError('');
@@ -148,7 +149,15 @@ export function Community() {
       setPage(nextPage);
       setHasMore(discussions.length === 20);
     } catch (cause) { setError((cause as Error).message || 'Diskusi gagal dimuat'); }
-    finally { setLoading(false); setRefreshing(false); setLeaderLoading(false); }
+    finally {
+      // Keep the refreshing state visible long enough to be perceived even
+      // when the network/cache answers within a few milliseconds.
+      if (refresh) {
+        const remaining = 420 - (Date.now() - startedAt);
+        if (remaining > 0) await new Promise(resolve => window.setTimeout(resolve, remaining));
+      }
+      setLoading(false); setRefreshing(false); setLeaderLoading(false);
+    }
   }, []);
 
   useEffect(() => { void load(0); }, []);
@@ -178,7 +187,7 @@ export function Community() {
     <div className="community-page">
       <header className="community-heading">
         <span className="community-kicker"><Icon name="globe" size={15} /> Nanime Community</span>
-        <div className="community-title-row"><div><h1>Diskusi publik</h1><p>Berbagi pendapat dan ngobrol bareng komunitas anime.</p></div><div className="community-head-actions"><button type="button" className="community-secondary" onClick={() => navigate('/friends')}><Icon name="user" size={16} />Teman & chat</button><button type="button" className="community-secondary" onClick={() => navigate('/watch-party')}><Icon name="users" size={16} />Nobar</button><button type="button" className="community-refresh" onClick={() => void load(0, true)} disabled={refreshing} aria-label="Muat ulang diskusi"><Icon name="refresh" size={17} />{refreshing ? 'Memuat' : 'Segarkan'}</button></div></div>
+        <div className="community-title-row"><div><h1>Diskusi publik</h1><p>Berbagi pendapat dan ngobrol bareng komunitas anime.</p></div><div className="community-head-actions"><button type="button" className="community-secondary" onClick={() => navigate('/friends')}><Icon name="user" size={16} />Teman & chat</button><button type="button" className="community-secondary" onClick={() => navigate('/watch-party')}><Icon name="users" size={16} />Nobar</button><button type="button" className="community-refresh" onClick={() => void load(0, true)} disabled={refreshing} aria-busy={refreshing} aria-label="Muat ulang diskusi">{refreshing ? <span className="spinner-sm" aria-hidden="true" /> : <Icon name="refresh" size={17} />}{refreshing ? 'Menyegarkan…' : 'Segarkan'}</button></div></div>
       </header>
 
       {signedIn ? <form className="community-compose" onSubmit={event => void submit(event)}>

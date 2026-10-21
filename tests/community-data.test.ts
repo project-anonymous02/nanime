@@ -34,15 +34,28 @@ describe('community data boundaries', () => {
     expect(rows[0].profile).toBeUndefined();
   });
 
-  it('ranks by trusted app usage and does not select watch time or private profile data', async () => {
+  it('ranks by trusted app usage, fills stale avatars from live profiles, and hides private fields', async () => {
     const query = queryChain({ data: [{ id: 'user-1', username: 'Aiko', avatar_url: null, is_developer: false, rank: 'bronze', app_usage_seconds: 240 }], error: null });
     mocks.from.mockReturnValue(query);
+    mocks.rpc.mockResolvedValue({ data: [{ id: 'user-1', username: 'Aiko', avatar_url: 'https://img.test/new.jpg', is_developer: false, rank: 'silver' }], error: null });
     const rows = await leaderboard();
     expect(mocks.from).toHaveBeenCalledWith('nanime_leaderboard');
     expect(query.select).toHaveBeenCalledWith('id,username,avatar_url,is_developer,rank,app_usage_seconds');
     expect(query.order).toHaveBeenNthCalledWith(1, 'app_usage_seconds', { ascending: false });
     expect(query.limit).toHaveBeenCalledWith(10);
+    expect(mocks.rpc).toHaveBeenCalledWith('get_public_profiles', { p_user_ids: ['user-1'] });
+    expect(rows[0].avatar_url).toBe('https://img.test/new.jpg');
+    expect(rows[0].rank).toBe('silver');
     expect(rows[0].app_usage_seconds).toBe(240);
     expect(rows[0]).not.toHaveProperty('watch_seconds');
+    expect(JSON.stringify(mocks.rpc.mock.calls)).not.toContain('email');
+  });
+
+  it('keeps leaderboard snapshots usable when the live profile lookup is unavailable', async () => {
+    const query = queryChain({ data: [{ id: 'user-2', username: 'Mina', avatar_url: 'https://img.test/old.jpg', is_developer: false, rank: 'gold', app_usage_seconds: 90 }], error: null });
+    mocks.from.mockReturnValue(query);
+    mocks.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'RPC missing' } });
+    const rows = await leaderboard();
+    expect(rows[0]).toMatchObject({ username: 'Mina', avatar_url: 'https://img.test/old.jpg', rank: 'gold', app_usage_seconds: 90 });
   });
 });

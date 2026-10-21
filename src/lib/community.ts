@@ -47,7 +47,23 @@ export async function listReplies(discussionId: string, page = 0): Promise<Reply
 export async function createReply(discussionId: string, content: string): Promise<void> { const sb = getClient(); const uid = currentUserId(); if (!sb || !uid) throw new Error('Login diperlukan'); const text = content.trim(); if (!text || text.length > 2000) throw new Error('Balasan tidak valid'); const { error } = await sb.from('discussion_replies').insert({ discussion_id: discussionId, user_id: uid, content: text }); if (error) throw error; }
 export async function updateReply(id: string, content: string): Promise<void> { const sb = getClient(); const uid = currentUserId(); if (!sb || !uid) throw new Error('Login diperlukan'); const text = content.trim(); if (!text || text.length > 2000) throw new Error('Balasan tidak valid'); const { error } = await sb.from('discussion_replies').update({ content: text, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', uid); if (error) throw error; }
 export async function deleteReply(id: string): Promise<void> { const sb = getClient(); const uid = currentUserId(); if (!sb || !uid) throw new Error('Login diperlukan'); const { error } = await sb.from('discussion_replies').delete().eq('id', id).eq('user_id', uid); if (error) throw error; }
-export async function leaderboard(): Promise<CommunityProfile[]> { const sb = getClient(); if (!sb) return []; const { data, error } = await sb.from('nanime_leaderboard').select('id,username,avatar_url,is_developer,rank,app_usage_seconds').order('app_usage_seconds', { ascending: false }).order('id', { ascending: true }).limit(10); if (error) throw error; return ((data || []) as any[]).map(p => { const developer = !!p.is_developer; const rank = developer ? 'developer' : ['bronze', 'silver', 'gold', 'platinum', 'diamond'].includes(p.rank) ? p.rank as RankTier : 'bronze'; return { id: p.id, username: p.username || 'Pengguna', avatar_url: p.avatar_url || null, is_developer: developer, app_usage_seconds: Number(p.app_usage_seconds) || 0, rank }; }); }
+export async function leaderboard(): Promise<CommunityProfile[]> {
+  const sb = getClient();
+  if (!sb) return [];
+  const { data, error } = await sb.from('nanime_leaderboard').select('id,username,avatar_url,is_developer,rank,app_usage_seconds').order('app_usage_seconds', { ascending: false }).order('id', { ascending: true }).limit(10);
+  if (error) throw error;
+  const rows = (data || []) as any[];
+  // Leaderboard rows are a snapshot written by the usage heartbeat; an avatar
+  // added later can lag behind. Read the live public profile so old rows still
+  // show the current photo, with the snapshot as an offline fallback.
+  const live = await profiles(rows.map(row => row.id));
+  return rows.map(p => {
+    const current = live.get(p.id);
+    const developer = current?.is_developer ?? !!p.is_developer;
+    const rank = developer ? 'developer' : current?.rank || (['bronze', 'silver', 'gold', 'platinum', 'diamond'].includes(p.rank) ? p.rank as RankTier : 'bronze');
+    return { id: p.id, username: current?.username || p.username || 'Pengguna', avatar_url: current?.avatar_url || p.avatar_url || null, is_developer: developer, app_usage_seconds: Number(p.app_usage_seconds) || 0, rank };
+  });
+}
 
 /** Current user's own total is independent of the top-ten leaderboard page. */
 export async function ownAppUsageSeconds(): Promise<number> {

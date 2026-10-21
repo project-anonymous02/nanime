@@ -38,6 +38,7 @@ describe('provider priority and verified page structure', () => {
     expect(cards.length).toBeGreaterThan(0);
     expect(cards.every(card => card.provider === 'samehadaku')).toBe(true);
     expect(cards.every(card => card.sourceUrl.startsWith('https://'))).toBe(true);
+    expect(new Set(cards.map(card => card.sourceUrl)).size).toBe(cards.length);
   });
 
   it('keeps Samehadaku iframe servers as embed references, not as direct video URLs', () => {

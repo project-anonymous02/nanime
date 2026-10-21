@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { parseAnimekuDetail, parseSeriesCards } from '../src/providers/AnimeKuProvider';
+import { parseAnimekuDetail, parseSearchCards, parseSeriesCards } from '../src/providers/AnimeKuProvider';
 import { parseSoraDownloads } from '../src/providers/shared';
 import { parseHtml } from '../src/core/scraper';
 
@@ -30,6 +30,44 @@ describe('Animeku custom aku-* theme', () => {
       epLabel: 'Episode 1120',
       sourceUrl: 'https://ww2.animeku.lol/one-piece/'
     });
+  });
+
+  it('returns only the search grid and ignores the latest-anime block', () => {
+    const cards = parseSearchCards(
+      doc(`
+        <main class="aku-ruang">
+          <div class="aku-tajuk"><h1>Pencarian anime: Overflow</h1></div>
+          <div class="aku-petak">
+            <article class="aku-sel"><a class="aku-bing" href="/overflow-abc/"><img src="/overflow.jpg"></a><h3><a href="/overflow-abc/">Overflow</a></h3></article>
+          </div>
+          <div class="aku-tajuk"><h2>Anime Terbaru</h2></div>
+          <div class="aku-petak">
+            <article class="aku-sel"><a class="aku-bing" href="/unrelated-xyz/"><img src="/u.jpg"></a><h3><a href="/unrelated-xyz/">Unrelated</a></h3></article>
+          </div>
+        </main>
+      `),
+      'https://ww2.animeku.lol/?s=Overflow'
+    );
+    expect(cards.map(card => card.title)).toEqual(['Overflow']);
+  });
+
+  it('does not treat the latest-anime fallback as search results when nothing matches', () => {
+    const cards = parseSearchCards(
+      doc(`
+        <body class="search search-no-results">
+          <main class="aku-ruang">
+            <div class="aku-tajuk"><h1>Pencarian anime: Overflow</h1></div>
+            <section class="aku-pengantar"><p>Tidak ada anime dengan kata kunci itu.</p></section>
+            <div class="aku-tajuk"><h2>Anime Terbaru</h2></div>
+            <div class="aku-petak">
+              <article class="aku-sel"><a class="aku-bing" href="/unrelated-xyz/"><img src="/u.jpg"></a><h3><a href="/unrelated-xyz/">Unrelated</a></h3></article>
+            </div>
+          </main>
+        </body>
+      `),
+      'https://ww2.animeku.lol/?s=Overflow'
+    );
+    expect(cards).toEqual([]);
   });
 
   it('parses detail facts, episodes, and play links from the real route shape', () => {

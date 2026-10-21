@@ -23,6 +23,18 @@ const detailPath = (slug: string): string => {
   return '/' + segments.join('/') + '/';
 };
 
+/**
+ * Hasil pencarian saja. Halaman "tidak ditemukan" tetap menampilkan blok
+ * "Anime Terbaru"; blok itu bukan hasil pencarian dan tidak boleh dikembalikan.
+ */
+export function parseSearchCards(doc: Document, base: string): Card[] {
+  if (doc.body?.classList.contains('search-no-results') || doc.querySelector('.aku-pengantar')) return [];
+  const main = doc.querySelector('main.aku-ruang') || doc;
+  const directGrid = Array.from(main.children).find(el => el.classList.contains('aku-petak'));
+  const grid = directGrid || main.querySelector('.aku-petak');
+  return grid ? parseSeriesCards(grid, base) : [];
+}
+
 export function parseSeriesCards(doc: ParentNode, base: string): Card[] {
   const out: Card[] = [];
   const seen = new Set<string>();
@@ -172,7 +184,7 @@ export const animeku: AnimeProvider = {
 
   async search(query: string) {
     const { text, url } = await get('/?s=' + encodeURIComponent(query));
-    return parseSeriesCards(parseDoc(text), url);
+    return parseSearchCards(parseDoc(text), url);
   },
 
   async detail(id: string) {

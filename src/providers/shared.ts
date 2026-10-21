@@ -93,10 +93,14 @@ export function detailHrefFromCard(href: string): { href: string; slug: string; 
  */
 export function parseBsxCards(doc: ParentNode, base: string, provider: string, opts: CardOpts = {}): Card[] {
   const out: Card[] = [];
+  const seen = new Set<string>();
   nodes(doc, 'article.bs, article.bsx, div.bs, div.bsx').forEach(el => {
     const a = (el.querySelector('a.tip') as HTMLAnchorElement) || (el.querySelector('a[href]') as HTMLAnchorElement);
     const href = abs(base, attr(a, 'href'));
     if (!href) return;
+    // Tema menaruh `.bsx` di dalam `.bs`; tanpa dedup satu kartu terbaca dua kali.
+    if (seen.has(href)) return;
+    seen.add(href);
     const title =
       clean(el.querySelector('h2[itemprop="headline"]')?.textContent) ||
       clean(el.querySelector('.tt')?.textContent) ||

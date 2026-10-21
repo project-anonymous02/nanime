@@ -9,11 +9,13 @@ const get = (url: string, timeout = 20000) => httpGetText(url, { timeout, retrie
 
 function parsePosts(doc: Document, base: string): Card[] {
   const out: Card[] = [];
+  const seen = new Set<string>();
   for (const article of Array.from(doc.querySelectorAll('article.post'))) {
     const anchor = article.querySelector('h2.post-title a, h1.post-title a, .post-title a') as HTMLAnchorElement | null;
     const href = abs(base, attr(anchor, 'href'));
     const title = clean(txt(anchor));
-    if (!href || !title) continue;
+    if (!href || !title || seen.has(href)) continue;
+    seen.add(href);
     const img = article.querySelector('img');
     const slug = pathSlug(href);
     out.push({
@@ -68,7 +70,9 @@ export const nekopoi: AnimeProvider = {
   },
 
   async search(query: string) {
-    const { text, url } = await get(ROOT + '/search?q=' + encodeURIComponent(query), 20000);
+    // Blogger hanya merender kartu hasil pada tampilan mobile; tanpa m=1
+    // HTML statis berisi kerangka kosong dan hasil selalu nol.
+    const { text, url } = await get(ROOT + '/search?q=' + encodeURIComponent(query) + '&m=1', 20000);
     return parsePosts(parseDoc(text), url);
   },
 

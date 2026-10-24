@@ -146,6 +146,51 @@ describe('Catalog.stream episode identity', () => {
     expect(result.servers[0]?.url).toBe(`https://media.test/${fallbackEpisodeId}.mp4`);
   });
 
+  it('keeps the primary embed playable when an episode has more than eight opaque mirror IDs', async () => {
+    const animeId = 'fx-senshi-kurumi-sub-indo';
+    const provider = getProvider('otakudesu')!;
+    const episodeId = 'fxskc-episode-4-sub-indo';
+    const playerUrl = 'https://desustream.net/dstream/odcdn/?id=valid-episode-embed';
+    const serverIds = Array.from({ length: 9 }, (_, i) => `opaque-server-${i + 1}`);
+    await TitleIndex.upsert({
+      id: animeId,
+      title: 'FX Senshi Kurumi-chan',
+      sources: [{ provider: provider.id, id: 'fx-senshi-kurumi-sub-indo', slug: 'fx-senshi-kurumi-sub-indo', episodes: [
+        { num: '4', id: episodeId, slug: '', title: 'FX Senshi Kurumi-chan Episode 4' }
+      ] }]
+    });
+    vi.spyOn(provider, 'stream').mockResolvedValue({
+      provider: provider.id,
+      title: 'FX Senshi Kurumi-chan Episode 4',
+      playerUrl,
+      qualities: ['360p', '480p', '720p'].map((quality, qualityIndex) => ({
+        title: quality,
+        servers: serverIds.slice(qualityIndex * 3, qualityIndex * 3 + 3).map((serverId, i) => ({
+          name: `Mirror ${qualityIndex * 3 + i + 1}`, id: serverId, def: i === 0
+        }))
+      })),
+      servers: serverIds.map((serverId, i) => ({ name: `Mirror ${i + 1}`, id: serverId, quality: i < 2 ? '360p' : i < 5 ? '480p' : '720p', def: i === 0 })),
+      downloads: [],
+      info: {}
+    });
+    const providerWithResolver = provider as typeof provider & { resolveServer: (serverId: string) => Promise<string> };
+    const resolveServer = vi.spyOn(providerWithResolver, 'resolveServer').mockImplementation(async () => new Promise<string>(() => {}));
+    const fetchSpy = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'HEAD') return new Response(null, { status: 200, headers: { 'content-type': 'text/html' } });
+      throw new Error('iframe page should not be fetched as a video file');
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const result = await Catalog.stream(animeId, '4', {
+      title: 'FX Senshi Kurumi-chan', episodeProvider: provider.id, episodeId
+    });
+
+    expect(resolveServer).not.toHaveBeenCalled();
+    expect(result.availability).toBe('external-embed');
+    expect(result.servers.some(server => server.url === playerUrl)).toBe(true);
+    expect(fetchSpy.mock.calls.every(([, init]) => init?.method === 'HEAD')).toBe(true);
+  });
+
   it('reports unavailable rather than turning a download/error URL into playback', async () => {
     const { id } = await setupProvider(async () => { throw new Error('media unavailable'); });
     const result = await Catalog.stream(id, '2', {

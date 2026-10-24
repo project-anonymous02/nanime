@@ -145,3 +145,24 @@ describe('download blocks', () => {
     expect(batch.data.details.download.formatList[0].qualityList[0].urlList[0].url).toBe('https://drive.google.com/file/d/abc');
   });
 });
+
+describe('Otakudesu episode pages with many opaque mirrors', () => {
+  it('preserves the default embed alongside every encoded mirror ID', () => {
+    const mirrors = ['360p', '480p', '720p'].map((quality, group) => `
+      <ul class="m${quality}"><span>Mirror ${quality}</span>
+        ${Array.from({ length: group === 0 ? 2 : group === 1 ? 3 : 4 }, (_, i) =>
+          `<li><a data-content="opaque-${quality}-${i}">Mirror ${i + 1}</a></li>`).join('')}
+      </ul>
+    `).join('');
+    const parsed = parseHtml(
+      { provider: 'otakudesu', action: 'episode' },
+      `<div class="venutama"><h1>FX Senshi Kurumi-chan Episode 4 Subtitle Indonesia</h1></div>
+       <div class="player-embed"><iframe src="https://desustream.net/dstream/odcdn/?id=fx-episode-4"></iframe></div>
+       <div class="mirrorstream">${mirrors}</div>`,
+      'https://otakudesu.blog/episode/fxskc-episode-4-sub-indo/'
+    );
+
+    expect(parsed.data.details.defaultStreamingUrl).toBe('https://desustream.net/dstream/odcdn/?id=fx-episode-4');
+    expect(parsed.data.details.server.qualityList.flatMap((group: any) => group.serverList)).toHaveLength(9);
+  });
+});

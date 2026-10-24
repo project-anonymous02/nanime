@@ -113,53 +113,77 @@ async function tryProvider(
           extras.push(item);
         }
       }
-      const candidates = [...distinctQualities, ...extras].slice(0, 8);
+      const ranked = [...distinctQualities, ...extras];
+      const httpCandidates = ranked.filter(candidate => /^https?:\/\//i.test(candidate.ref));
+      const opaqueCandidates = ranked.filter(candidate => !/^https?:\/\//i.test(candidate.ref));
+      const candidates = [...httpCandidates, ...opaqueCandidates].slice(0, 8);
+      // The primary player URL is often the only immediately usable embed.
+      // Never let a long mirror list truncate it out of the bounded candidates.
+      if (stream.playerUrl && /^https?:\/\//i.test(stream.playerUrl) && !candidates.some(candidate => candidate.ref === stream.playerUrl)) {
+        candidates[candidates.length < 8 ? candidates.length : 7] = {
+          name: 'Utama', ref: stream.playerUrl, quality: undefined
+        };
+      }
       if (!candidates.length) return null;
 
       const media: typeof raw = [];
       const embeds: typeof raw = [];
-      for (const candidate of candidates) {
-        let url = candidate.ref;
-        if (!/^https?:\/\//i.test(url)) {
-          if (!p.resolveServer) continue;
-          try { url = await p.resolveServer(url); } catch { continue; }
-        }
-        if (!url) continue;
-        try {
-          if (await verifyDirectMedia(url)) {
-            media.push({ ...candidate, ref: url });
-            continue;
+      // Resolve explicit URLs first. If one is a usable embed, opaque server
+      // IDs must not delay or suppress it; those IDs are only useful when the
+      // provider supplied no playable URL at all.
+      for (const batch of [httpCandidates, opaqueCandidates]) {
+        for (const candidate of batch) {
+          if (!candidates.includes(candidate)) continue;
+          let url = candidate.ref;
+          if (!/^https?:\/\//i.test(url)) {
+            if (!p.resolveServer) continue;
+            try { url = await p.resolveServer(url); } catch { continue; }
           }
-        } catch { /* try extraction or the next server */ }
-        if (!isVideoUrl(url)) {
+          if (!url) continue;
           try {
-            const resolved = await resolveMediaUrl(url);
-            if (resolved.kind === 'file' && resolved.url && (await verifyDirectMedia(resolved.url))) {
-              media.push({ ...candidate, ref: resolved.url });
+            if (await verifyDirectMedia(url)) {
+              media.push({ ...candidate, ref: url });
               continue;
             }
-          } catch { /* embed tidak dapat diekstrak */ }
-        }
-        const sameEpisodePage = (() => {
+          } catch { /* try extraction or the next server */ }
+          const sameEpisodePage = (() => {
+            try {
+              return /^https?:\/\//i.test(params.episodeId) && new URL(url).href === new URL(params.episodeId).href;
+            } catch {
+              return false;
+            }
+          })();
+          if (sameEpisodePage) continue;
+          let isEmbed = false;
           try {
-            return /^https?:\/\//i.test(params.episodeId) && new URL(url).href === new URL(params.episodeId).href;
+            const probe = await httpProbe(url, 4000);
+            if (probe.status >= 200 && probe.status < 300 && /^(?:text\/html|application\/xhtml\+xml)$/.test(probe.contentType)) {
+              isEmbed = true;
+            } else if ([403, 405, 501].includes(probe.status)) {
+              // Embed hosts commonly deny HEAD while still allowing iframe GET.
+              isEmbed = true;
+            }
           } catch {
-            return false;
+            // HEAD/CORS restrictions do not prove that a provider-parsed iframe is unusable.
+            isEmbed = true;
           }
-        })();
-        if (sameEpisodePage) continue;
-        try {
-          const probe = await httpProbe(url, 4000);
-          if (probe.status >= 200 && probe.status < 300 && /^(?:text\/html|application\/xhtml\+xml)$/.test(probe.contentType)) {
+          if (isEmbed) {
             embeds.push({ ...candidate, ref: url });
-          } else if ([403, 405, 501].includes(probe.status)) {
-            // Embed hosts commonly deny HEAD while still allowing iframe GET.
-            embeds.push({ ...candidate, ref: url });
+            continue;
           }
-        } catch {
-          // HEAD/CORS restrictions do not prove that a provider-parsed iframe is unusable.
-          embeds.push({ ...candidate, ref: url });
+          // Only crawl an endpoint when HEAD did not already prove it is an
+          // iframe page. A slow embed GET must not consume the provider timeout
+          // before we can return the playable iframe URL.
+          if (!isVideoUrl(url)) {
+            try {
+              const resolved = await resolveMediaUrl(url);
+              if (resolved.kind === 'file' && resolved.url && (await verifyDirectMedia(resolved.url))) {
+                media.push({ ...candidate, ref: resolved.url });
+              }
+            } catch { /* embed tidak dapat diekstrak */ }
+          }
         }
+        if (media.length || embeds.length) break;
       }
       if (!media.length && !embeds.length) return null;
       const chosen = media.length ? media : embeds;

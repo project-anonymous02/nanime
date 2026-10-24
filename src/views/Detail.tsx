@@ -14,6 +14,7 @@ import { usePlayer } from '../state/player';
 import { useSettings } from '../state/settings';
 
 /** Detail anime — hero, chip, synopsis, related, daftar episode list/grid. */
+const EMPTY_EPISODES: DetailBundle['episodeList'] = [];
 
 function typeIcon(kind?: string): string | null {
   const v = (kind || '').toLowerCase();
@@ -39,6 +40,7 @@ export function Detail() {
   const [stuck, setStuck] = useState(false);
   const requestId = useRef(0);
   const lastProgressWrite = useRef(0);
+  const handledDeepLinkRef = useRef<string | null>(null);
 
   const playerSession = usePlayer(s => s.session?.animeId === id ? s.session : null);
   const startPlayer = usePlayer(s => s.start);
@@ -84,7 +86,8 @@ export function Detail() {
   }, []);
 
   const isFav = favorites.some(f => f.id === id);
-  const episodes = bundle?.episodeList || [];
+  const episodes = bundle?.episodeList ?? EMPTY_EPISODES;
+  const deepLinkEpisode = params.get('episode');
 
   const progressMap = useMemo(() => {
     const m = new Map<string, { percent: number; completed: boolean; watchedAt: number }>();
@@ -182,12 +185,19 @@ export function Detail() {
 
   // Deep-link episode berisikan ?episode=N langsung memutar episode itu.
   useEffect(() => {
-    const episodeNumber = params.get('episode');
-    if (!bundle || !episodeNumber || playerSession?.episode === episodeNumber) return;
-    const episode = episodes.find(item => item.num === episodeNumber || item.id === episodeNumber);
-    if (episode) void playEpisode(episode);
+    if (!deepLinkEpisode) {
+      handledDeepLinkRef.current = null;
+      return;
+    }
+    if (!bundle) return;
+    const key = `${id}:${deepLinkEpisode}`;
+    if (handledDeepLinkRef.current === key) return;
+    const episode = episodes.find(item => item.num === deepLinkEpisode || item.id === deepLinkEpisode);
+    if (!episode) return;
+    handledDeepLinkRef.current = key;
+    if (playerSession?.episode !== episode.num) void playEpisode(episode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bundle?.id, episodes.length, params, playerSession?.episode]);
+  }, [bundle?.id, deepLinkEpisode, episodes, id, playerSession?.episode]);
 
   const savePlaybackProgress = (episode: string) => (event: React.SyntheticEvent<HTMLVideoElement>) => {
     if (!bundle) return;

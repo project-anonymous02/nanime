@@ -110,6 +110,14 @@ export function PlayerOverlay() {
   const gestureTimer = useRef<number | null>(null);
   const boxRef = useRef<HTMLElement | null>(null);
 
+  const onTimeUpdate = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
+    const nextPosition = event.currentTarget.currentTime || 0;
+    const nextDuration = Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0;
+    setPlayhead(current => Math.floor(current) === Math.floor(nextPosition) ? current : nextPosition);
+    setDuration(current => current === nextDuration ? current : nextDuration);
+    session?.onProgress(event);
+  }, [session?.onProgress]);
+
   useEffect(() => {
     if (!session) return;
     setMode(location.pathname.startsWith('/detail/') ? 'full' : 'mini');
@@ -130,7 +138,10 @@ export function PlayerOverlay() {
   useEffect(() => () => { if (gestureTimer.current) window.clearTimeout(gestureTimer.current); }, []);
 
   if (!session) return null;
-  const source = sources[session.sourceIndex];
+  // Provider/cache data can contain unusable URLs, and sourceIndex can point
+  // past the normalized list. Keep rendering safe and fall back to a usable
+  // source when one exists.
+  const source = sources[session.sourceIndex] ?? sources[0];
   const downloads = downloadsFrom(session.stream);
   const beginDrag = (event: PointerEvent<HTMLElement>) => {
     if (mode !== 'mini' || (event.target as HTMLElement).closest('button')) return;
@@ -171,13 +182,6 @@ export function PlayerOverlay() {
     gestureTimer.current = window.setTimeout(() => setGestureLabel(''), 900);
   };
   const endControlGesture = () => { gestureRef.current = null; };
-  const onTimeUpdate = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
-    const nextPosition = event.currentTarget.currentTime || 0;
-    const nextDuration = Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0;
-    setPlayhead(current => Math.floor(current) === Math.floor(nextPosition) ? current : nextPosition);
-    setDuration(current => current === nextDuration ? current : nextDuration);
-    session?.onProgress(event);
-  }, [session?.onProgress]);
   const togglePlayback = () => {
     const video = mediaRef.current;
     if (!video) return;
@@ -225,6 +229,10 @@ export function PlayerOverlay() {
       {session.loading ? <div className="episode-player-state" role="status"><span className="spinner-sm" />Menyiapkan sumber video…</div> : null}
       {!session.loading && session.error ? <div className="episode-player-state error" role="alert">
         <p>{session.error}</p>
+        <button type="button" className="hn-ghostbtn" onClick={event => { event.stopPropagation(); session.retry(); }}>Coba lagi</button>
+      </div> : null}
+      {!session.loading && !session.error && !source ? <div className="episode-player-state error" role="alert">
+        <p>Sumber video tidak valid atau tidak tersedia. Coba lagi atau pilih episode lain.</p>
         <button type="button" className="hn-ghostbtn" onClick={event => { event.stopPropagation(); session.retry(); }}>Coba lagi</button>
       </div> : null}
       {!session.loading && !session.error && source ? <>

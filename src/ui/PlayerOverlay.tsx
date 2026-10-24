@@ -2,11 +2,67 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, t
 import { useLocation } from 'react-router-dom';
 import { usePlayer } from '../state/player';
 import { useSettings } from '../state/settings';
+import type { DownloadLink, StreamBundle } from '../core/types';
 import { listenNativePipMode, setNativePipActive } from '../lib/nativePip';
 import { AdaptiveVideo } from './AdaptiveVideo';
 import { Icon } from './icons';
 
 interface PlayableSource { label: string; provider: string; url: string; kind: 'file' | 'embed' }
+
+/** Normalize persisted/provider data before it reaches JSX. Old cache rows can
+ * outlive a deploy and may not satisfy the current StreamBundle shape. */
+export function playableSourcesFrom(stream?: Partial<StreamBundle> | null): PlayableSource[] {
+  const qualities: unknown[] = Array.isArray(stream?.qualities) ? stream.qualities : [];
+  const servers: unknown[] = Array.isArray(stream?.servers) ? stream.servers : [];
+  const qualitySources = qualities.flatMap((raw): PlayableSource[] => {
+    if (!raw || typeof raw !== 'object') return [];
+    const item = raw as { label?: unknown; source?: unknown };
+    if (!item.source || typeof item.source !== 'object') return [];
+    const source = item.source as { url?: unknown; providerRef?: unknown; kind?: unknown };
+    if (typeof source.url !== 'string' || !isHttpUrl(source.url)) return [];
+    return [{
+      label: typeof item.label === 'string' && item.label ? item.label : 'Sumber video',
+      provider: typeof source.providerRef === 'string' ? source.providerRef : '',
+      url: source.url,
+      kind: source.kind === 'file' ? 'file' : 'embed'
+    }];
+  });
+  const qualityUrls = new Set(qualitySources.map(source => source.url));
+  const serverSources = servers.flatMap((raw): PlayableSource[] => {
+    if (!raw || typeof raw !== 'object') return [];
+    const item = raw as { url?: unknown; label?: unknown; providerRef?: unknown };
+    if (typeof item.url !== 'string' || !isHttpUrl(item.url) || qualityUrls.has(item.url)) return [];
+    return [{
+      label: typeof item.label === 'string' && item.label ? item.label : 'Server video',
+      provider: typeof item.providerRef === 'string' ? item.providerRef : '',
+      url: item.url,
+      kind: stream?.sourceKind === 'direct-media' && /\.(?:m3u8|mp4|webm|mov|mpd)(?:[?#]|$)/i.test(item.url) ? 'file' : 'embed'
+    }];
+  });
+  return [...qualitySources, ...serverSources];
+}
+
+function downloadsFrom(stream?: Partial<StreamBundle> | null): (DownloadLink & { group: string })[] {
+  const groups: unknown[] = Array.isArray(stream?.downloads) ? stream.downloads : [];
+  return groups.flatMap(group => {
+    if (!group || typeof group !== 'object') return [];
+    const value = group as { quality?: unknown; items?: unknown };
+    if (!Array.isArray(value.items)) return [];
+    return value.items.flatMap((raw: unknown): (DownloadLink & { group: string })[] => {
+      if (!raw || typeof raw !== 'object') return [];
+      const item = raw as Partial<DownloadLink>;
+      return typeof item.url === 'string' && isHttpUrl(item.url)
+        ? [{
+            quality: typeof item.quality === 'string' ? item.quality : 'Lainnya',
+            name: typeof item.name === 'string' ? item.name : 'Unduhan',
+            url: item.url,
+            availability: item.availability === 'verified' ? 'verified' : 'unverified',
+            group: typeof value.quality === 'string' ? value.quality : 'Lainnya'
+          }]
+        : [];
+    });
+  });
+}
 
 const PROVIDER_NAMES: Record<string, string> = {
   otakudesu: 'Otakudesu',
@@ -28,15 +84,7 @@ export function PlayerOverlay() {
   const close = usePlayer(state => state.close);
   const playerControls = useSettings(state => state.playerControls);
   const stream = session?.stream;
-  const sources = useMemo<PlayableSource[]>(() => [
-    ...((stream?.qualities || []).filter(item => item.source).map(item => ({ label: item.label, provider: item.source!.providerRef, url: item.source!.url, kind: item.source!.kind }))),
-    ...((stream?.servers || []).filter(item => item.url && !stream?.qualities.some(quality => quality.source?.url === item.url)).map(item => ({
-      label: item.label,
-      provider: item.providerRef,
-      url: item.url,
-      kind: stream?.sourceKind === 'direct-media' && /\.(?:m3u8|mp4|webm|mov|mpd)(?:[?#]|$)/i.test(item.url) ? 'file' as const : 'embed' as const
-    })))
-  ], [stream]);
+  const sources = useMemo(() => playableSourcesFrom(stream), [stream]);
   const onError = useCallback(() => {
     const current = usePlayer.getState().session;
     if (!current) return;
@@ -83,7 +131,7 @@ export function PlayerOverlay() {
 
   if (!session) return null;
   const source = sources[session.sourceIndex];
-  const downloads = (session.stream?.downloads || []).flatMap(group => group.items.map(item => ({ ...item, group: group.quality }))).filter(item => isHttpUrl(item.url));
+  const downloads = downloadsFrom(session.stream);
   const beginDrag = (event: PointerEvent<HTMLElement>) => {
     if (mode !== 'mini' || (event.target as HTMLElement).closest('button')) return;
     const rect = boxRef.current?.getBoundingClientRect();

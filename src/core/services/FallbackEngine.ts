@@ -140,12 +140,26 @@ async function tryProvider(
             }
           } catch { /* embed tidak dapat diekstrak */ }
         }
+        const sameEpisodePage = (() => {
+          try {
+            return /^https?:\/\//i.test(params.episodeId) && new URL(url).href === new URL(params.episodeId).href;
+          } catch {
+            return false;
+          }
+        })();
+        if (sameEpisodePage) continue;
         try {
           const probe = await httpProbe(url, 4000);
           if (probe.status >= 200 && probe.status < 300 && /^(?:text\/html|application\/xhtml\+xml)$/.test(probe.contentType)) {
-            if (!/^https?:\/\//i.test(params.episodeId) || new URL(url).href !== new URL(params.episodeId).href) embeds.push({ ...candidate, ref: url });
+            embeds.push({ ...candidate, ref: url });
+          } else if ([403, 405, 501].includes(probe.status)) {
+            // Embed hosts commonly deny HEAD while still allowing iframe GET.
+            embeds.push({ ...candidate, ref: url });
           }
-        } catch { /* an inaccessible embed is not a source */ }
+        } catch {
+          // HEAD/CORS restrictions do not prove that a provider-parsed iframe is unusable.
+          embeds.push({ ...candidate, ref: url });
+        }
       }
       if (!media.length && !embeds.length) return null;
       const chosen = media.length ? media : embeds;

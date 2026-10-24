@@ -102,7 +102,7 @@
 .hn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 0 var(--pad-x); }
 
 .hn-card { position: relative; text-align: left; display: block; width: 100%; }
-.hn-card-poster { position: relative; border-radius: var(--r-poster); overflow: hidden; background: var(--grad-image); aspect-ratio: 2 / 3; box-shadow: var(--shadow-card); }
+.hn-card-poster { position: relative; display: block; width: 100%; border-radius: var(--r-poster); overflow: hidden; background: var(--grad-image); aspect-ratio: 2 / 3; box-shadow: var(--shadow-card); }
 .hn-card-poster > div { position: absolute; inset: 0; }
 .hn-card-title { font-size: var(--fs-card); font-weight: 500; margin-top: 6px; line-height: 1.35; }
 .hn-card-meta { font-size: var(--fs-label); color: var(--text-muted); margin-top: 2px; }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getClient } from '../lib/supabase';
 import { currentUserId } from '../state/auth';
@@ -19,8 +19,11 @@ export function PublicProfile() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const requestId = useRef(0);
 
   async function load() {
+    const request = ++requestId.current;
     const sb = getClient();
     if (!sb || !userId) { setError('Profil tidak dapat dimuat.'); setLoading(false); return; }
     setLoading(true); setError('');
@@ -28,6 +31,7 @@ export function PublicProfile() {
       const { data, error: profileError } = await sb.rpc('get_public_profiles', { p_user_ids: [userId] });
       if (profileError) throw profileError;
       const row = ((data || []) as (PublicPerson & { app_usage_seconds?: number })[])[0];
+      if (request !== requestId.current) return;
       if (!row) { setPerson(null); setLoading(false); return; }
       const seconds = Number(row.app_usage_seconds) || 0;
       setPerson({ ...row, seconds });
@@ -36,17 +40,22 @@ export function PublicProfile() {
       else if (uid) {
         const { data: rel, error: relError } = await sb.from('nanime_friend_requests').select('requester_id,recipient_id,status').or(`and(requester_id.eq.${uid},recipient_id.eq.${userId}),and(requester_id.eq.${userId},recipient_id.eq.${uid})`).in('status', ['pending', 'accepted']).maybeSingle();
         if (relError) throw relError;
+        if (request !== requestId.current) return;
         setRelation(!rel ? 'none' : rel.status === 'accepted' ? 'friend' : rel.requester_id === uid ? 'outgoing' : 'incoming');
-      }
-    } catch { setError('Profil belum dapat dimuat. Periksa koneksi lalu coba lagi.'); }
-    finally { setLoading(false); }
+      } else setRelation('none');
+    } catch { if (request === requestId.current) setError('Profil belum dapat dimuat. Periksa koneksi lalu coba lagi.'); }
+    finally { if (request === requestId.current) setLoading(false); }
   }
-  useEffect(() => { void load(); }, [userId]);
+  useEffect(() => {
+    void load();
+    return () => { requestId.current++; };
+  }, [userId]);
 
   async function addFriend() {
+    setActionError('');
     setBusy(true);
     try { await sendFriendRequest(userId); setRelation('outgoing'); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Permintaan teman gagal dikirim.'); }
+    catch (e) { setActionError(e instanceof Error ? e.message : 'Permintaan teman gagal dikirim.'); }
     finally { setBusy(false); }
   }
 
@@ -103,6 +112,7 @@ export function PublicProfile() {
       ) : (
         <span className="hn-profilehero-sub">{relation === 'incoming' ? 'Permintaan teman menunggu jawaban di Teman' : 'Permintaan teman terkirim'}</span>
       )}
+      {actionError ? <p className="hn-inline-warn" role="alert">{actionError}</p> : null}
     </div>
 
     <div className="hn-row" style={{ margin: '18px var(--pad-x)', width: 'auto' }}>

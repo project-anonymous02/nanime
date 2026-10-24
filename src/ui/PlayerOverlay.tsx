@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent, type SyntheticEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type SyntheticEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { usePlayer } from '../state/player';
 import { useSettings } from '../state/settings';
@@ -6,7 +6,17 @@ import { listenNativePipMode, setNativePipActive } from '../lib/nativePip';
 import { AdaptiveVideo } from './AdaptiveVideo';
 import { Icon } from './icons';
 
-interface PlayableSource { label: string; url: string; kind: 'file' | 'embed' }
+interface PlayableSource { label: string; provider: string; url: string; kind: 'file' | 'embed' }
+
+const PROVIDER_NAMES: Record<string, string> = {
+  otakudesu: 'Otakudesu',
+  samehadaku: 'Samehadaku',
+  animeku: 'Animeku'
+};
+
+function providerName(id: string): string {
+  return PROVIDER_NAMES[id] || id;
+}
 
 export function PlayerOverlay() {
   const location = useLocation();
@@ -16,10 +26,23 @@ export function PlayerOverlay() {
   const setMode = usePlayer(state => state.setMode);
   const close = usePlayer(state => state.close);
   const playerControls = useSettings(state => state.playerControls);
+  const stream = session?.stream;
+  const sources = useMemo<PlayableSource[]>(() => [
+    ...((stream?.qualities || []).filter(item => item.source).map(item => ({ label: item.label, provider: item.source!.providerRef, url: item.source!.url, kind: item.source!.kind }))),
+    ...((stream?.servers || []).filter(item => item.url && !stream?.qualities.some(quality => quality.source?.url === item.url)).map(item => ({
+      label: item.label,
+      provider: item.providerRef,
+      url: item.url,
+      kind: stream?.sourceKind === 'direct-media' && /\.(?:m3u8|mp4|webm|mov|mpd)(?:[?#]|$)/i.test(item.url) ? 'file' as const : 'embed' as const
+    })))
+  ], [stream]);
   const onError = useCallback(() => {
     const current = usePlayer.getState().session;
-    if (current) update(current.request, { error: 'Browser tidak dapat memutar sumber ini. Coba server lain atau episode berikutnya.' });
-  }, [update]);
+    if (!current) return;
+    const nextIndex = sources.findIndex((candidate, index) => index > current.sourceIndex && candidate.url !== sources[current.sourceIndex]?.url);
+    if (nextIndex >= 0) update(current.request, { sourceIndex: nextIndex, error: '' });
+    else update(current.request, { error: 'Browser tidak dapat memutar sumber ini. Coba server lain atau episode berikutnya.' });
+  }, [sources, update]);
   const dragRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const didMoveRef = useRef(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
@@ -58,14 +81,6 @@ export function PlayerOverlay() {
   useEffect(() => () => { if (gestureTimer.current) window.clearTimeout(gestureTimer.current); }, []);
 
   if (!session) return null;
-  const sources: PlayableSource[] = [
-    ...((session.stream?.qualities || []).filter(item => item.source).map(item => ({ label: item.label, url: item.source!.url, kind: item.source!.kind }))),
-    ...((session.stream?.servers || []).filter(item => item.url && !session.stream?.qualities.some(quality => quality.source?.url === item.url)).map(item => ({
-      label: item.label,
-      url: item.url,
-      kind: session.stream?.sourceKind === 'direct-media' && /\.(?:m3u8|mp4|webm|mov|mpd)(?:[?#]|$)/i.test(item.url) ? 'file' as const : 'embed' as const
-    })))
-  ];
   const source = sources[session.sourceIndex];
   const downloads = (session.stream?.downloads || []).flatMap(group => group.items.map(item => ({ ...item, group: group.quality }))).filter(item => isHttpUrl(item.url));
   const beginDrag = (event: PointerEvent<HTMLElement>) => {
@@ -107,11 +122,13 @@ export function PlayerOverlay() {
     gestureTimer.current = window.setTimeout(() => setGestureLabel(''), 900);
   };
   const endControlGesture = () => { gestureRef.current = null; };
-  const onTimeUpdate = (event: SyntheticEvent<HTMLVideoElement>) => {
-    setPlayhead(event.currentTarget.currentTime || 0);
-    setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0);
-    session.onProgress(event);
-  };
+  const onTimeUpdate = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
+    const nextPosition = event.currentTarget.currentTime || 0;
+    const nextDuration = Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0;
+    setPlayhead(current => Math.floor(current) === Math.floor(nextPosition) ? current : nextPosition);
+    setDuration(current => current === nextDuration ? current : nextDuration);
+    session?.onProgress(event);
+  }, [session?.onProgress]);
   const togglePlayback = () => {
     const video = mediaRef.current;
     if (!video) return;
@@ -174,7 +191,7 @@ export function PlayerOverlay() {
             </div>
             <div className="player-control-meta">
               <span className="player-time">{clockTime(playhead)} / {clockTime(duration)}</span>
-              {sources.length > 1 ? <button type="button" onClick={() => setQualitiesOpen(true)} aria-label="Pilih kualitas video">{sources[session.sourceIndex]?.label || 'Kualitas'}<Icon name="down" size={12} /></button> : null}
+              {sources.length > 1 ? <button type="button" onClick={() => setQualitiesOpen(true)} aria-label="Pilih kualitas atau sumber video">{sources[session.sourceIndex]?.label || 'Sumber'}<Icon name="down" size={12} /></button> : null}
               <button type="button" onClick={togglePlaybackRate} aria-label="Kecepatan pemutaran">{playbackRate}x</button>
             </div>
             <input aria-label="Posisi video" type="range" min="0" max={duration || 1} step="1" value={Math.min(playhead, duration || 0)} onChange={event => { const value = Number(event.target.value); setPlayhead(value); if (mediaRef.current) mediaRef.current.currentTime = value; }} />
@@ -185,7 +202,7 @@ export function PlayerOverlay() {
           </div> : null}
           {gestureLabel ? <span className="player-gesture-status" role="status">{gestureLabel}</span> : null}
         </div>
-        {source.kind === 'embed' && sources.length > 1 ? <button type="button" className="episode-player-source" onClick={() => setQualitiesOpen(true)}><span>Kualitas / sumber</span><strong>{sources[session.sourceIndex]?.label || 'Pilih sumber'}　⌄</strong></button> : null}
+        {sources.length > 1 ? <button type="button" className="episode-player-source" onClick={() => setQualitiesOpen(true)}><span>Sumber aktif</span><strong>{providerName(source.provider)} · {source.label}　⌄</strong></button> : null}
         <section className="episode-player-info">
           {session.poster ? <img src={session.poster} alt="" /> : null}
           <div><h1>{session.title}</h1><p>Episode {session.episode}</p>{session.synopsis ? <p className="episode-player-synopsis">{session.synopsis}</p> : null}</div>
@@ -194,7 +211,7 @@ export function PlayerOverlay() {
       {qualitiesOpen && mode === 'full' ? <div className="player-download-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setQualitiesOpen(false); }}>
         <section className="player-download-sheet" role="dialog" aria-modal="true" aria-label="Pilihan kualitas video">
           <span className="player-download-handle" /><header><strong>Pilihan Kualitas Video</strong><button type="button" className="ibtn" onClick={() => setQualitiesOpen(false)} aria-label="Tutup pilihan kualitas"><Icon name="x" /></button></header>
-          <div className="player-download-list">{sources.map((item, index) => <button type="button" className={`player-quality-option ${qualityClass(item.label)}${session.sourceIndex === index ? ' selected' : ''}`} key={`${item.url}-${index}`} onClick={() => { update(session.request, { sourceIndex: index, error: '' }); setQualitiesOpen(false); }}><span><strong>{displayQuality(item.label)}</strong><small>{qualityDescription(item.label, item.kind)}</small></span><span>{session.sourceIndex === index ? '✓' : '›'}</span></button>)}</div>
+          <div className="player-download-list">{sources.map((item, index) => <button type="button" className={`player-quality-option ${qualityClass(item.label)}${session.sourceIndex === index ? ' selected' : ''}`} key={`${item.url}-${index}`} onClick={() => { update(session.request, { sourceIndex: index, error: '' }); setQualitiesOpen(false); }}><span><strong>{displayQuality(item.label)}</strong><small>{providerName(item.provider)} · {qualityDescription(item.label, item.kind)}</small></span><span>{session.sourceIndex === index ? '✓' : '›'}</span></button>)}</div>
         </section>
       </div> : null}
       {downloadsOpen && mode === 'full' ? <div className="player-download-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setDownloadsOpen(false); }}>
@@ -222,7 +239,7 @@ function clockTime(value: number): string {
 }
 
 function displayQuality(label: string): string {
-  return label.replace(/\s*\(premium\)/ig, '').replace(/\s*·\s*gratis/ig, '').trim() + ' · Gratis';
+  return label.replace(/\s*\(premium\)/ig, '').replace(/\s*·\s*gratis/ig, '').trim() || 'Sumber video';
 }
 
 function qualityClass(label: string): string {

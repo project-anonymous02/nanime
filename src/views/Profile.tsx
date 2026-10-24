@@ -38,16 +38,24 @@ export function Profile() {
 
   const [tab, setTab] = useState<'fav' | 'hist'>('fav');
   const [photo, setPhoto] = useState(false);
+  const [avatarBroken, setAvatarBroken] = useState(false);
   const [validatedSeconds, setValidatedSeconds] = useState<number | null>(null);
+  const [usageFailed, setUsageFailed] = useState(false);
+  const [usageRetry, setUsageRetry] = useState(0);
+
+  useEffect(() => setAvatarBroken(false), [user?.avatar]);
 
   useEffect(() => {
     let alive = true;
     setValidatedSeconds(null);
+    setUsageFailed(false);
     if (user?.id) void ownAppUsageSeconds().then(seconds => {
-      if (alive) setValidatedSeconds(seconds);
-    }).catch(() => undefined);
+      if (alive) { setValidatedSeconds(seconds); setUsageFailed(false); }
+    }).catch(() => {
+      if (alive) setUsageFailed(true);
+    });
     return () => { alive = false; };
-  }, [user?.id]);
+  }, [user?.id, usageRetry]);
 
   const seconds = validatedSeconds;
   const rank = rankFor(seconds || 0, developer);
@@ -71,7 +79,7 @@ export function Profile() {
 
       <div className="hn-profilehero">
         <button type="button" onClick={() => setPhoto(true)} className="hn-profilehero-avatarbtn" aria-label="Foto profil" style={{ position: 'relative' }}>
-          {user?.avatar ? <img className="hn-profilehero-avatar" src={user.avatar} alt="" referrerPolicy="no-referrer" /> : <span className="hn-profilehero-avatar hn-avatar-fallback"><Icon name="user" size={26} strokeWidth={2} /></span>}
+          {user?.avatar && !avatarBroken ? <img className="hn-profilehero-avatar" src={user.avatar} alt="" referrerPolicy="no-referrer" onError={() => setAvatarBroken(true)} /> : <span className="hn-profilehero-avatar hn-avatar-fallback"><Icon name="user" size={26} strokeWidth={2} /></span>}
           <span className="hn-iconbtn" style={{ position: 'absolute', right: -4, bottom: -4, width: 30, height: 30 }}>
             <Icon name="camera" size={12} strokeWidth={2.4} />
           </span>
@@ -88,7 +96,7 @@ export function Profile() {
         <div className="hn-rankcard-main">
           <div className="hn-rankcard-tier">
             {rankMeta.label}
-            <small>{seconds == null ? 'Penggunaan menunggu sinkron…' : `${formatUsage(seconds)} waktu aktif terdata`}</small>
+            <small>{seconds == null ? usageFailed ? 'Data aktivitas belum dapat dimuat' : 'Memuat data aktivitas…' : `${formatUsage(seconds)} waktu aktif terdata`}</small>
           </div>
           {rankProg?.next ? <div className="hn-rankbar"><div className="hn-rankbar-fill" style={{ width: `${Math.round(rankProg.used / rankProg.span * 100)}%` }} /></div> : null}
           {rankProg?.next ? (
@@ -97,6 +105,7 @@ export function Profile() {
               <span>{formatUsage(rankProg.next.minutes * 60 - (seconds || 0))} lagi → {rankProg.next.label}</span>
             </div>
           ) : <div className="hn-rankbar-label"><span>{rank === 'developer' ? 'Tier developer' : 'Tier tertinggi tercapai'}</span></div>}
+          {usageFailed ? <button type="button" className="hn-textbtn" onClick={() => setUsageRetry(value => value + 1)}>Coba muat ulang</button> : null}
         </div>
       </div>
 
@@ -197,30 +206,10 @@ export function Profile() {
         </div>
       )}
 
-      <Sheet open={photo} onClose={() => setPhoto(false)}>
+      <Sheet open={photo} onClose={() => setPhoto(false)} title="Foto Profil">
         <div style={{ padding: '6px 16px calc(18px + env(safe-area-inset-bottom))', display: 'grid', gap: 10 }}>
-          <h3 className="hn-sheettitle" style={{ padding: '4px 0 6px' }}>Foto Profil</h3>
-          {user?.avatar ? (
-            <button
-              type="button"
-              className="hn-menuitem"
-              onClick={() => {
-                window.open(user.avatar as string, '_blank', 'noopener');
-              }}
-            >
-              Ubah di Google
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="hn-menuitem"
-            onClick={() => {
-              setPhoto(false);
-              toast('Foto profil tersinkron dari akun Google', 'ok');
-            }}
-          >
-            Sinkronisasi Foto
-          </button>
+          <p className="hn-row-sub">Foto profil mengikuti akun Google dan tidak dapat diubah langsung di Nanime. Setelah menggantinya, masuk kembali agar perubahan tersinkron.</p>
+          <a className="hn-menuitem" href="https://myaccount.google.com/personal-info" target="_blank" rel="noreferrer">Buka setelan akun Google</a>
           <button type="button" className="hn-menuitem" onClick={() => setPhoto(false)}>
             Tutup
           </button>

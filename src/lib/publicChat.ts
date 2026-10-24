@@ -1,9 +1,10 @@
 import type { RankTier } from './rank';
+import { rankFor } from './rank';
 import { currentUserId } from '../state/auth';
 import { getClient } from './supabase';
 
 export interface PublicChatChannel { id: string; slug: string; name: string; sort_order: number; }
-export interface PublicChatProfile { id: string; username: string; avatar_url: string | null; rank: RankTier; is_developer: boolean; }
+export interface PublicChatProfile { id: string; username: string; avatar_url: string | null; rank: RankTier; is_developer: boolean; app_usage_seconds?: number; }
 export interface PublicChatMessage {
   id: string; channel_id: string; user_id: string; content: string; reply_to_id: string | null; created_at: string; profile?: PublicChatProfile;
 }
@@ -35,13 +36,13 @@ export async function listPublicChatMessages(channelId: string, limit = 100): Pr
     const result = await sb.rpc('get_public_profiles', { p_user_ids: ids });
     if (!result.error) for (const row of (result.data || []) as PublicChatProfile[]) {
       const developer = Boolean(row.is_developer);
-      const validRank = ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'developer'].includes(row.rank) ? row.rank : 'bronze';
+      const rank = rankFor(Number(row.app_usage_seconds) || 0, developer);
       people.set(row.id, {
         id: row.id,
         username: row.username || 'Pengguna Nanime',
         avatar_url: row.avatar_url || null,
         is_developer: developer,
-        rank: developer ? 'developer' : validRank as RankTier
+        rank
       });
     }
   }

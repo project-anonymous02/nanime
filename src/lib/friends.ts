@@ -1,7 +1,8 @@
 import { getClient } from './supabase';
 import { currentUserId } from '../state/auth';
+import { rankFor, type RankTier } from './rank';
 
-export interface FriendProfile { id: string; username: string; avatar_url: string | null; rank: string; }
+export interface FriendProfile { id: string; username: string; avatar_url: string | null; rank: RankTier; }
 export interface FriendRequest { id: string; requester_id: string; recipient_id: string; status: 'pending' | 'accepted' | 'declined'; created_at: string; person: FriendProfile; }
 export interface DirectMessage { id: string; sender_id: string; recipient_id: string; content: string; created_at: string; read_at: string | null; }
 
@@ -17,7 +18,12 @@ async function publicProfiles(ids: string[]): Promise<Map<string, FriendProfile>
   if (!unique.length) return new Map();
   const { data, error } = await client().rpc('get_public_profiles', { p_user_ids: unique });
   if (error) throw error;
-  return new Map(((data || []) as any[]).map(p => [p.id, { id: p.id, username: p.username || 'Pengguna', avatar_url: p.avatar_url || null, rank: p.rank || 'bronze' }]));
+  return new Map(((data || []) as any[]).map(p => [p.id, {
+    id: p.id,
+    username: p.username || 'Pengguna',
+    avatar_url: p.avatar_url || null,
+    rank: rankFor(Number(p.app_usage_seconds) || 0, Boolean(p.is_developer))
+  }]));
 }
 
 async function attachPeople(rows: any[], personId: (row: any) => string): Promise<FriendRequest[]> {
@@ -30,7 +36,12 @@ export async function searchPeople(query: string): Promise<FriendProfile[]> {
   if (value.length < 3) return [];
   const { data, error } = await client().rpc('search_nanime_profiles', { p_query: value });
   if (error) throw error;
-  return (data || []) as FriendProfile[];
+  return ((data || []) as any[]).map(person => ({
+    id: person.id,
+    username: person.username || 'Pengguna',
+    avatar_url: person.avatar_url || null,
+    rank: rankFor(Number(person.app_usage_seconds) || 0, Boolean(person.is_developer))
+  }));
 }
 
 export async function listFriendRequests(): Promise<{ friends: FriendRequest[]; incoming: FriendRequest[]; outgoing: FriendRequest[] }> {

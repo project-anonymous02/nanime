@@ -36,10 +36,10 @@ export function Sheet({
   if (!open) return null;
   return createPortal(
     <>
-      <div className="sheet-backdrop" onClick={onClose} />
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="grabber" />
-        {title ? <div className="sheet-title">{title}</div> : null}
+      <div className="hn-sheetmask" onClick={onClose} />
+      <div className="hn-sheet" role="dialog" aria-modal="true" aria-label={title}>
+        <span className="hn-sheetgrip" />
+        {title ? <div className="hn-sheethead"><span className="hn-sheettitle">{title}</span></div> : null}
         {children}
       </div>
     </>,
@@ -59,7 +59,7 @@ export function SheetItem({
   children: ReactNode;
 }) {
   return (
-    <button type="button" className="sheet-item ripple-host" onClick={onClick} style={danger ? { color: 'var(--accent-red)' } : undefined}>
+    <button type="button" className="hn-menuitem" onClick={onClick} style={danger ? { color: 'var(--accent-red)' } : undefined}>
       {icon}
       {children}
     </button>
@@ -80,9 +80,9 @@ export function Modal({
   useLock(open, onClose);
   if (!open) return null;
   return createPortal(
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}>
-        {title ? <h3>{title}</h3> : null}
+    <div className="hn-sheetmask" onClick={onClose} style={{ alignItems: 'center' }}>
+      <div className="hn-sheet" style={{ borderRadius: 'var(--r-xl)', margin: '0 18px' }} role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}>
+        {title ? <div className="hn-sheethead"><span className="hn-sheettitle">{title}</span></div> : null}
         {children}
       </div>
     </div>,
@@ -109,8 +109,8 @@ export function ConfirmModal({
 }) {
   return (
     <Modal open={open} onClose={onClose} title={title}>
-      <p>{message}</p>
-      <div className="modal-actions">
+      <p className="hn-state-sub" style={{ maxWidth: '100%', padding: '6px 16px 2px' }}>{message}</p>
+      <div className="hn-formactions" style={{ padding: '12px 16px calc(16px + env(safe-area-inset-bottom))' }}>
         <Button variant="ghost" onClick={onClose}>
           Batal
         </Button>
@@ -139,7 +139,7 @@ export function PhotoModal({
 }) {
   return (
     <Modal open={open} onClose={onClose} title="Foto Profil">
-      <div className="photo-modal">
+      <div style={{ padding: '0 16px calc(16px + env(safe-area-inset-bottom))' }}>
         {url ? <img src={url} alt="Foto profil" style={{ width: '100%', borderRadius: 'var(--r-md)', marginBottom: 14 }} /> : null}
         <Button
           variant="ghost"

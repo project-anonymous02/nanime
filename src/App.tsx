@@ -6,7 +6,6 @@ import { bindNativeDeepLink } from './lib/deeplink';
 import { bindNativeBackButton } from './lib/backButton';
 import { Shell } from './shell/Shell';
 import { ErrorBoundary } from './shell/ErrorBoundary';
-import { BrandMark } from './ui/icons';
 import { Toasts } from './ui/Toasts';
 import { AuthCallback } from './views/AuthCallback';
 import { Detail } from './views/Detail';
@@ -20,23 +19,20 @@ import { Schedule } from './views/Schedule';
 import { Search } from './views/Search';
 import { Genre } from './views/Genre';
 import { Settings } from './views/Settings';
-import { Community } from './views/Community';
 import { Friends } from './views/Friends';
-import { WatchPartyView } from './views/WatchParty';
-import { Games } from './views/Games';
 import { PublicProfile } from './views/PublicProfile';
-import { Affinity } from './views/Affinity';
 import { PublicChat } from './views/PublicChat';
 import { AnimeRanking } from './views/AnimeRanking';
 import { Leaderboard } from './views/Leaderboard';
 
 /** Akar aplikasi: inisialisasi sesi, deep-link, lalu gerbang masuk. */
 
+/** Lambar brand di layar boot memakai logo.jpg publik. */
 function BootScreen() {
   return (
     <div className="boot-screen">
       <div className="boot-inner">
-        <BrandMark size={54} />
+        <img src={`${import.meta.env.BASE_URL}logo.jpg`} alt="Nanime" width={72} height={72} />
         <span className="spinner-sm" role="status" aria-label="Menyiapkan Nanime" />
       </div>
     </div>
@@ -65,8 +61,6 @@ function Gate() {
         <Route path="/profile/:userId" element={<PublicProfile />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/notifications" element={<Notifications />} />
-        <Route path="/community" element={<Community />} />
-        <Route path="/socialline" element={<Navigate to="/community" replace />} />
         <Route path="/public-chat" element={<PublicChat />} />
         <Route path="/ranking/anime" element={<AnimeRanking />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
@@ -74,12 +68,6 @@ function Gate() {
         <Route path="/friends/search" element={<Friends />} />
         <Route path="/friends/:friendId" element={<Friends />} />
         <Route path="/chat/:friendId" element={<Friends />} />
-        <Route path="/affinity" element={<Affinity />} />
-        <Route path="/profile/affinity" element={<Navigate to="/affinity" replace />} />
-        <Route path="/watch-party" element={<WatchPartyView />} />
-        <Route path="/watch-party/:id" element={<WatchPartyView />} />
-        <Route path="/games" element={<Games />} />
-        <Route path="/anibi-games" element={<Navigate to="/games" replace />} />
         <Route path="/detail/:id" element={<Detail />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>

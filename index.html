@@ -15,30 +15,9 @@
 <link rel="apple-touch-icon" href="logo.jpg">
 <link rel="manifest" href="manifest.webmanifest">
 
-<style>
-/* Splash kritis — tampil sebelum bundle React dieksekusi (tanpa layout shift). */
-:root { color-scheme: dark; }
-html, body { margin: 0; padding: 0; background: #0E0F14; }
-#boot {
-  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 18px; background: #0E0F14; z-index: 9999;
-}
-#boot .ring {
-  width: 44px; height: 44px; border-radius: 50%;
-  border: 3px solid rgba(37, 99, 235, 0.18); border-top-color: #2563EB;
-  animation: bootspin 0.9s linear infinite; will-change: transform;
-}
-#boot .name { font: 800 15px/1 Roboto, system-ui, sans-serif; letter-spacing: 0.18em; color: #94A3B8; }
-@keyframes bootspin { to { transform: rotate(360deg); } }
-#boot.done { opacity: 0; transition: opacity 240ms ease-out; pointer-events: none; }
-</style>
 </head>
 <body>
 <div id="root"></div>
-<div id="boot">
-  <div class="ring"></div>
-  <div class="name">NANIME</div>
-</div>
 <noscript>Aktifkan JavaScript untuk memakai Nanime.</noscript>
 <script type="module" src="/src/main.tsx"></script>
 </body>

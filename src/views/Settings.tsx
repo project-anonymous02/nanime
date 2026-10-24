@@ -45,118 +45,133 @@ export function Settings() {
 
   return (
     <>
-      <h1 className="set-h1">Pengaturan</h1>
+      <header className="hn-pagehead">
+        <button type="button" className="hn-back" aria-label="Kembali" onClick={() => navigate(-1)}>
+          <Icon name="left" />
+        </button>
+        <h1 className="hn-pagehead-title">Pengaturan</h1>
+        <span style={{ width: 40 }} />
+      </header>
 
-      <button type="button" className="set-card set-prof" onClick={() => navigate('/profile')}>
-        <span className="set-avatar">
-          {user?.avatar ? <img src={user.avatar} alt="" referrerPolicy="no-referrer" /> : <span>{initial}</span>}
+      <button type="button" className="hn-menuitem" onClick={() => navigate('/profile')}>
+        <span className="hn-menuitem-icon">{user?.avatar ? <img src={user.avatar} alt="" referrerPolicy="no-referrer" style={{ width: 34, height: 34, borderRadius: 999, objectFit: 'cover' }} /> : <span style={{ fontWeight: 800 }}>{initial}</span>}</span>
+        <span>
+          <span style={{ display: 'block', color: 'var(--text-primary)' }}>{user?.name || 'Pengguna Nanime'}</span>
+          <span style={{ display: 'block', color: 'var(--text-muted)', fontWeight: 500, fontSize: 'var(--fs-small)' }}>{user?.email || 'Masuk dengan Google'}</span>
         </span>
-        <span className="set-id">
-          <span className="sr-title">{user?.name || 'Pengguna Nanime'}</span>
-          <span className="sr-sub">{user?.email || 'Masuk dengan Google'}</span>
-        </span>
-        <Icon name="right" size={16} strokeWidth={2.4} />
+        <span className="hn-menuitem-chevron"><Icon name="right" size={16} strokeWidth={2.4} /></span>
       </button>
 
-      <div className="set-card">
-        <div className="set-row">
-          <span className="sr-body">
-            <span className="sr-title">Ringkasan aktivitas</span>
-            <span className="sr-sub">
+      <div className="hn-rankcard">
+        <div className="hn-rankcard-main">
+          <span className="hn-rankcard-tier">
+            <span style={{ display: 'block' }}>Ringkasan aktivitas</span>
+            <small>
               {favorites.length} favorit • {history.length} riwayat
-            </span>
+            </small>
           </span>
-          <span className="set-val cyan">{pct}%</span>
+          <div className="hn-rankbar">
+            <div className="hn-rankbar-fill" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="hn-rankbar-label"><span>Episode selesai</span><span>{pct}%</span></span>
         </div>
-        <span className="set-bar">
-          <span className="set-fill" style={{ '--pct': pct / 100 } as React.CSSProperties} />
-        </span>
-        <span className="set-note">Episode selesai dari total riwayat tontonan</span>
       </div>
 
-      <p className="set-sec">Profil</p>
-      <div className="set-card">
-        <div className="set-row">
-          <span className="sr-body">
-            <span className="sr-title">Nama profil</span>
-            <span className="sr-sub">Mengikuti akun Google</span>
+      <div className="hn-section-head"><span className="hn-section-title">Profil</span></div>
+      <div className="hn-menulist">
+        <div className="hn-menuitem" style={{ color: 'var(--text-muted)' }}>
+          <span className="hn-menuitem-icon"><Icon name="user" size={16} /></span>
+          <span>
+            <span style={{ display: 'block', color: 'var(--text-primary)' }}>Nama profil</span>
+            <span style={{ display: 'block', color: 'var(--text-muted)', fontWeight: 500, fontSize: 'var(--fs-small)' }}>Mengikuti akun Google</span>
           </span>
-          <span className="set-val">
+          <span className="hn-menuitem-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             Terkunci
             <Icon name="lock" size={13} strokeWidth={2.2} />
           </span>
         </div>
-        <div className="set-row">
-          <span className="sr-body">
-            <span className="sr-title">Profil pribadi</span>
-            <span className="sr-sub">Terkunci untuk role ini.</span>
+        <div className="hn-menuitem" style={{ color: 'var(--text-muted)' }}>
+          <span className="hn-menuitem-icon"><Icon name="eye" size={16} /></span>
+          <span>
+            <span style={{ display: 'block', color: 'var(--text-primary)' }}>Profil pribadi</span>
+            <span style={{ display: 'block', color: 'var(--text-muted)', fontWeight: 500, fontSize: 'var(--fs-small)' }}>Terkunci untuk role ini.</span>
           </span>
           <Toggle on={false} label="Profil pribadi" onChange={() => undefined} />
         </div>
       </div>
 
-      <p className="set-sec">Pemutaran</p>
-      <div className="set-card">
-        <div className="set-row">
-          <span className="sr-body"><span className="sr-title">Auto play episode berikutnya</span><span className="sr-sub">Lanjutkan setelah video selesai.</span></span>
+      <div className="hn-section-head"><span className="hn-section-title">Pemutaran</span></div>
+      <div className="hn-menulist">
+        <div className="hn-menuitem" style={{ color: 'var(--text-muted)' }}>
+          <span>
+            <span style={{ display: 'block', color: 'var(--text-primary)' }}>Auto play episode berikutnya</span>
+            <span style={{ display: 'block', color: 'var(--text-muted)', fontWeight: 500, fontSize: 'var(--fs-small)' }}>Lanjutkan setelah video selesai.</span>
+          </span>
           <Toggle on={playback.autoplayNext} label="Auto play episode berikutnya" onChange={value => playback.patch({ autoplayNext: value })} />
         </div>
-        <div className="set-row">
-          <span className="sr-body"><span className="sr-title">Kontrol brightness &amp; volume</span><span className="sr-sub">Preferensi kontrol pemutar.</span></span>
+        <div className="hn-menuitem" style={{ color: 'var(--text-muted)' }}>
+          <span>
+            <span style={{ display: 'block', color: 'var(--text-primary)' }}>Kontrol brightness &amp; volume</span>
+            <span style={{ display: 'block', color: 'var(--text-muted)', fontWeight: 500, fontSize: 'var(--fs-small)' }}>Preferensi kontrol pemutar.</span>
+          </span>
           <Toggle on={playback.playerControls} label="Kontrol brightness dan volume" onChange={value => playback.patch({ playerControls: value })} />
         </div>
-        <div className="set-row">
-          <span className="sr-body"><span className="sr-title">Skip intro</span><span className="sr-sub">Lewati bagian awal sesuai durasi pilihan.</span></span>
+        <div className="hn-menuitem" style={{ color: 'var(--text-muted)' }}>
+          <span>
+            <span style={{ display: 'block', color: 'var(--text-primary)' }}>Skip intro</span>
+            <span style={{ display: 'block', color: 'var(--text-muted)', fontWeight: 500, fontSize: 'var(--fs-small)' }}>Lewati bagian awal sesuai durasi pilihan.</span>
+          </span>
           <Toggle on={playback.skipIntro} label="Skip intro" onChange={value => playback.patch({ skipIntro: value })} />
         </div>
-        <label className="set-row" htmlFor="default-quality">
-          <span className="sr-body"><span className="sr-title">Kualitas default</span><span className="sr-sub">Preferensi untuk pemutaran berikutnya.</span></span>
-          <select id="default-quality" className="set-select" value={playback.defaultQuality} onChange={event => playback.patch({ defaultQuality: event.target.value as '480p' | '720p' | '1080p' })}>
+        <label className="hn-field" htmlFor="default-quality">
+          <span className="hn-label">Kualitas default — preferensi untuk pemutaran berikutnya.</span>
+          <select id="default-quality" className="hn-select" value={playback.defaultQuality} onChange={event => playback.patch({ defaultQuality: event.target.value as '480p' | '720p' | '1080p' })}>
             <option value="1080p">1080p</option><option value="720p">720p</option><option value="480p">480p</option>
           </select>
         </label>
-        <label className="set-row" htmlFor="intro-duration">
-          <span className="sr-body"><span className="sr-title">Durasi intro default</span><span className="sr-sub">Batas waktu sebelum intro dianggap selesai.</span></span>
-          <select id="intro-duration" className="set-select" value={playback.introDuration} onChange={event => playback.patch({ introDuration: Number(event.target.value) })}>
+        <label className="hn-field" htmlFor="intro-duration">
+          <span className="hn-label">Durasi intro default — batas waktu sebelum intro dianggap selesai.</span>
+          <select id="intro-duration" className="hn-select" value={playback.introDuration} onChange={event => playback.patch({ introDuration: Number(event.target.value) })}>
             {[60, 75, 85, 90, 100].map(seconds => <option key={seconds} value={seconds}>{seconds} detik</option>)}
           </select>
         </label>
       </div>
 
-      <p className="set-sec">Penyimpanan</p>
-      <div className="set-card">
-        <button type="button" className="set-row" onClick={clearCache}>
-          <span className="sr-body">
-            <span className="sr-title">Cache gambar &amp; efek</span>
-            <span className="sr-sub">Hapus salinan data sementara</span>
+      <div className="hn-section-head"><span className="hn-section-title">Penyimpanan</span></div>
+      <div className="hn-menulist">
+        <button type="button" className="hn-menuitem" onClick={clearCache}>
+          <span className="hn-menuitem-icon"><Icon name="trash" size={16} /></span>
+          <span>
+            <span style={{ display: 'block', color: 'var(--text-primary)' }}>Cache gambar &amp; efek</span>
+            <span style={{ display: 'block', color: 'var(--text-muted)', fontWeight: 500, fontSize: 'var(--fs-small)' }}>Hapus salinan data sementara</span>
           </span>
-          <span className="set-val">
+          <span className="hn-menuitem-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {cacheMb} MB
             <Icon name="right" size={14} strokeWidth={2.4} />
           </span>
         </button>
       </div>
 
-      <p className="set-sec">Aplikasi</p>
-      <div className="set-card">
-        <div className="set-row">
-          <span className="sr-body">
-            <span className="sr-title">Versi aplikasi</span>
-          </span>
-          <span className="set-val">Nanime v2.0.0 (2)</span>
+      <div className="hn-section-head"><span className="hn-section-title">Aplikasi</span></div>
+      <div className="hn-menulist">
+        <div className="hn-menuitem" style={{ color: 'var(--text-muted)' }}>
+          <span className="hn-menuitem-icon"><Icon name="phone" size={16} /></span>
+          <span style={{ color: 'var(--text-primary)' }}>Versi aplikasi</span>
+          <span className="hn-menuitem-badge">Nanime v2.0.0 (2)</span>
         </div>
-        <div className="set-row">
-          <span className="sr-body">
-            <span className="sr-title">Developer</span>
-          </span>
-          <span className="set-val">Nata</span>
+        <div className="hn-menuitem" style={{ color: 'var(--text-muted)' }}>
+          <span className="hn-menuitem-icon"><Icon name="star" size={16} /></span>
+          <span style={{ color: 'var(--text-primary)' }}>Developer</span>
+          <span className="hn-menuitem-badge">Nata</span>
         </div>
       </div>
 
-      <button type="button" className="set-logout" onClick={() => setConfirmOut(true)}>
-        <Icon name="logout" size={18} strokeWidth={2.2} />
-        Keluar
-      </button>
+      <div className="hn-formactions" style={{ marginTop: 18 }}>
+        <button type="button" className="hn-ghostbtn" style={{ width: '100%', color: 'var(--accent-pink)' }} onClick={() => setConfirmOut(true)}>
+          <Icon name="logout" size={18} strokeWidth={2.2} />
+          Keluar
+        </button>
+      </div>
 
       <ConfirmModal
         open={confirmOut}

@@ -80,9 +80,9 @@
   --nav-h: 64px;
   --tap: 44px;
 
-  /* ── Tipografi (Roboto bundled AniBiPlay) ── */
-  --font: 'AniBiRoboto', Roboto, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'AniBiDisplay', 'AniBiRoboto', Roboto, sans-serif;
+  /* ── Tipografi (font ter-bundel referensi mobinime) ── */
+  --font: 'Mobinime', Roboto, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Mobinime', Roboto, sans-serif;
   --fs-hero: 34px;
   --fs-title: 28px;
   --fs-card: 13px;

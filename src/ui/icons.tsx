@@ -460,7 +460,7 @@ export function GoogleLogo({ size = 22 }: { size?: number }) {
 export function BrandMark({ size = 40 }: { size?: number }) {
   return (
     <img
-      className="brand-mark"
+      
       src={import.meta.env.BASE_URL + 'logo.jpg'}
       width={size}
       height={size}

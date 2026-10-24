@@ -40,13 +40,13 @@ function shortDate(ts: number): string {
 }
 
 function Progress({ item }: { item: HistoryItem }) {
-  const pct = Math.min(1, Math.max(0, item.percent || 0));
+  const pct = Math.min(100, Math.max(0, Math.round(item.percent || 0)));
   return (
-    <span className="hist-progress">
-      <span className="hp-bar">
-        <span className="hp-fill" style={{ '--pct': pct } as React.CSSProperties} />
+    <span className="hn-card-meta" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+      <span className="hn-progressbar" style={{ position: 'static', flex: 1, marginTop: 0 }}>
+        <span className="hn-progressbar-fill" style={{ width: `${pct}%` }} />
       </span>
-      <span className="hp-time">
+      <span style={{ whiteSpace: 'nowrap' }}>
         {mmss(item.positionSec)} / {mmss(item.durationSec)}
       </span>
     </span>
@@ -130,98 +130,102 @@ export function History() {
     toast('Riwayat terpilih dihapus', 'ok');
   };
 
+  const SelDot = ({ on }: { on: boolean }) => (
+    <span
+      style={{
+        width: 20, height: 20, borderRadius: 999, flexShrink: 0,
+        display: 'grid', placeItems: 'center', border: '2px solid var(--border-strong)',
+        background: on ? 'var(--accent-primary)' : 'transparent', color: '#fff'
+      }}
+    >
+      {on ? <Icon name="check" size={12} strokeWidth={3} /> : null}
+    </span>
+  );
+
   return (
     <>
-      <div className="hist-head">
-        <h1 className="hist-title">Riwayat Menonton</h1>
+      <header className="hn-pagehead">
+        <button type="button" className="hn-back" aria-label="Kembali" onClick={() => navigate(-1)}>
+          <Icon name="left" />
+        </button>
+        <h1 className="hn-pagehead-title">Riwayat Menonton</h1>
         {history.length ? (
-          <button type="button" className="ibtn hist-trash ripple-host" aria-label="Bersihkan riwayat" onClick={() => setConfirmClear(true)}>
+          <button type="button" className="hn-iconbtn" aria-label="Bersihkan riwayat" onClick={() => setConfirmClear(true)}>
             <Icon name="trash" size={17} />
           </button>
-        ) : null}
-      </div>
-      <p className="hist-sub">Tahan series untuk pilih &amp; hapus</p>
+        ) : <span style={{ width: 40 }} />}
+      </header>
+      <p className="hn-profilehero-sub" style={{ textAlign: 'center', paddingBottom: 8 }}>Tahan series untuk pilih &amp; hapus</p>
 
       {mode === 'single'
         ? grouped.map(g => (
-            <section className="hist-group" key={g.label}>
-              <span className="hist-chip">{g.label}</span>
-              <span className="hist-tick" />
-              {g.items.map(h => {
-                const k = keyOf(h);
-                const on = sel.has(k);
-                return (
-                  <button
-                    type="button"
-                    className={'hist-single' + (selecting && on ? ' on' : '')}
-                    key={k}
-                    onPointerDown={startPress}
-                    onPointerUp={cancelPress}
-                    onPointerLeave={cancelPress}
-                    onClick={() => activate(h)}
-                  >
-                    {selecting ? (
-                      <span className={'hist-check' + (on ? ' on' : '')}>
-                        {on ? <Icon name="check" size={13} strokeWidth={3} /> : null}
+            <section className="hn-section" key={g.label}>
+              <div className="hn-section-head"><span className="hn-section-title">{g.label}</span></div>
+              <div className="hn-rowlist">
+                {g.items.map(h => {
+                  const k = keyOf(h);
+                  const on = sel.has(k);
+                  return (
+                    <button
+                      type="button"
+                      className="hn-row"
+                      key={k}
+                      onPointerDown={startPress}
+                      onPointerUp={cancelPress}
+                      onPointerLeave={cancelPress}
+                      onClick={() => activate(h)}
+                    >
+                      {selecting ? <SelDot on={on} /> : null}
+                      <span className="hn-card-poster" style={{ width: 66, borderRadius: 8, flexShrink: 0 }}>
+                        <SmartImage src={h.poster} alt={h.title} />
                       </span>
-                    ) : null}
-                    <span className="hs-thumb">
-                      <SmartImage src={h.poster} alt={h.title} />
-                    </span>
-                    <span className="hs-body">
-                      <span className="hs-title clamp-2">{h.title}</span>
-                      <span className="hs-sub">
-                        Episode {h.episode} • {g.label}
+                      <span className="hn-row-main">
+                        <span className="hn-row-title">{h.title}</span>
+                        <span className="hn-row-sub">Episode {h.episode} • {g.label}</span>
+                        <Progress item={h} />
                       </span>
-                      <Progress item={h} />
-                    </span>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </section>
           ))
         : series.map(s => (
-            <section className="hist-multi" key={s.animeId}>
-              <button type="button" className="hm-head" onClick={() => navigate(detailPath(s.animeId, s.title))}>
-                <span className="hm-thumb">
+            <section className="hn-section" key={s.animeId}>
+              <button type="button" className="hn-row" style={{ width: 'calc(100% - 32px)', margin: '0 16px 8px' }} onClick={() => navigate(detailPath(s.animeId, s.title))}>
+                <span className="hn-card-poster" style={{ width: 66, borderRadius: 8, flexShrink: 0 }}>
                   <SmartImage src={s.poster} alt={s.title} />
                 </span>
-                <span className="hm-id">
-                  <span className="hm-title clamp-2">{s.title}</span>
-                  <span className="hm-chip">{s.items.length} episode</span>
+                <span className="hn-row-main">
+                  <span className="hn-row-title">{s.title}</span>
+                  <span className="hn-row-sub">{s.items.length} episode</span>
                 </span>
+                <Icon name="right" size={15} />
               </button>
-              {s.items.map(h => {
-                const k = keyOf(h);
-                const on = sel.has(k);
-                return (
-                  <button
-                    type="button"
-                    className={'hm-row' + (selecting && on ? ' on' : '')}
-                    key={k}
-                    onPointerDown={startPress}
-                    onPointerUp={cancelPress}
-                    onPointerLeave={cancelPress}
-                    onClick={() => activate(h)}
-                  >
-                    {selecting ? (
-                      <span className={'hist-check' + (on ? ' on' : '')}>
-                        {on ? <Icon name="check" size={13} strokeWidth={3} /> : null}
+              <div className="hn-rowlist">
+                {s.items.map(h => {
+                  const k = keyOf(h);
+                  const on = sel.has(k);
+                  return (
+                    <button
+                      type="button"
+                      className="hn-row"
+                      key={k}
+                      onPointerDown={startPress}
+                      onPointerUp={cancelPress}
+                      onPointerLeave={cancelPress}
+                      onClick={() => activate(h)}
+                    >
+                      {selecting ? <SelDot on={on} /> : null}
+                      <span className="hn-row-main">
+                        <span className="hn-row-title">Episode {h.episode}</span>
+                        <span className="hn-row-sub">{shortDate(h.watchedAt)}</span>
+                        <Progress item={h} />
                       </span>
-                    ) : null}
-                    <span className="hm-rail">
-                      <span className="hm-dot" />
-                    </span>
-                    <span className="hm-body">
-                      <span className="hm-line">
-                        <span className="hm-ep">Episode {h.episode}</span>
-                        <span className="hm-date">{shortDate(h.watchedAt)}</span>
-                      </span>
-                      <Progress item={h} />
-                    </span>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </section>
           ))}
 
@@ -230,20 +234,17 @@ export function History() {
       ) : null}
 
       {history.length ? (
-        <div className="hist-mode">
-          <button type="button" className={'hm-seg' + (mode === 'single' ? ' on' : '')} onClick={() => setMode('single')}>
-            SINGLE
-          </button>
-          <button type="button" className={'hm-seg' + (mode === 'multi' ? ' on' : '')} onClick={() => setMode('multi')}>
-            MULTI
-          </button>
+        <div className="hn-chiprow" style={{ justifyContent: 'center', marginTop: 16 }}>
+          <button type="button" className={`hn-chip${mode === 'single' ? ' hn-active' : ''}`} onClick={() => setMode('single')}>SINGLE</button>
+          <button type="button" className={`hn-chip${mode === 'multi' ? ' hn-active' : ''}`} onClick={() => setMode('multi')}>MULTI</button>
         </div>
       ) : null}
 
       {selecting ? (
-        <div className="action-bar">
+        <div className="hn-formactions" style={{ marginTop: 16 }}>
           <Button
             variant="ghost"
+            style={{ flex: 1 }}
             onClick={() => {
               setSelecting(false);
               setSel(new Set());
@@ -251,7 +252,7 @@ export function History() {
           >
             Batal
           </Button>
-          <Button variant="danger" disabled={!sel.size} onClick={doRemove}>
+          <Button variant="danger" style={{ flex: 1 }} disabled={!sel.size} onClick={doRemove}>
             Hapus ({sel.size})
           </Button>
         </div>

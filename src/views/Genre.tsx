@@ -59,14 +59,14 @@ export function Genre() {
   };
 
   return (
-    <div className="page">
-      <header className="topbar genre-topbar">
-        <button type="button" className="ibtn back-btn ripple-host" aria-label="Kembali" onClick={() => navigate(-1)}>
+    <div>
+      <header className="hn-pagehead">
+        <button type="button" className="hn-back" aria-label="Kembali" onClick={() => navigate(-1)}>
           <Icon name="left" />
         </button>
-        <div className="genre-heading">
-          <h1 className="genre-title">{title}</h1>
-          <p className="genre-sub">{items ? items.length + ' judul' : 'Genre anime'}</p>
+        <div style={{ flex: 1 }}>
+          <h1 className="hn-pagehead-title">{title}</h1>
+          <p className="hn-profilehero-sub">{items ? items.length + ' judul' : 'Genre anime'}</p>
         </div>
       </header>
 
@@ -83,8 +83,8 @@ export function Genre() {
             ))}
           </Grid>
           {hasNext ? (
-            <div className="genre-more">
-              <button type="button" className="btn ghost" onClick={() => void loadMore()} disabled={loadingMore}>
+            <div style={{ display: 'grid', placeItems: 'center', padding: 20 }}>
+              <button type="button" className="hn-ghostbtn" onClick={() => void loadMore()} disabled={loadingMore}>
                 {loadingMore ? 'Memuat…' : 'Muat lebih banyak'}
               </button>
             </div>

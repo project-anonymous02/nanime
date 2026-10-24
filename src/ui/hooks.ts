@@ -9,7 +9,6 @@ export function useRipple<T extends HTMLElement>() {
     const rect = host.getBoundingClientRect();
     const size = Math.max(rect.width, rect.height) * 2.2;
     const ink = document.createElement('span');
-    ink.className = 'ripple-ink';
     ink.style.width = size + 'px';
     ink.style.height = size + 'px';
     ink.style.left = e.clientX - rect.left + 'px';
@@ -20,13 +19,13 @@ export function useRipple<T extends HTMLElement>() {
   return onPointerDown;
 }
 
-/** Tandai `.reveal` di dalam kontainer agar muncul saat masuk viewport. */
+/** Tandai elemen di dalam kontainer agar muncul saat masuk viewport. */
 export function useReveal<T extends HTMLElement>(deps: unknown[] = []) {
   const ref = useRef<T | null>(null);
   useEffect(() => {
     const root = ref.current;
     if (!root || typeof IntersectionObserver === 'undefined') {
-      root?.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+      root?.querySelectorAll('[data-reveal]').forEach(el => el.classList.add('in'));
       return;
     }
     const io = new IntersectionObserver(
@@ -40,7 +39,7 @@ export function useReveal<T extends HTMLElement>(deps: unknown[] = []) {
       },
       { rootMargin: '0px 0px -6% 0px', threshold: 0.05 }
     );
-    root.querySelectorAll('.reveal:not(.in)').forEach(el => io.observe(el));
+    root.querySelectorAll('[data-reveal]:not(.in)').forEach(el => io.observe(el));
     return () => io.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);

@@ -4,7 +4,6 @@ import { profile as remoteProfile } from '../lib/remote';
 import { useLibrary } from './library';
 import { useSettings } from './settings';
 import { CacheManager } from '../core/services/CacheManager';
-import { useWatchParty } from './watchParty';
 
 /**
  * Auth — login Google WAJIB sebelum konten bisa diakses (tanpa mode tamu).
@@ -73,7 +72,6 @@ async function applySession(session: { user?: any } | null): Promise<void> {
       /* Akun berganti/keluar: bersihkan data pengguna sebelumnya. */
       useLibrary.getState().purge();
       useSettings.getState().reset();
-      useWatchParty.getState().clear();
     }
     lastUserId = null;
     useAuth.setState({ signedIn: false, user: null });
@@ -244,7 +242,6 @@ export async function signOutUser(): Promise<void> {
   lastUserId = null;
   useLibrary.getState().purge();
   useSettings.getState().reset();
-  useWatchParty.getState().clear();
   useAuth.setState({ signedIn: false, user: null });
   CacheManager.clear();
 }

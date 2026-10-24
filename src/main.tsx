@@ -14,8 +14,3 @@ if (host) {
     </StrictMode>
   );
 }
-const boot = document.getElementById('boot');
-if (boot) {
-  boot.classList.add('done');
-  window.setTimeout(() => boot.remove(), 320);
-}

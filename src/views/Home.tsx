@@ -12,17 +12,12 @@ import { usePullToRefresh } from '../ui/hooks';
 import { PullToRefreshIndicator } from '../ui/PullToRefresh';
 import { SmartImage } from '../ui/SmartImage';
 import { detailPath, genrePath } from '../lib/nav';
-import { getClient } from '../lib/supabase';
 import { filterSubscribedUpdates, subscriptionUpdateId } from '../lib/subscriptions';
-import { leaderboard, listRepliesToOwnComments, type CommunityProfile } from '../lib/community';
-import { loadAffinityLeaderboard, type AffinityLeaderboardRow } from '../lib/affinity';
+import { leaderboard, type CommunityProfile } from '../lib/community';
 import { listPublicChatChannels, listPublicChatMessages } from '../lib/publicChat';
 import { CommunityAvatar } from '../ui/CommunityAvatar';
-import { isNanimeDeveloper, DEVELOPER_LEVEL } from '../lib/developer';
-import { RankInsignia } from '../ui/RankInsignia';
-import { AffinityMark } from '../ui/AffinityMark';
 
-/** Beranda gaya AnibiPlay: kartu profil, leaderboard carousel, search, lalu rail/grid konten. */
+/** Beranda: kartu profil, hero, leaderboard, lalu rail/grid konten. */
 
 const GENRES = [
   'Action', 'Adult Cast', 'Adventure', 'Avant Garde', 'Award Winning', 'Comedy', 'Demons', 'Drama', 'Ecchi',
@@ -39,12 +34,9 @@ export function Home() {
   const favorites = useLibrary(s => s.favorites);
 
   const [feed, setFeed] = useState<HomeFeed | null>(null);
-  const [commentReplyIds, setCommentReplyIds] = useState<string[]>([]);
   const [error, setError] = useState(false);
   const [slide, setSlide] = useState(0);
-  const [crystals, setCrystals] = useState<number | null>(null);
   const [communityLeaders, setCommunityLeaders] = useState<CommunityProfile[]>([]);
-  const [affinityLeaders, setAffinityLeaders] = useState<AffinityLeaderboardRow[]>([]);
   const [latestPublicMessage, setLatestPublicMessage] = useState<{ content: string; username: string } | null>(null);
   const [searchPinned, setSearchPinned] = useState(false);
 
@@ -77,24 +69,13 @@ export function Home() {
     return () => homeRequest.current?.abort();
   }, [load]);
 
-  // AniBiPlay shows the search field as a pinned overlay after the home header
-  // has scrolled away; it does not occupy space in the initial home layout.
+  // Search field pinned setelah header bergulir menjauh.
   useEffect(() => {
     const update = () => setSearchPinned(window.scrollY > 220);
     update();
     window.addEventListener('scroll', update, { passive: true });
     return () => window.removeEventListener('scroll', update);
   }, []);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    let alive = true;
-    const client = getClient();
-    if (!client) return;
-    void Promise.resolve(client.from('nanime_game_wallets').select('crystals').eq('user_id', user.id).maybeSingle())
-      .then(({ data, error: walletError }) => { if (alive && !walletError) setCrystals(Number(data?.crystals || 0)); }).catch(() => undefined);
-    return () => { alive = false; };
-  }, [user?.id]);
 
   useEffect(() => {
     let alive = true;
@@ -104,11 +85,10 @@ export function Home() {
       const message = rows[0];
       return message ? { content: message.content, username: message.profile?.username || 'Pengguna Nanime' } : null;
     };
-    void Promise.allSettled([leaderboard(), loadAffinityLeaderboard(), latestMessage()]).then(results => {
+    void Promise.allSettled([leaderboard(10), latestMessage()]).then(results => {
       if (!alive) return;
       if (results[0].status === 'fulfilled') setCommunityLeaders(results[0].value);
-      if (results[1].status === 'fulfilled') setAffinityLeaders(results[1].value);
-      if (results[2].status === 'fulfilled') setLatestPublicMessage(results[2].value);
+      if (results[1].status === 'fulfilled') setLatestPublicMessage(results[1].value);
     });
     return () => { alive = false; };
   }, [user?.id]);
@@ -127,26 +107,17 @@ export function Home() {
 
   const ranked = feed?.weekly ?? [];
   const heroes = useMemo(() => ranked.slice(0, 2), [ranked]);
-  const pages = (communityLeaders.length || affinityLeaders.length ? 1 : 0) + heroes.length;
+  const pages = (communityLeaders.length ? 1 : 0) + heroes.length;
   const next = continueList[0];
 
   const openCard = (c: AggregatedCard) => navigate(detailPath(c.canonicalId, c.title));
   const firstName = (user?.name || 'Sobat Anime').split(' ')[0];
-  const developer = isNanimeDeveloper(user?.email);
   const fresh = useMemo(() => filterSubscribedUpdates(feed?.newUpdate || [], favorites), [feed?.newUpdate, favorites]);
   const notifRead = useNotifications(s => s.read);
   const notifRemoved = useNotifications(s => s.removed);
-  useEffect(() => {
-    let alive = true;
-    const refresh = () => { void listRepliesToOwnComments().then(rows => { if (alive) setCommentReplyIds(rows.map(row => `reply:${row.id}`)); }).catch(() => { if (alive) setCommentReplyIds([]); }); };
-    refresh();
-    const interval = window.setInterval(refresh, 60_000);
-    return () => { alive = false; window.clearInterval(interval); };
-  }, [user?.id]);
   const unreadNotifs = useMemo(
-    () => fresh.filter(c => { const id = subscriptionUpdateId(c); return !notifRead.includes(id) && !notifRemoved.includes(id); }).length
-      + commentReplyIds.filter(id => !notifRead.includes(id) && !notifRemoved.includes(id)).length,
-    [fresh, commentReplyIds, notifRead, notifRemoved]
+    () => fresh.filter(c => { const id = subscriptionUpdateId(c); return !notifRead.includes(id) && !notifRemoved.includes(id); }).length,
+    [fresh, notifRead, notifRemoved]
   );
 
   const onCarScroll = () => {
@@ -161,39 +132,32 @@ export function Home() {
     <>
       <PullToRefreshIndicator state={pull} />
 
-      <header className="home-hero">
-        <div className="uh-top">
-          <button type="button" className="uh-left" aria-label="Buka profil" onClick={() => navigate('/profile')}>
+      <header className="hn-homehead">
+        <div className="hn-homehead-user">
+          <button type="button" className="hn-avatarrow" aria-label="Buka profil" onClick={() => navigate('/profile')}>
             {user?.avatar ? (
-              <img className="uh-avatar" src={user.avatar} alt="" referrerPolicy="no-referrer" />
+              <img className="hn-avatar" src={user.avatar} alt="" referrerPolicy="no-referrer" />
             ) : (
-              <span className="uh-avatar ph">
+              <span className="hn-avatar hn-avatar-fallback">
                 <Icon name="user" size={18} strokeWidth={2} />
               </span>
             )}
-            <div className="uh-id">
-              <span className="uh-name-row">
-                <span className="uh-name ellipsis">{user?.name || firstName}</span>
-                {developer ? <span className="uh-user-number">#1</span> : null}
-              </span>
-              <span className="uh-chip">{developer ? <><RankInsignia rank="developer" size={16} />Lvl. {DEVELOPER_LEVEL}</> : <><Icon name="starFill" size={10} strokeWidth={0} />{history.length} ditonton</>}</span>
+            <div className="hn-homehead-stats">
+              <span className="hn-homehead-name">{user?.name || firstName}</span>
+              <span className="hn-homehead-sub"><Icon name="starFill" size={10} strokeWidth={0} />{history.length} ditonton</span>
             </div>
           </button>
-          <div className="uh-actions">
-            <div className="bell-wrap">
-              <button type="button" className="ibtn glow ripple-host" aria-label="Notifikasi" onClick={() => navigate('/notifications')}>
-                <Icon name="bellFill" strokeWidth={0} />
-              </button>
-              {unreadNotifs ? <span className="bell-dot">{Math.min(unreadNotifs, 9)}</span> : null}
-            </div>
-            <button type="button" className="ibtn glow ripple-host" aria-label="Cari" onClick={() => navigate('/search')}>
-              <Icon name="search" />
-            </button>
-          </div>
         </div>
-        <div className="uh-stats">
-          <button type="button" className="uh-crystal" onClick={() => navigate('/games')}><Icon name="sparkles" size={12} /> {crystals == null ? 'Crystal' : crystals.toLocaleString('id-ID') + ' Crystal'}</button>
-          <button type="button" className="uh-games" onClick={() => navigate('/games')}><Icon name="sparkles" size={12} /> Nanime Games</button>
+        <div className="hn-homehead-actions">
+          <div className="hn-notifwrap">
+            <button type="button" className="hn-iconbtn" aria-label="Notifikasi" onClick={() => navigate('/notifications')}>
+              <Icon name="bellFill" strokeWidth={0} />
+            </button>
+            {unreadNotifs ? <span className="hn-dot" style={{ position: 'absolute', top: 6, right: 6 }}>{null}</span> : null}
+          </div>
+          <button type="button" className="hn-iconbtn" aria-label="Cari" onClick={() => navigate('/search')}>
+            <Icon name="search" />
+          </button>
         </div>
       </header>
 
@@ -211,98 +175,76 @@ export function Home() {
         <>
           <OfflineBar show={feed.stale} />
 
-          <button
-            type="button"
-            className="home-next-banner anim-up"
-            onClick={() => (next ? navigate(detailPath(next.animeId, next.title)) : navigate('/games'))}
-          >
-            <span className="pb-free-icon"><Icon name="bell" size={18} strokeWidth={2.2} /></span>
-            <span className="pb-left">
-              <span className="pb-title">SEMUA FITUR GRATIS</span>
-              <span className="pb-sub ellipsis">{next ? `Lanjutkan ${next.title}` : 'Anime, player, dan fitur komunitas terbuka untuk semua'}</span>
-            </span>
-          </button>
-
           {pages ? (
-            <div className="anim-up">
-              <div className="car-track no-scrollbar" ref={carRef} onScroll={onCarScroll}>
-                {(communityLeaders.length || affinityLeaders.length) ? <div className="car-page">
-                  <div className="board-card">
-                    <button type="button" className="board-head" onClick={() => navigate('/leaderboard')}>
-                      <Icon name="crown" size={14} strokeWidth={0} />
-                      TOP LEADERBOARD
+            <div>
+              <div className="hn-hero-track no-scrollbar" ref={carRef} onScroll={onCarScroll}>
+                {communityLeaders.length ? <div className="hn-page" style={{ scrollSnapAlign: 'center', width: '100%' }}>
+                  <div className="hn-rowlist">
+                    <button type="button" className="hn-menuitem" onClick={() => navigate('/leaderboard')}>
+                      <span className="hn-menuitem-icon"><Icon name="crown" size={16} strokeWidth={0} /></span>
+                      <span className="hn-row-main">
+                        <span className="hn-row-title">Leaderboard Waktu Aktif</span>
+                        <span className="hn-row-sub">Pengguna paling aktif menonton</span>
+                      </span>
+                      <Icon name="right" size={16} />
                     </button>
-                    <div className="board-cols">
-                      <div className="board-col">
-                        <button type="button" className="board-label" onClick={() => navigate('/leaderboard')}>
-                          <Icon name="chart" size={12} strokeWidth={2.2} />
-                          Waktu aktif
-                        </button>
-                        {communityLeaders.slice(0, 4).map((person, i) => <button type="button" className="board-row" key={person.id} onClick={() => navigate(`/profile/${person.id}`)}>
-                          <span className={'board-rank r' + (i + 1)}>{i + 1}</span><CommunityAvatar name={person.username} src={person.avatar_url} /><span className="board-name ellipsis">{person.username}</span><span className="board-val">{Math.floor(person.app_usage_seconds / 3600)}j</span>
-                        </button>)}
-                        {!communityLeaders.length ? <span className="board-empty">Belum ada data</span> : null}
-                      </div>
-                      <div className="board-col">
-                        <button type="button" className="board-label" onClick={() => navigate('/affinity')}>
-                          <Icon name="starFill" size={12} strokeWidth={0} />
-                          Top Afinitas
-                        </button>
-                        {affinityLeaders.slice(0, 4).map((bond, i) => <button type="button" className="board-row affinity-board-row" key={bond.bond_id} onClick={() => navigate('/affinity')}>
-                          <span className={'board-rank r' + (i + 1)}>{i + 1}</span><AffinityMark tier={bond.tier} size={16} active /><span className="board-name ellipsis">{bond.user_a.username} &amp; {bond.user_b.username}</span><span className="board-val">{bond.xp} XP</span>
-                        </button>)}
-                        {!affinityLeaders.length ? <span className="board-empty">Belum ada pasangan</span> : null}
-                      </div>
+                    <div className="hn-rowlist" style={{ gap: 8 }}>
+                      {communityLeaders.slice(0, 4).map((person, i) => <button type="button" className="hn-row" key={person.id} onClick={() => navigate(`/profile/${person.id}`)}>
+                        <span className={`hn-ranknum${i === 0 ? ' hn-top' : i === 1 ? ' hn-second' : i === 2 ? ' hn-third' : ''}`}>{i + 1}</span>
+                        <CommunityAvatar name={person.username} src={person.avatar_url} />
+                        <span className="hn-row-main">
+                          <span className="hn-row-title">{person.username}</span>
+                          <span className="hn-row-sub">{Math.floor(person.app_usage_seconds / 3600)} jam aktif</span>
+                        </span>
+                      </button>)}
+                      {!communityLeaders.length ? <span className="hn-row-sub" style={{ padding: '4px 6px' }}>Belum ada data</span> : null}
                     </div>
                   </div>
                 </div> : null}
                 {heroes.map(c => (
-                  <div className="car-page" key={c.canonicalId}>
-                    <button type="button" className="hero-card" onClick={() => openCard(c)} aria-label={c.title}>
-                      <SmartImage src={c.poster} animeId={c.canonicalId} alt={c.title} />
-                      <span className="hero-shade" />
+                  <div className="hn-hero" key={c.canonicalId} style={{ width: '100%', scrollSnapAlign: 'center' }}>
+                    <button type="button" onClick={() => openCard(c)} aria-label={c.title} style={{ width: '100%', display: 'block' }}>
+                      <SmartImage className="hn-hero-img" src={c.poster} animeId={c.canonicalId} alt={c.title} />
+                      <span className="hn-hero-scrim" />
                       {c.views ? (
-                        <span className="hero-views">
+                        <span className="hn-hero-views">
                           <Icon name="play" size={10} strokeWidth={0} />
                           {c.views}
                         </span>
                       ) : null}
-                      {c.rank ? <span className="hero-rank">#{c.rank}</span> : null}
-                      <span className="hero-title clamp-2">{c.title}</span>
+                      {c.rank ? <span className="hn-hero-rank">#{c.rank}</span> : null}
+                      <span className="hn-hero-title">{c.title}</span>
                     </button>
                   </div>
                 ))}
               </div>
-              <div className="car-dots">
+              <div className="hn-hero-dots">
                 {Array.from({ length: pages }).map((_, i) => (
-                  <span key={i} className={'car-dot' + (slide === i ? ' on' : '')} />
+                  <span key={i} className={`hn-hero-dot${slide === i ? ' hn-active' : ''}`} />
                 ))}
               </div>
             </div>
           ) : null}
 
-          <div className={'home-search-sticky' + (searchPinned ? ' is-pinned' : '')} aria-hidden={!searchPinned}>
-            <button type="button" className="search-pill" onClick={() => navigate('/search')}>
+          <div className="hn-searchpin" data-open={searchPinned} aria-hidden={!searchPinned}>
+            <button type="button" onClick={() => navigate('/search')}>
               <Icon name="search" size={16} strokeWidth={2.2} />
-              <span className="sp-label ellipsis">Mencari anime</span>
-              <span className="sp-go">
-                <Icon name="right" size={13} strokeWidth={2.6} />
-              </span>
+              <span className="hn-ellipsis" style={{ flex: 1 }}>Mencari anime</span>
+              <Icon name="right" size={13} strokeWidth={2.6} />
             </button>
           </div>
 
-          <button type="button" className="public-discussion-teaser anim-up" onClick={() => navigate('/public-chat')}>
-            <span className="ir-title">
-              <Icon name="chat" size={18} strokeWidth={2.2} />
-              Public Diskusi
+          <button type="button" className="hn-row" style={{ margin: '14px var(--pad-x) 0', width: 'calc(100% - 32px)' }} onClick={() => navigate('/public-chat')}>
+            <span className="hn-menuitem-icon"><Icon name="chat" size={18} strokeWidth={2.2} /></span>
+            <span className="hn-row-main">
+              <span className="hn-row-title">Public Chat</span>
+              <span className="hn-row-sub">{latestPublicMessage ? `${latestPublicMessage.username}: ${latestPublicMessage.content}` : 'Gabung percakapan komunitas anime'}</span>
             </span>
-            <span className="ir-sep" />
-            <span className="ir-text ellipsis">{latestPublicMessage ? `${latestPublicMessage.username}: ${latestPublicMessage.content}` : 'Gabung percakapan komunitas anime'}</span>
             <Icon name="right" size={18} strokeWidth={2.4} />
           </button>
 
           {continueList.length ? (
-            <section className="section">
+            <section className="hn-section">
               <SectionHead title="Terakhir Ditonton" link="Riwayat" onLink={() => navigate('/history')} />
               <Rail>
                 {continueList.map(h => (
@@ -317,7 +259,7 @@ export function Home() {
           ) : null}
 
           {fresh.length ? (
-            <section className="section">
+            <section className="hn-section">
               <SectionHead title="New Anime Update" link="Semua" onLink={() => navigate('/search')} />
               <Grid>
                 {fresh.slice(0, 12).map((c, i) => (
@@ -327,11 +269,11 @@ export function Home() {
             </section>
           ) : null}
 
-          <section className="section">
+          <section className="hn-section">
             <SectionHead title="Genre Series" />
-            <div className="genre-chips">
+            <div className="hn-chiprow" style={{ flexWrap: 'nowrap', overflowX: 'auto' }}>
               {GENRES.map(g => (
-                <button key={g} type="button" className="chip" onClick={() => navigate(genrePath(g))}>
+                <button key={g} type="button" className="hn-chip" onClick={() => navigate(genrePath(g))}>
                   {g}
                 </button>
               ))}
@@ -339,9 +281,9 @@ export function Home() {
           </section>
 
           {ranked.length ? (
-            <section className="section">
+            <section className="hn-section">
               <SectionHead title="Weekly Anime" link="Semua" onLink={() => navigate('/ranking/anime')} />
-              <div className="rank-grid">
+              <div className="hn-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
                 {ranked.slice(0, 8).map((c, i) => (
                   <RankCard key={c.canonicalId} card={c} index={i} onOpen={openCard} />
                 ))}
@@ -350,7 +292,7 @@ export function Home() {
           ) : null}
 
           {feed.completed.length ? (
-            <section className="section">
+            <section className="hn-section">
               <SectionHead title="Completed Anime" link="Semua" onLink={() => navigate('/search')} />
               <Grid>
                 {feed.completed.slice(0, 9).map((c, i) => (
@@ -361,9 +303,9 @@ export function Home() {
           ) : null}
 
           {feed.donghua.length ? (
-            <section className="section">
+            <section className="hn-section">
               <SectionHead title="Donghua Update" link="Semua" onLink={() => navigate('/search')} />
-              <div className="rank-grid">
+              <div className="hn-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
                 {feed.donghua.slice(0, 6).map((c, i) => (
                   <RankCard key={c.canonicalId} card={{ ...c, rank: undefined }} index={i} onOpen={openCard} />
                 ))}
@@ -372,7 +314,7 @@ export function Home() {
           ) : null}
 
           {feed.movie.length ? (
-            <section className="section">
+            <section className="hn-section">
               <SectionHead title="Movie Update" link="Semua" onLink={() => navigate('/search')} />
               <Grid>
                 {feed.movie.slice(0, 9).map((c, i) => (
@@ -383,7 +325,7 @@ export function Home() {
           ) : null}
 
           {!continueList.length && !fresh.length && !feed.completed.length ? (
-            <div className="poster-grid">
+            <div className="hn-section" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, padding: '0 var(--pad-x)' }}>
               <PosterSkel />
               <PosterSkel />
             </div>

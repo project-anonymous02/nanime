@@ -24,10 +24,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { err: boo
         <div className="boot-inner">
           <BrandMark size={54} />
           <p style={{ fontWeight: 800 }}>Terjadi kendala</p>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, textAlign: 'center', maxWidth: 300 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', maxWidth: 300 }}>
             Gagal memuat data, silakan periksa koneksi internet dan coba lagi nanti.
           </p>
-          <button type="button" className="btn ghost" onClick={() => location.reload()}>
+          <button type="button" className="hn-ghostbtn" onClick={() => location.reload()}>
             Muat Ulang
           </button>
         </div>

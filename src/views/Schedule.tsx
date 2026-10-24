@@ -10,7 +10,7 @@ import { SmartImage } from '../ui/SmartImage';
 import { detailPath } from '../lib/nav';
 import { titleKey } from '../core/services/TitleIndex';
 
-/** Jadwal tayang — timeline gold per hari, scroll menerus, pil navigasi hari melayang. */
+/** Jadwal tayang — kelompok per hari + pil navigasi hari. */
 
 const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
@@ -66,8 +66,29 @@ export function Schedule() {
     <>
       <PullToRefreshIndicator state={pull} />
 
-      <h1 className="sch-title">Jadwal Tayang</h1>
-      <div className="sch-divider" />
+      <header className="hn-pagehead">
+        <button type="button" className="hn-back" aria-label="Kembali" onClick={() => navigate(-1)}>
+          <Icon name="left" />
+        </button>
+        <h1 className="hn-pagehead-title">Jadwal Tayang</h1>
+        <span style={{ width: 40 }} />
+      </header>
+
+      <div className="hn-datetabs no-scrollbar">
+        {days.map(d => (
+          <button
+            type="button"
+            key={d.idx}
+            className={`hn-datetab${viewDay === d.idx ? ' hn-active' : ''}`}
+            onClick={() => {
+              setViewDay(d.idx);
+              dayRefs.current[d.idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
 
       <OfflineBar show={stale} />
 
@@ -76,60 +97,58 @@ export function Schedule() {
 
       {days.map(d => (
         <section
-          className="sch-day"
+          className="hn-section"
           key={d.idx}
           ref={el => {
             dayRefs.current[d.idx] = el;
           }}
         >
-          <button
-            type="button"
-            className={'sch-day-head' + (d.idx === todayIdx ? ' active' : '')}
-            onClick={() => setViewDay(d.idx)}
-          >
-            <span className="sch-day-name">{d.label}</span>
-            <span className="sch-count">{d.items.length} Anime</span>
-          </button>
+          <div className="hn-section-head">
+            <span className="hn-section-title">{d.label}</span>
+            <span className="hn-section-link">{d.items.length} Anime</span>
+          </div>
 
           {d.items.length ? (
-            d.items.map((it, j) => (
-              <button
-                type="button"
-                className="sch-item"
-                key={it.provider + it.id + j}
-                onClick={() => navigate(detailPath(it.id, it.title))}
-                aria-label={it.title}
-              >
-                <span className="sch-rail">
-                  {j > 0 ? <span className="sch-line" /> : null}
-                  <span className="sch-time">{it.time || '—'}</span>
-                  <span className="sch-dot" />
-                </span>
-                <span className="sch-card">
-                  <span className="sch-thumb">
+            <div className="hn-rowlist">
+              {d.items.map((it, j) => (
+                <button
+                  type="button"
+                  className="hn-row"
+                  key={it.provider + it.id + j}
+                  onClick={() => navigate(detailPath(it.id, it.title))}
+                  aria-label={it.title}
+                >
+                  <span className="hn-row-main" style={{ flexShrink: 0, width: 46, textAlign: 'center' }}>
+                    <span className="hn-avatarrow-sub">{j > 0 ? '' : null}</span>
+                    <span style={{ display: 'block', fontWeight: 800, fontSize: 12, color: 'var(--accent-cyan)' }}>{it.time || '—'}</span>
+                    <span className="hn-progressbar" style={{ position: 'static', marginTop: 4 }}>
+                      <span className="hn-progressbar-fill" style={{ width: '100%' }} />
+                    </span>
+                  </span>
+                  <span className="hn-card-poster" style={{ width: 60, borderRadius: 8, flexShrink: 0 }}>
                     <SmartImage src={it.poster} animeId={titleKey(it.title)} alt={it.title} eager={d.idx === todayIdx && j < 3} />
                   </span>
-                  <span className="sch-body">
-                    <span className="sch-name clamp-2">{it.title}</span>
-                    {it.episode ? <span className="sch-ep">{it.episode}</span> : null}
-                    <span className="sch-wait">Menunggu Update</span>
+                  <span className="hn-row-main">
+                    <span className="hn-row-title">{it.title}</span>
+                    {it.episode ? <span className="hn-row-sub">{it.episode}</span> : null}
+                    <span className="hn-row-sub" style={{ color: 'var(--accent-gold)' }}>Menunggu Update</span>
                   </span>
-                </span>
-              </button>
-            ))
+                </button>
+              ))}
+            </div>
           ) : (
-            <p className="sch-empty">Belum ada jadwal rilis.</p>
+            <p className="hn-state">Belum ada jadwal rilis.</p>
           )}
         </section>
       ))}
 
       {groups ? (
-        <div className="sch-nav">
-          <button type="button" className="sch-nav-pill" onClick={() => goDay(-1)}>
+        <div className="hn-formactions" style={{ justifyContent: 'space-between', marginTop: 18 }}>
+          <button type="button" className="hn-ghostbtn" onClick={() => goDay(-1)}>
             <Icon name="left" size={14} strokeWidth={2.6} />
             {prevLabel}
           </button>
-          <button type="button" className="sch-nav-pill" onClick={() => goDay(1)}>
+          <button type="button" className="hn-ghostbtn" onClick={() => goDay(1)}>
             {nextLabel}
             <Icon name="right" size={14} strokeWidth={2.6} />
           </button>

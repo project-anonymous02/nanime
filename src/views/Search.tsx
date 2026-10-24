@@ -27,7 +27,7 @@ function Highlight({ text, q }: { text: string; q: string }) {
     const single = new RegExp('^(' + terms.join('|') + ')$', 'i');
     return text.split(g).map((part, i) =>
       single.test(part) ? (
-        <mark key={i} className="hl">
+        <mark key={i} style={{ background: 'var(--accent-primary)', color: '#fff', borderRadius: 3, padding: '0 2px' }}>
           {part}
         </mark>
       ) : (
@@ -121,12 +121,12 @@ export function Search() {
 
   return (
     <>
-      <header className="topbar search-topbar">
-        <button type="button" className="ibtn back-btn ripple-host" aria-label="Kembali" onClick={() => navigate(-1)}>
+      <header className="hn-pagehead">
+        <button type="button" className="hn-back" aria-label="Kembali" onClick={() => navigate(-1)}>
           <Icon name="left" />
         </button>
-        <div className="input-wrap" style={{ flex: 1 }}>
-          <Icon name="search" />
+        <div className="hn-searchbar" style={{ flex: 1, margin: 0 }}>
+          <Icon name="search" size={17} />
           <input
             ref={inputRef}
             type="search"
@@ -136,11 +136,12 @@ export function Search() {
             value={q}
             onChange={e => setQ(e.target.value)}
             aria-label="Kotak pencarian"
+            style={{ border: 'none', background: 'transparent', color: 'var(--text-primary)', flex: 1, outline: 'none', fontSize: 14 }}
           />
           {q ? (
             <button
               type="button"
-              className="ibtn"
+              className="hn-iconbtn"
               style={{ width: 34, height: 34 }}
               aria-label="Bersihkan"
               onClick={() => {
@@ -155,10 +156,10 @@ export function Search() {
       </header>
 
       {hasAdultSources ? (
-        <div className="genre-chips search-adult-chips">
+        <div className="hn-chiprow" style={{ justifyContent: 'center', paddingBottom: 14 }}>
           <button
             type="button"
-            className={'chip' + (adult ? ' active' : '')}
+            className={`hn-chip${adult ? ' hn-active' : ''}`}
             aria-pressed={adult}
             onClick={() => setAdult(value => !value)}
           >
@@ -168,8 +169,8 @@ export function Search() {
       ) : null}
 
       {loading && !items ? <ListSkel count={4} /> : null}
-      {loading && items ? <p className="search-refresh-note" role="status">Mengumpulkan dan menggabungkan hasil dari beberapa sumber…</p> : null}
-      {!loading && partial ? <p className="search-refresh-note" role="status">Beberapa sumber belum merespons. Hasil yang tersedia tetap ditampilkan.</p> : null}
+      {loading && items ? <p role="status" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '0 20px 12px' }}>Mengumpulkan dan menggabungkan hasil dari beberapa sumber…</p> : null}
+      {!loading && partial ? <p role="status" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '0 20px 12px' }}>Beberapa sumber belum merespons. Hasil yang tersedia tetap ditampilkan.</p> : null}
       {error && !loading ? <ErrorState onRetry={() => setRetry(value => value + 1)} /> : null}
 
       {!loading && !error && !partial && items && items.length === 0 ? (
@@ -179,7 +180,7 @@ export function Search() {
           sub={`Tidak ada hasil untuk “${dq}”. Coba kata kunci lain atau periksa ejaan.`}
         />
       ) : null}
-      {!loading && !error && partial && items?.length === 0 ? <p className="search-refresh-note" role="status">Sumber yang merespons belum menemukan hasil. Coba lagi beberapa saat lagi.</p> : null}
+      {!loading && !error && partial && items?.length === 0 ? <p role="status" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '0 20px 12px' }}>Sumber yang merespons belum menemukan hasil. Coba lagi beberapa saat lagi.</p> : null}
 
       {items && items.length ? (
         <Grid>

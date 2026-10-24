@@ -1,11 +1,8 @@
-import type { RankTier } from '../lib/rank';
+import { RANK_META, type RankTier } from '../lib/rank';
 
-const SOURCE_LEVEL: Record<RankTier, string> = {
-  bronze: 'stone', silver: 'silver', gold: 'gold', platinum: 'emerald', diamond: 'diamond', developer: 'eternal'
-};
-
-/** AniBiPlay rank artwork, mapped onto Nanime's existing public rank tiers. */
+/** Badge rank memakai art dari public/anibiplay-ranks (aset foto, dicatat di planning.md). */
 export function RankInsignia({ rank, size = 20 }: { rank: RankTier; size?: number }) {
-  const level = SOURCE_LEVEL[rank];
-  return <img className="rank-insignia" src={`${import.meta.env.BASE_URL}anibiplay-ranks/profile_level_${level}.png`} width={size} height={size} alt={`${rank} rank`} loading="lazy" decoding="async" />;
+  const art = RANK_META[rank].art;
+  const src = `${import.meta.env.BASE_URL}anibiplay-ranks/profile_level_${art}.png`;
+  return <img src={src} width={size} height={size} alt={RANK_META[rank].label} title={RANK_META[rank].label} loading="lazy" decoding="async" />;
 }

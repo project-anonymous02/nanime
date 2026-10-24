@@ -59,9 +59,8 @@ afterAll(async () => {
 
 describe('smoke test aplikasi React', () => {
   it('gerbang masuk tampil sebelum ada sesi (tanpa navigasi bawah)', () => {
-    expect(container.querySelector('.bottom-nav')).toBeNull();
+    expect(container.querySelector('.hn-bottomnav')).toBeNull();
     expect(container.textContent).toContain('WELCOME');
-    expect(container.textContent).toContain('Geser ke atas');
   });
 
   it('setelah masuk, shell & navigasi bawah tampil', async () => {
@@ -73,14 +72,12 @@ describe('smoke test aplikasi React', () => {
       });
     });
     await waitFor(() => {
-      expect(container.querySelector('.bottom-nav')).not.toBeNull();
+      expect(container.querySelector('.hn-bottomnav')).not.toBeNull();
       const text = container.textContent || '';
       expect(text).toContain('Home');
-      expect(text).toContain('Jadwal');
-      expect(text).toContain('Subscribed');
-      expect(text).toContain('Riwayat');
-      expect(text).toContain('SocialLine');
-      expect(container.querySelector('[aria-label="Buka profil"]')).not.toBeNull();
+      expect(text).toContain('Cari');
+      expect(text).toContain('Chat');
+      expect(text).toContain('Profil');
     });
   });
 
@@ -106,57 +103,26 @@ describe('smoke test aplikasi React', () => {
     expect(container.textContent).not.toMatch(SOURCE_NAMES);
   });
 
-  it('rute Public Chat tampil sebagai layar penuh tanpa bottom nav', async () => {
+  it('rute Public Chat tampil bersama navigasi bawah', async () => {
     await goto('#/public-chat');
     await waitFor(() => {
-      expect(container.querySelector('.public-chat-page')).not.toBeNull();
+      expect(container.querySelector('.hn-chatscreen')).not.toBeNull();
       expect(container.textContent).toContain('Public Chat');
     });
-    expect(container.querySelector('.bottom-nav')).toBeNull();
+    expect(container.querySelector('.hn-bottomnav')).not.toBeNull();
   });
 
   it('rute peringkat anime dan pengguna terbuka dari navigasi leaderboard', async () => {
     await goto('#/ranking/anime');
     await waitFor(() => expect(container.textContent).toContain('Peringkat Anime'));
-    expect(container.querySelector('.bottom-nav')).toBeNull();
     await goto('#/leaderboard');
     await waitFor(() => expect(container.textContent).toContain('Top Pengguna'));
-    expect(container.querySelector('.bottom-nav')).toBeNull();
-  });
-
-  it('rute Nobar Nanime menampilkan alur buat atau gabung room', async () => {
-    await goto('#/watch-party');
-    await waitFor(() => {
-      expect(container.textContent).toContain('Nobar bareng');
-      expect(container.textContent).toContain('Gabung Nobar');
-    });
-    expect(container.querySelector('[aria-label="Masukkan kode room"]')).toBeNull();
-    expect(container.querySelector('#watch-party-code')).not.toBeNull();
-  });
-
-  it('halaman AniGames Nanime menyediakan hub Crystal dan clan', async () => {
-    await goto('#/games');
-    await waitFor(() => {
-      expect(container.textContent).toContain('Permainan & Clan');
-      expect(container.textContent).toContain('CRYSTAL NANIME');
-    });
-  });
-
-  it('halaman Afinitas Nanime menampilkan kegagalan layanan dengan retry', async () => {
-    await goto('#/affinity');
-    await waitFor(() => {
-      expect(container.textContent).toContain('Bangun ikatan, selesaikan misi, dan kumpulkan XP bersama teman.');
-      expect(container.textContent).toContain('Coba lagi');
-    });
-    expect(container.querySelector('.affinity-page')).not.toBeNull();
-    expect(container.querySelector('[aria-label="Cari teman untuk Afinitas"]')).toBeNull();
-    expect(container.querySelector('[aria-label="Privasi Afinitas"]')).toBeNull();
+    expect(container.querySelector('.hn-bottomnav')).not.toBeNull();
   });
 
   it('rute profil publik Nanime menampilkan error dan retry dari layanan akun', async () => {
     await goto('#/profile/00000000-0000-0000-0000-000000000001');
     await waitFor(() => {
-      expect(container.textContent).toContain('Profil publik dan koneksi komunitas.');
       expect(container.textContent).toContain('Profil belum dapat dimuat. Periksa koneksi lalu coba lagi.');
       expect(container.textContent).toContain('Coba lagi');
     });
@@ -167,13 +133,13 @@ describe('smoke test aplikasi React', () => {
     await waitFor(() => {
       expect(container.textContent).toContain('Home');
     });
-    expect(container.querySelector('.bottom-nav')).not.toBeNull();
+    expect(container.querySelector('.hn-bottomnav')).not.toBeNull();
   });
 
   it('rute pemutar lama tidak membuka pemutar dan diarahkan ke beranda', async () => {
     await goto('#/watch/anime-uji/1');
     await waitFor(() => expect(container.textContent).toContain('Home'));
     expect(container.querySelector('video, iframe')).toBeNull();
-    expect(container.querySelector('.bottom-nav')).not.toBeNull();
+    expect(container.querySelector('.hn-bottomnav')).not.toBeNull();
   });
 });

@@ -54,7 +54,7 @@ export function SmartImage({ src, animeId, alt, className = '', style, eager, fa
   const show = !!current;
 
   return (
-    <div ref={containerRef} className={'smart-img ' + (loaded || !show ? '' : 'skel ') + className} style={style}>
+    <div ref={containerRef} className={className} style={style}>
       {show ? (
         <img
           key={current}
@@ -63,7 +63,7 @@ export function SmartImage({ src, animeId, alt, className = '', style, eager, fa
           loading={eager ? 'eager' : 'lazy'}
           decoding="async"
           draggable={false}
-          className={loaded ? 'loaded' : ''}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity var(--t-enter) var(--ease)' }}
           onLoad={() => setLoaded(true)}
           onError={() => {
             setLoaded(false);
@@ -87,7 +87,7 @@ export function SmartImage({ src, animeId, alt, className = '', style, eager, fa
           }}
         />
       ) : (
-        <span className="img-fallback">
+        <span className="hn-avatar-fallback" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
           <Icon name={fallback === 'user' ? 'user' : fallback === 'image' ? 'image' : 'film'} />
         </span>
       )}

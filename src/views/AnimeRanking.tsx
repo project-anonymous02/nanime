@@ -18,11 +18,22 @@ export function AnimeRanking() {
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  return <div className="ranking-page">
-    <header className="ranking-heading"><button type="button" className="ibtn" aria-label="Kembali" onClick={() => navigate(-1)}><Icon name="left" /></button><div><span className="eyebrow">NANIME</span><h1>Peringkat Anime</h1><p>Anime dengan rating tertinggi dari katalog yang tersedia.</p></div></header>
+  return <div>
+    <header className="hn-pagehead">
+      <button type="button" className="hn-back" aria-label="Kembali" onClick={() => navigate(-1)}><Icon name="left" /></button>
+      <div style={{ flex: 1 }}>
+        <span className="hn-profilehero-sub" style={{ textTransform: 'uppercase', letterSpacing: 2 }}>NANIME</span>
+        <h1 className="hn-pagehead-title">Peringkat Anime</h1>
+        <p className="hn-profilehero-sub">Anime dengan rating tertinggi dari katalog yang tersedia.</p>
+      </div>
+    </header>
     {error && !items ? <ErrorState onRetry={() => void load()} /> : null}
     {!items && !error ? <ListSkel count={5} /> : null}
-    {items?.length ? <section className="section"><SectionHead title="Mingguan" /><div className="rank-grid">{items.map((card, index) => <RankCard key={card.canonicalId} card={{ ...card, rank: index + 1 }} index={index} onOpen={item => navigate(detailPath(item.canonicalId, item.title))} />)}</div></section> : null}
-    {items && !items.length ? <div className="community-state-card"><Icon name="chart" /><strong>Belum ada peringkat</strong><span>Data rating belum tersedia dari katalog anime.</span></div> : null}
+    {items?.length ? <section style={{ padding: '0 0 20px' }}><SectionHead title="Mingguan" /><GridRank>{items.map((card, index) => <RankCard key={card.canonicalId} card={{ ...card, rank: index + 1 }} index={index} onOpen={item => navigate(detailPath(item.canonicalId, item.title))} />)}</GridRank></section> : null}
+    {items && !items.length ? <div className="hn-state"><span className="hn-state-icon"><Icon name="chart" size={26} /></span><strong className="hn-state-title">Belum ada peringkat</strong><span className="hn-state-sub">Data rating belum tersedia dari katalog anime.</span></div> : null}
   </div>;
+}
+
+function GridRank({ children }: { children: React.ReactNode }) {
+  return <div style={{ display: 'grid', gap: 12, padding: '8px var(--pad-x) 4px' }}>{children}</div>;
 }

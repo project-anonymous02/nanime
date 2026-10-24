@@ -7,15 +7,15 @@ export function Toasts() {
   const dismiss = useUI(s => s.dismiss);
   if (!toasts.length) return null;
   return (
-    <div className="toasts" aria-live="polite">
+    <div className="hn-toastwrap" aria-live="polite">
       {toasts.map(t => (
         <button
           key={t.id}
           type="button"
-          className={'toast ' + (t.kind === 'err' ? 'err' : t.kind === 'ok' ? 'ok' : '')}
+          className={`hn-toast${t.kind === 'ok' ? ' hn-ok' : t.kind === 'err' ? ' hn-err' : ''}`}
           onClick={() => dismiss(t.id)}
         >
-          <Icon name={t.kind === 'err' ? 'alert' : t.kind === 'ok' ? 'check' : 'info'} size={18} />
+          <Icon name={t.kind === 'err' ? 'alert' : t.kind === 'ok' ? 'check' : 'info'} size={16} />
           <span>{t.text}</span>
         </button>
       ))}

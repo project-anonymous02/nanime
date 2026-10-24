@@ -6,14 +6,14 @@ import { SmartImage } from './SmartImage';
 import { ProgressBar } from './Feedback';
 import { titleKey } from '../core/services/TitleIndex';
 
-/** Kartu-kartu siap pakai di seluruh halaman. */
+/** Kartu-kartu siap pakai di seluruh halaman (design system hn-). */
 
 export function Grid({ children }: { children: ReactNode }) {
-  return <div className="poster-grid stagger">{children}</div>;
+  return <div className="hn-grid">{children}</div>;
 }
 
 export function Rail({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={'rail no-scrollbar ' + className}>{children}</div>;
+  return <div className={`hn-rail no-scrollbar ${className}`.trim()}>{children}</div>;
 }
 
 export function AnimeCard({
@@ -32,26 +32,26 @@ export function AnimeCard({
   const style: CSSProperties = width ? { width } : {};
   if (index) (style as Record<string, unknown>)['--i'] = index;
   return (
-    <button type="button" className="anime-card" style={style} onClick={() => onOpen(card)} aria-label={card.title}>
-      <div className="poster-wrap">
+    <button type="button" className="hn-card" style={style} onClick={() => onOpen(card)} aria-label={card.title}>
+      <div className="hn-card-poster">
         <SmartImage src={card.poster} animeId={card.canonicalId} alt={card.title} eager={index < 4} />
         {card.score ? (
-          <span className="rating-chip">
+          <span className="hn-views">
             <Icon name="starFill" size={11} strokeWidth={0} />
             {card.score}
           </span>
         ) : null}
-        {card.epLabel ? <span className="ep-chip">{card.epLabel}</span> : null}
+        {card.epLabel ? <span className="hn-episodecode">{card.epLabel}</span> : null}
       </div>
-      <span className="card-title clamp-2">{titleNode ?? card.title}</span>
-      <span className="card-meta">
+      <span className="hn-card-title">{titleNode ?? card.title}</span>
+      <span className="hn-card-meta">
         {card.type ? (
-          <span className="meta-item">
-            <Icon name="film" size={13} strokeWidth={2} />
+          <span className="hn-card-meta-type">
+            <Icon name="film" size={12} strokeWidth={2} />
             {card.type}
           </span>
         ) : null}
-        {card.status ? <span className="ellipsis">{card.status}</span> : null}
+        {card.status ? <span> · {card.status}</span> : null}
       </span>
     </button>
   );
@@ -65,29 +65,21 @@ export function WeeklyCard({
   onOpen: (card: AggregatedCard) => void;
 }) {
   return (
-    <button type="button" className="weekly-card" onClick={() => onOpen(card)} aria-label={card.title}>
-      <span className="week-bg">
+    <button type="button" className="hn-card" onClick={() => onOpen(card)} aria-label={card.title}>
+      <span className="hn-card-poster">
         <SmartImage src={card.poster} animeId={card.canonicalId} alt={card.title} />
       </span>
-      <span className="week-shade" />
-      <span className="rank">{card.rank ?? 1}</span>
-      <span className="week-body">
-        <span className="week-title clamp-2">{card.title}</span>
-        <span className="week-meta">
-          {card.score ? (
-            <span className="meta-item gold" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-              <Icon name="starFill" size={13} strokeWidth={0} />
-              {card.score}
-            </span>
-          ) : null}
-          {card.epLabel ? <span>{card.epLabel}</span> : null}
-        </span>
+      <span className="hn-rankbadge">#{card.rank ?? 1}</span>
+      <span className="hn-card-title">{card.title}</span>
+      <span className="hn-card-meta">
+        {card.score ? <span>Skor: {card.score}</span> : null}
+        {card.epLabel ? <span> · {card.epLabel}</span> : null}
       </span>
     </button>
   );
 }
 
-/* ── Kartu gaya AnibiPlay (map-anibiplay.md) ── */
+/* ── Kartu gaya mobinime ── */
 
 function mmss(sec: number): string {
   const s = Math.max(0, Math.floor(sec || 0));
@@ -112,25 +104,25 @@ export function UpdateCard({
   const overlay = card.epLabel || card.status || '';
   const style: CSSProperties = index ? ({ '--i': index } as CSSProperties) : {};
   return (
-    <button type="button" className="up-card anim-up" style={style} onClick={() => onOpen(card)} aria-label={card.title}>
-      <span className="up-poster">
+    <button type="button" className="hn-card" style={style} onClick={() => onOpen(card)} aria-label={card.title}>
+      <span className="hn-card-poster">
         <SmartImage src={card.poster} animeId={card.canonicalId} alt={card.title} eager={index < 6} />
-        {badge ? <span className="up-badge">{badge}</span> : null}
+        {badge ? <span className="hn-badge">{badge}</span> : null}
         {score ? (
-          <span className="up-rating">
+          <span className="hn-views">
             <Icon name="starFill" size={11} strokeWidth={0} />
             {score}
           </span>
         ) : null}
-        {overlay ? <span className="up-ep">{overlay}</span> : null}
+        {overlay ? <span className="hn-episodecode">{overlay}</span> : null}
       </span>
       {card.views ? (
-        <span className="up-views">
+        <span className="hn-card-meta hn-views-inline">
           <Icon name="play" size={10} strokeWidth={0} />
           {card.views}
         </span>
       ) : null}
-      <span className="up-title clamp-2">{titleNode ?? card.title}</span>
+      <span className="hn-card-title">{titleNode ?? card.title}</span>
     </button>
   );
 }
@@ -148,25 +140,25 @@ export function RankCard({
   const score = card.score && card.score !== '-' ? card.score : '';
   const style: CSSProperties = index ? ({ '--i': index } as CSSProperties) : {};
   return (
-    <button type="button" className="rank-card anim-up" style={style} onClick={() => onOpen(card)} aria-label={card.title}>
-      <span className="rk-img">
+    <button type="button" className="hn-card" style={style} onClick={() => onOpen(card)} aria-label={card.title}>
+      <span className="hn-card-poster">
         <SmartImage src={card.poster} animeId={card.canonicalId} alt={card.title} />
-        {card.rank ? <span className="rk-badge">#{card.rank}</span> : null}
+        {card.rank ? <span className="hn-rankbadge">#{card.rank}</span> : null}
         {score ? (
-          <span className="rk-rating">
+          <span className="hn-views">
             <Icon name="starFill" size={11} strokeWidth={0} />
             {score}
           </span>
         ) : null}
-        {card.epLabel ? <span className="rk-eps">{card.epLabel}</span> : null}
+        {card.epLabel ? <span className="hn-episodecode">{card.epLabel}</span> : null}
       </span>
       {card.views ? (
-        <span className="rk-views">
+        <span className="hn-card-meta">
           <Icon name="play" size={10} strokeWidth={0} />
           {card.views} views
         </span>
       ) : null}
-      <span className="rk-title clamp-2">{card.title}</span>
+      <span className="hn-card-title">{card.title}</span>
     </button>
   );
 }
@@ -182,20 +174,24 @@ export function ContinueRailCard({
   const time =
     item.durationSec > 0 ? `${mmss(item.positionSec)} / ${mmss(item.durationSec)}` : `Episode ${item.episode}`;
   return (
-    <button type="button" className="cr-card anim-up" onClick={() => onOpen(item)} aria-label={item.title}>
-      <span className="cr-img">
+    <button type="button" className="hn-card" onClick={() => onOpen(item)} aria-label={item.title}>
+      <span className="hn-card-poster">
         <SmartImage src={item.poster} animeId={item.animeId} alt={item.title} />
-        <span className="cr-eps">Eps {item.episode}</span>
+        <span className="hn-episodecode">Eps {item.episode}</span>
+        {item.percent > 0 ? (
+          <span className="hn-progressbar">
+            <span className="hn-progressbar-fill" style={{ width: `${Math.min(100, Math.round(item.percent))}%` }} />
+          </span>
+        ) : null}
       </span>
-      <span className="cr-title clamp-2">{item.title}</span>
-      <span className="cr-meta">
+      <span className="hn-card-title">{item.title}</span>
+      <span className="hn-card-meta">
         <Icon name="clock" size={12} strokeWidth={2} />
         {time}
       </span>
     </button>
   );
 }
-
 
 export function ContinueCard({
   item,
@@ -207,20 +203,25 @@ export function ContinueCard({
   onRemove?: (item: HistoryItem) => void;
 }) {
   return (
-    <div className="continue-card anim-up">
-      <button type="button" className="cw-thumb" onClick={() => onOpen(item)} aria-label={item.title}>
+    <div className="hn-row">
+      <button type="button" className="hn-card-poster" style={{ width: 118, flexShrink: 0 }} onClick={() => onOpen(item)} aria-label={item.title}>
         <SmartImage src={item.poster} animeId={item.animeId} alt={item.title} />
+        {item.percent > 0 ? (
+          <span className="hn-progressbar">
+            <span className="hn-progressbar-fill" style={{ width: `${Math.min(100, Math.round(item.percent))}%` }} />
+          </span>
+        ) : null}
       </button>
-      <button type="button" className="cw-body" onClick={() => onOpen(item)} style={{ textAlign: 'left' }}>
-        <span className="cw-title clamp-2">{item.title}</span>
-        <span className="cw-sub">
+      <button type="button" className="hn-row-main" style={{ textAlign: 'left' }} onClick={() => onOpen(item)}>
+        <span className="hn-row-title">{item.title}</span>
+        <span className="hn-row-sub">
           Episode {item.episode}
           {item.completed ? ' • Selesai' : item.percent > 0 ? ` • ${Math.round(item.percent)}%` : ''}
         </span>
         <ProgressBar value={(item.percent || 0) / 100} />
       </button>
       {onRemove ? (
-        <button type="button" className="ibtn" onClick={() => onRemove(item)} aria-label="Hapus dari lanjutkan menonton">
+        <button type="button" className="hn-iconbtn" onClick={() => onRemove(item)} aria-label="Hapus dari lanjutkan menonton">
           <Icon name="x" size={18} />
         </button>
       ) : null}
@@ -250,28 +251,26 @@ export function EpisodeRow({
   return (
     <button
       type="button"
-      className={'ep-row ripple-host' + (current ? ' current' : '')}
+      className="hn-row"
+      style={current ? { borderColor: 'var(--border-blue)' } : undefined}
       onClick={onOpen}
       aria-current={current}
     >
-      <span className="ep-thumb">
+      <span className="hn-card-poster" style={{ width: 84, flexShrink: 0 }}>
         <SmartImage src={poster} alt={'Episode ' + num} />
       </span>
-      <span className="ep-body">
-        <span className="ep-title ellipsis">
-          Episode {num}
-          {title ? ` — ${title}` : ''}
-        </span>
-        {date ? <span className="ep-sub">{date}</span> : null}
+      <span className="hn-row-main">
+        <span className="hn-row-title">Episode {num}{title ? ` — ${title}` : ''}</span>
+        {date ? <span className="hn-row-sub">{date}</span> : null}
+        {progress ? (
+          <span className="hn-progressbar" style={{ position: 'static', marginTop: 6 }}>
+            <span className="hn-progressbar-fill" style={{ width: `${Math.min(100, Math.round(progress))}%` }} />
+          </span>
+        ) : null}
       </span>
       {watched ? (
-        <span className="ep-check">
+        <span className="hn-row-actions" style={{ color: 'var(--accent-green)' }}>
           <Icon name="check" size={11} strokeWidth={3} />
-        </span>
-      ) : null}
-      {progress ? (
-        <span className="ep-progress">
-          <span className="fill" style={{ '--pct': Math.min(1, progress) } as CSSProperties} />
         </span>
       ) : null}
     </button>
@@ -286,20 +285,12 @@ export function ScheduleCard({
   onOpen: (item: ScheduleItem) => void;
 }) {
   return (
-    <button type="button" className="schedule-card" onClick={() => onOpen(item)} aria-label={item.title}>
-      <span className="sc-poster">
+    <button type="button" className="hn-card" onClick={() => onOpen(item)} aria-label={item.title}>
+      <span className="hn-card-poster">
         <SmartImage src={item.poster} animeId={titleKey(item.title)} alt={item.title} />
+        {item.episode ? <span className="hn-episodecode">{item.episode}</span> : null}
       </span>
-      <span className="sc-body">
-        <span className="sc-title clamp-2">{item.title}</span>
-        <span className="sc-meta">
-          {item.episode ? <span>{item.episode}</span> : null}
-          <span className="meta-item" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-            <Icon name="clock" size={12} strokeWidth={2} />
-            {item.time}
-          </span>
-        </span>
-      </span>
+      <span className="hn-card-title">{item.title}</span>
     </button>
   );
 }
@@ -316,7 +307,7 @@ export function DayPill({
   onClick: () => void;
 }) {
   return (
-    <button type="button" className={'day-pill' + (active ? ' active' : '')} onClick={onClick}>
+    <button type="button" className={`hn-datetab${active ? ' hn-active' : ''}`} onClick={onClick}>
       {date ? `${label} ${date}` : label}
     </button>
   );
@@ -332,7 +323,7 @@ export function Chip({
   children: ReactNode;
 }) {
   return (
-    <button type="button" className={'chip' + (active ? ' active' : '')} onClick={onClick}>
+    <button type="button" className={`hn-chip${active ? ' hn-active' : ''}`} onClick={onClick}>
       {children}
     </button>
   );

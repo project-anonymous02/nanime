@@ -7,12 +7,12 @@ import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
 import { Sheet } from '../ui/Sheet';
 import { detailPath } from '../lib/nav';
-import { countOwnComments, formatWatchDuration, listOwnComments, ownAppUsageSeconds, type OwnCommentRow } from '../lib/community';
-import { isNanimeDeveloper, DEVELOPER_LEVEL, listDeveloperMessages, sendDeveloperMessage, type DeveloperMessage } from '../lib/developer';
+import { ownAppUsageSeconds } from '../lib/community';
+import { formatUsage, RANK_META, rankFor, rankProgress } from '../lib/rank';
 import { RankInsignia } from '../ui/RankInsignia';
-import { CommunityAvatar } from '../ui/CommunityAvatar';
+import { isNanimeDeveloper } from '../lib/developer';
 
-/** Profil — banner, statistik, tab Favorit/Histori, dan sheet foto profil ala referensi. */
+/** Profil — identitas, kartu tier rank, menu, tab Favorit/Histori, sheet foto. */
 
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -36,18 +36,9 @@ export function Profile() {
   const favorites = useLibrary(s => s.favorites);
   const history = useLibrary(s => s.history);
 
-  const [tab, setTab] = useState<'comments' | 'fav' | 'hist'>('comments');
+  const [tab, setTab] = useState<'fav' | 'hist'>('fav');
   const [photo, setPhoto] = useState(false);
   const [validatedSeconds, setValidatedSeconds] = useState<number | null>(null);
-  const [comments, setComments] = useState<OwnCommentRow[]>([]);
-  const [commentCount, setCommentCount] = useState<number | null>(null);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [commentsError, setCommentsError] = useState(false);
-  const [developerMessages, setDeveloperMessages] = useState<DeveloperMessage[]>([]);
-  const [developerMessagesError, setDeveloperMessagesError] = useState(false);
-  const [developerMessage, setDeveloperMessage] = useState('');
-  const [developerMessageError, setDeveloperMessageError] = useState('');
-  const [sendingDeveloperMessage, setSendingDeveloperMessage] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -58,219 +49,161 @@ export function Profile() {
     return () => { alive = false; };
   }, [user?.id]);
 
-  useEffect(() => {
-    let alive = true;
-    void listDeveloperMessages().then(rows => { if (alive) { setDeveloperMessages(rows); setDeveloperMessagesError(false); } }).catch(() => { if (alive) setDeveloperMessagesError(true); });
-    return () => { alive = false; };
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    let alive = true;
-    setCommentsLoading(true);
-    setCommentsError(false);
-    void listOwnComments().then(rows => {
-      if (alive) setComments(rows);
-    }).catch(() => {
-      if (alive) setCommentsError(true);
-    }).finally(() => {
-      if (alive) setCommentsLoading(false);
-    });
-    void countOwnComments().then(count => { if (alive) setCommentCount(count); }).catch(() => { if (alive) setCommentCount(null); });
-    return () => { alive = false; };
-  }, [user?.id]);
-
-  const stats = useMemo(() => {
-    const months = user?.createdAt ? Math.max(1, Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (30 * 86400000))) : null;
-    return { months, comments: commentCount, hist: history.length, seconds: validatedSeconds };
-  }, [commentCount, history.length, user?.createdAt, validatedSeconds]);
+  const seconds = validatedSeconds;
+  const rank = rankFor(seconds || 0, developer);
+  const rankMeta = RANK_META[rank];
+  const rankProg = rankProgress(seconds || 0, developer);
+  const months = user?.createdAt ? Math.max(1, Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (30 * 86400000))) : null;
 
   const initial = (user?.name || user?.email || 'N').trim().charAt(0).toUpperCase();
-  const tag = developer ? '#1' : user?.id ? '#' + user.id.replace(/-/g, '').slice(0, 6) : '';
+  const tag = user?.id ? '#' + user.id.replace(/-/g, '').slice(0, 6) : '';
 
   const favList = useMemo(() => favorites.slice().sort((a, b) => b.addedAt - a.addedAt).slice(0, 30), [favorites]);
   const histList = useMemo(() => history.slice().sort((a, b) => b.watchedAt - a.watchedAt).slice(0, 30), [history]);
 
   return (
     <>
-      <div className="prof-banner">
-        <button type="button" className="ibtn prof-back ripple-host" aria-label="Kembali" onClick={() => navigate(-1)}>
+      <div className="hn-pagehead">
+        <button type="button" className="hn-back" aria-label="Kembali" onClick={() => navigate(-1)}>
           <Icon name="left" />
         </button>
       </div>
 
-      <div className="prof-avatar-wrap">
-        <button type="button" className="prof-avatar" onClick={() => setPhoto(true)} aria-label="Foto profil">
-          {user?.avatar ? <img src={user.avatar} alt="" referrerPolicy="no-referrer" /> : <span className="prof-initial">{initial}</span>}
-          <span className="prof-cam">
+      <div className="hn-profilehero">
+        <button type="button" onClick={() => setPhoto(true)} className="hn-profilehero-avatarbtn" aria-label="Foto profil" style={{ position: 'relative' }}>
+          {user?.avatar ? <img className="hn-profilehero-avatar" src={user.avatar} alt="" referrerPolicy="no-referrer" /> : <span className="hn-profilehero-avatar hn-avatar-fallback"><Icon name="user" size={26} strokeWidth={2} /></span>}
+          <span className="hn-iconbtn" style={{ position: 'absolute', right: -4, bottom: -4, width: 30, height: 30 }}>
             <Icon name="camera" size={12} strokeWidth={2.4} />
           </span>
         </button>
+        <div className="hn-profilehero-name">
+          {user?.name || 'Pengguna Nanime'}
+          {tag ? <span style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600 }}>{tag}</span> : null}
+        </div>
+        <span className="hn-profilehero-sub"><Icon name="user" size={12} strokeWidth={2.2} />Bergabung {months ?? 0} bulan</span>
       </div>
 
-      <div className="prof-name">
-        {user?.name || 'Pengguna Nanime'}
-        {tag ? <span className="prof-tag">{tag}</span> : null}
-      </div>
-
-      <div className="prof-chips">
-        {developer ? <span className="prof-chip developer-chip"><RankInsignia rank="developer" size={22} />Developer · Lvl. {DEVELOPER_LEVEL}</span> : null}
-      </div>
-
-      <div className="prof-stats">
-        <div className="prof-stat">
-          <span className="ps-val">{stats.months ?? '—'}</span>
-          <span className="ps-lab">bulan</span>
-        </div>
-        <div className="prof-stat">
-          <span className="ps-val">{stats.comments ?? '—'}</span>
-          <span className="ps-lab">komentar</span>
-        </div>
-        <div className="prof-stat">
-          <span className="ps-val">{stats.hist}</span>
-          <span className="ps-lab">riwayat</span>
-        </div>
-        <div className="prof-stat">
-          <span className="ps-val" title={stats.seconds == null ? 'Data penggunaan belum tersedia' : formatWatchDuration(stats.seconds)}>{stats.seconds == null ? '—' : Math.floor(stats.seconds / 60)}</span>
-          <span className="ps-lab">menit</span>
+      <div className="hn-rankcard">
+        <RankInsignia rank={rank} size={52} />
+        <div className="hn-rankcard-main">
+          <div className="hn-rankcard-tier">
+            {rankMeta.label}
+            <small>{seconds == null ? 'Penggunaan menunggu sinkron…' : `${formatUsage(seconds)} waktu aktif terdata`}</small>
+          </div>
+          {rankProg?.next ? <div className="hn-rankbar"><div className="hn-rankbar-fill" style={{ width: `${Math.round(rankProg.used / rankProg.span * 100)}%` }} /></div> : null}
+          {rankProg?.next ? (
+            <div className="hn-rankbar-label">
+              <span>{rankMeta.label}</span>
+              <span>{formatUsage(rankProg.next.minutes * 60 - (seconds || 0))} lagi → {rankProg.next.label}</span>
+            </div>
+          ) : <div className="hn-rankbar-label"><span>{rank === 'developer' ? 'Tier developer' : 'Tier tertinggi tercapai'}</span></div>}
         </div>
       </div>
 
-      <div className="prof-actions">
-        <button type="button" className="prof-action" onClick={() => navigate('/favorites')}>
-          <Icon name="starFill" size={16} strokeWidth={0} />
+      <nav className="hn-menulist" aria-label="Menu profil">
+        <button type="button" className="hn-menuitem" onClick={() => navigate('/favorites')}>
+          <span className="hn-menuitem-icon"><Icon name="starFill" size={16} strokeWidth={0} /></span>
           Favorit
+          <span className="hn-menuitem-badge">{favorites.length}</span>
         </button>
-        <button type="button" className="prof-action" onClick={() => navigate('/settings')}>
-          <Icon name="settings" size={16} strokeWidth={2.2} />
+        <button type="button" className="hn-menuitem" onClick={() => navigate('/friends')}>
+          <span className="hn-menuitem-icon"><Icon name="users" size={16} strokeWidth={2} /></span>
+          Teman & Chat
+        </button>
+        <button type="button" className="hn-menuitem" onClick={() => navigate('/leaderboard')}>
+          <span className="hn-menuitem-icon"><Icon name="crown" size={16} strokeWidth={0} /></span>
+          Leaderboard
+        </button>
+        <button type="button" className="hn-menuitem" onClick={() => navigate('/notifications')}>
+          <span className="hn-menuitem-icon"><Icon name="bell" size={16} strokeWidth={2} /></span>
+          Notifikasi
+        </button>
+        <button type="button" className="hn-menuitem" onClick={() => navigate('/settings')}>
+          <span className="hn-menuitem-icon"><Icon name="settings" size={16} strokeWidth={2.2} /></span>
           Pengaturan
+          <span className="hn-menuitem-chevron"><Icon name="right" size={14} strokeWidth={2.4} /></span>
         </button>
-        <button type="button" className="prof-action" onClick={() => navigate('/affinity')}>
-          <Icon name="heartFill" size={16} />
-          Afinitas
+        <button type="button" className="hn-menuitem" onClick={() => void signOutUser().then(() => (toast('Berhasil keluar', 'ok'), navigate('/home')))}>
+          <span className="hn-menuitem-icon" style={{ color: '#ff8a80' }}><Icon name="logout" size={16} strokeWidth={2.2} /></span>
+          Keluar dari akun
         </button>
-      </div>
+      </nav>
 
-      <div className="prof-tabs" role="tablist">
+      <div className="hn-divider" />
+
+      <div className="hn-chiprow" role="tablist" style={{ justifyContent: 'center' }}>
         <button
           type="button"
-          className={'prof-tab' + (tab === 'comments' ? ' on' : '')}
-          role="tab"
-          aria-selected={tab === 'comments'}
-          onClick={() => setTab('comments')}
-        >Komentar</button>
-        <button
-          type="button"
-          className={'prof-tab' + (tab === 'fav' ? ' on' : '')}
+          className={`hn-chip${tab === 'fav' ? ' hn-active' : ''}`}
           role="tab"
           aria-selected={tab === 'fav'}
           onClick={() => setTab('fav')}
-        >
-          Favorit
-        </button>
+        >Favorit</button>
         <button
           type="button"
-          className={'prof-tab' + (tab === 'hist' ? ' on' : '')}
+          className={`hn-chip${tab === 'hist' ? ' hn-active' : ''}`}
           role="tab"
           aria-selected={tab === 'hist'}
           onClick={() => setTab('hist')}
-        >
-          Histori
-        </button>
+        >Histori</button>
       </div>
 
-      {tab === 'comments' ? <section role="tabpanel" aria-label="Komentar">
-        {commentsLoading ? <p className="prof-empty" role="status">Memuat komentar…</p> : null}
-        {commentsError ? <div className="prof-empty" role="alert">Komentar belum dapat dimuat. <button type="button" className="prof-comment-link" onClick={() => { setCommentsLoading(true); setCommentsError(false); void listOwnComments().then(setComments).catch(() => setCommentsError(true)).finally(() => setCommentsLoading(false)); }}>Coba lagi</button></div> : null}
-        {!commentsLoading && !commentsError && !comments.length ? <p className="prof-empty">Belum ada komentar.</p> : null}
-        {comments.map(comment => <article className="prof-comment" key={comment.id}>
-          <div className="prof-comment-head">
-            <CommunityAvatar name={user?.name || 'Pengguna Nanime'} src={user?.avatar} />
-            <strong>{user?.name || 'Pengguna Nanime'}</strong>
-            <time>• {relativeTime(new Date(comment.created_at).getTime())}</time>
-          </div>
-          <button type="button" className="prof-comment-anime-row" onClick={() => navigate(detailPath(comment.anime_id, comment.anime_id))}>
-            <span className="pr-thumb"><SmartImage animeId={comment.anime_id} alt={comment.anime_id} /></span>
-            <span className="prof-comment-anime">{comment.anime_id}</span>
-          </button>
-          <p>{comment.content}</p>
-        </article>)}
-      </section> : tab === 'fav'
-        ? favList.map(f => (
+      {tab === 'fav' ? (
+        <div className="hn-rowlist" style={{ marginTop: 14 }}>
+          {favList.map(f => (
             <button
               type="button"
-              className="prof-row"
+              className="hn-row"
               key={f.id}
               onClick={() => navigate(detailPath(f.id, f.title))}
               aria-label={f.title}
             >
-              <span className="pr-thumb">
+              <span className="hn-card-poster" style={{ width: 66, borderRadius: 8, flexShrink: 0 }}>
                 <SmartImage src={f.poster} alt={f.title} />
               </span>
-              <span className="pr-body">
-                <span className="pr-title clamp-2">{f.title}</span>
-                <span className="pr-sub">
-                  Favorit • {relativeTime(f.addedAt)}
+              <span className="hn-row-main">
+                <span className="hn-row-title">{f.title}</span>
+                <span className="hn-row-sub">Favorit • {relativeTime(f.addedAt)}</span>
+              </span>
+              <Icon name="right" size={15} />
+            </button>
+          ))}
+          {!favList.length ? <p className="hn-state">Belum ada favorit.</p> : null}
+        </div>
+      ) : (
+        <div className="hn-rowlist" style={{ marginTop: 14 }}>
+          {histList.map(h => (
+            <button
+              type="button"
+              className="hn-row"
+              key={h.animeId + '|' + h.episode}
+              onClick={() => navigate(detailPath(h.animeId, h.title))}
+              aria-label={h.title}
+            >
+              <span className="hn-card-poster" style={{ width: 66, borderRadius: 8, flexShrink: 0 }}>
+                <SmartImage src={h.poster} alt={h.title} />
+              </span>
+              <span className="hn-row-main">
+                <span className="hn-row-title">{h.title}</span>
+                <span className="hn-row-sub">Episode {h.episode} • {relativeTime(h.watchedAt)}</span>
+                <span className="hn-progressbar" style={{ position: 'static', marginTop: 6 }}>
+                  <span className="hn-progressbar-fill" style={{ width: `${Math.min(100, Math.round(h.percent || 0))}%` }} />
                 </span>
+                <span className="hn-row-sub">{mmss(h.positionSec)} / {mmss(h.durationSec)}</span>
               </span>
             </button>
-          ))
-        : histList.map(h => (
-            <div className="prof-row" key={h.animeId + '|' + h.episode}>
-              <button
-                type="button"
-                className="pr-main"
-                onClick={() => navigate(detailPath(h.animeId, h.title))}
-                aria-label={h.title}
-              >
-                <span className="pr-thumb">
-                  <SmartImage src={h.poster} alt={h.title} />
-                </span>
-                <span className="pr-body">
-                  <span className="pr-title clamp-2">{h.title}</span>
-                  <span className="pr-sub">
-                    Episode {h.episode} • {relativeTime(h.watchedAt)}
-                  </span>
-                  <span className="hp-bar pr-bar">
-                    <span className="hp-fill" style={{ '--pct': Math.min(1, Math.max(0, h.percent || 0)) } as React.CSSProperties} />
-                  </span>
-                  <span className="pr-time">
-                    {mmss(h.positionSec)} / {mmss(h.durationSec)}
-                  </span>
-                </span>
-              </button>
-            </div>
           ))}
-
-      {tab === 'fav' && !favList.length ? <p className="prof-empty">Belum ada favorit.</p> : null}
-      {tab === 'hist' && !histList.length ? <p className="prof-empty">Belum ada riwayat tontonan.</p> : null}
-
-      <section className="developer-profile-messages" aria-label="Pesan developer">
-        <header><div><span className="eyebrow">NANIME</span><h2>Pesan Developer</h2></div><span className="developer-message-mark">DEV</span></header>
-        <p className="developer-message-intro">Pengumuman dan pesan langsung dari developer Nanime.</p>
-        {developer && <form onSubmit={async event => {
-          event.preventDefault(); setDeveloperMessageError(''); setSendingDeveloperMessage(true);
-          try { await sendDeveloperMessage(developerMessage); setDeveloperMessage(''); setDeveloperMessages(await listDeveloperMessages()); }
-          catch (error) { setDeveloperMessageError(error instanceof Error ? error.message : 'Pesan gagal dikirim.'); }
-          finally { setSendingDeveloperMessage(false); }
-        }} className="developer-message-form">
-          <textarea aria-label="Pesan untuk pengguna Nanime" maxLength={2000} value={developerMessage} onChange={event => setDeveloperMessage(event.target.value)} placeholder="Tulis pesan untuk pengguna Nanime…" />
-          <button type="submit" disabled={sendingDeveloperMessage || !developerMessage.trim()}>{sendingDeveloperMessage ? 'Mengirim…' : 'Kirim pesan'}</button>
-          {developerMessageError ? <p role="alert">{developerMessageError}</p> : null}
-        </form>}
-        {developerMessagesError ? <p className="prof-empty" role="alert">Pesan developer belum dapat dimuat. Terapkan migration Supabase 013 lalu coba lagi. <button type="button" className="prof-comment-link" onClick={() => { setDeveloperMessagesError(false); void listDeveloperMessages().then(setDeveloperMessages).catch(() => setDeveloperMessagesError(true)); }}>Coba lagi</button></p> : developerMessages.length ? <div className="developer-message-list">{developerMessages.map(message => <article key={message.id}><p>{message.content}</p><time>{new Date(message.created_at).toLocaleString('id-ID')}</time></article>)}</div> : <p className="prof-empty">Belum ada pesan developer.</p>}
-      </section>
+          {!histList.length ? <p className="hn-state">Belum ada riwayat tontonan.</p> : null}
+        </div>
+      )}
 
       <Sheet open={photo} onClose={() => setPhoto(false)}>
-        <div className="photo-sheet">
-          <span className="phc-icon">
-            <Icon name="camera" size={22} strokeWidth={2.2} />
-          </span>
-          <h3 className="phc-title">Foto Profil</h3>
+        <div style={{ padding: '6px 16px calc(18px + env(safe-area-inset-bottom))', display: 'grid', gap: 10 }}>
+          <h3 className="hn-sheettitle" style={{ padding: '4px 0 6px' }}>Foto Profil</h3>
           {user?.avatar ? (
             <button
               type="button"
-              className="phc-btn ghost"
+              className="hn-menuitem"
               onClick={() => {
                 window.open(user.avatar as string, '_blank', 'noopener');
               }}
@@ -280,7 +213,7 @@ export function Profile() {
           ) : null}
           <button
             type="button"
-            className="phc-btn primary"
+            className="hn-menuitem"
             onClick={() => {
               setPhoto(false);
               toast('Foto profil tersinkron dari akun Google', 'ok');
@@ -288,18 +221,8 @@ export function Profile() {
           >
             Sinkronisasi Foto
           </button>
-          <button type="button" className="phc-close" onClick={() => setPhoto(false)}>
+          <button type="button" className="hn-menuitem" onClick={() => setPhoto(false)}>
             Tutup
-          </button>
-          <button
-            type="button"
-            className="phc-out"
-            onClick={() => {
-              setPhoto(false);
-              void signOutUser().then(() => toast('Berhasil keluar', 'ok'));
-            }}
-          >
-            Keluar dari akun
           </button>
         </div>
       </Sheet>

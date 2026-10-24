@@ -38,62 +38,71 @@ export function Favorites() {
 
   return (
     <>
-      <h1 className="fav-title">Subscribed Anime</h1>
+      <header className="hn-pagehead">
+        <button type="button" className="hn-back" aria-label="Kembali" onClick={() => navigate(-1)}>
+          <Icon name="left" />
+        </button>
+        <h1 className="hn-pagehead-title">Anime Disubscribe</h1>
+        <span style={{ width: 40 }} />
+      </header>
 
-      {syncError ? <div className="library-sync-warning" role="alert"><span>{syncError}</span><button type="button" disabled={syncing} onClick={() => void retrySync()}>{syncing ? 'Menyinkronkan…' : 'Coba sinkronkan'}</button></div> : null}
+      {syncError ? <div className="hn-inline-warn" role="alert"><span>{syncError}</span>
+        <button type="button" className="hn-textbtn" disabled={syncing} onClick={() => void retrySync()}>{syncing ? 'Menyinkronkan…' : 'Coba sinkronkan'}</button>
+      </div> : null}
 
       {favorites.length ? (
         <>
-          <div className="fav-row">
-            <span className="fav-total">Total ({favorites.length})</span>
-            <div className="fav-sort-wrap">
-              <button type="button" className="fav-sort" onClick={() => setOpenSort(o => !o)} aria-expanded={openSort}>
-                {SORT_LABEL[sort]}
-                <Icon name="down" size={13} strokeWidth={2.4} />
-              </button>
-              {openSort ? (
-                <div className="fav-sort-panel" role="menu">
-                  {(Object.keys(SORT_LABEL) as SortKey[]).map(k => (
-                    <button
-                      key={k}
-                      type="button"
-                      className={'fav-sort-item' + (sort === k ? ' active' : '')}
-                      role="menuitemradio"
-                      aria-checked={sort === k}
-                      onClick={() => {
-                        setSort(k);
-                        setOpenSort(false);
-                      }}
-                    >
-                      {SORT_LABEL[k]}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+          <div className="hn-section-head">
+            <span className="hn-section-title">Total ({favorites.length})</span>
+            <button type="button" className="hn-section-link" onClick={() => setOpenSort(o => !o)} aria-expanded={openSort}>
+              {SORT_LABEL[sort]}
+              <Icon name="down" size={13} strokeWidth={2.4} />
+            </button>
           </div>
+          {openSort ? (
+            <div className="hn-chiprow" role="menu" style={{ paddingBottom: 10 }}>
+              {(Object.keys(SORT_LABEL) as SortKey[]).map(k => (
+                <button
+                  key={k}
+                  type="button"
+                  className={`hn-chip${sort === k ? ' hn-active' : ''}`}
+                  role="menuitemradio"
+                  aria-checked={sort === k}
+                  onClick={() => {
+                    setSort(k);
+                    setOpenSort(false);
+                  }}
+                >
+                  {SORT_LABEL[k]}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <Grid>
             {sorted.map((f, i) => (
-              <div key={f.id} className="up-card anim-up" style={{ '--i': i } as React.CSSProperties}>
+              <div key={f.id} style={{ '--i': i, position: 'relative' } as React.CSSProperties}>
                 <button
                   type="button"
-                  className="up-poster"
+                  className="hn-card"
                   onClick={() => navigate(detailPath(f.id, f.title))}
                   aria-label={f.title}
                 >
-                  <SmartImage src={f.poster} alt={f.title} eager={i < 6} />
-                  {f.score ? (
-                    <span className="up-rating">
-                      <Icon name="starFill" size={11} strokeWidth={0} />
-                      {f.score}
-                    </span>
-                  ) : null}
-                  {f.type ? <span className="up-ep">{f.type}</span> : null}
+                  <span className="hn-card-poster">
+                    <SmartImage src={f.poster} alt={f.title} eager={i < 6} />
+                    {f.score ? (
+                      <span className="hn-views">
+                        <Icon name="starFill" size={11} strokeWidth={0} />
+                        {f.score}
+                      </span>
+                    ) : null}
+                    {f.type ? <span className="hn-episodecode">{f.type}</span> : null}
+                  </span>
                 </button>
                 <button
                   type="button"
-                  className="fav-mini"
+                  className="hn-iconbtn"
+                  style={{ position: 'absolute', top: 8, right: 8, width: 30, height: 30, color: 'var(--accent-pink)' }}
                   aria-label={'Berhenti subscribe ' + f.title}
                   onClick={() => {
                     toggleFavorite(f);
@@ -104,7 +113,7 @@ export function Favorites() {
                 </button>
                 <button
                   type="button"
-                  className="up-title clamp-2"
+                  className="hn-card-title"
                   style={{ textAlign: 'left' }}
                   onClick={() => navigate(detailPath(f.id, f.title))}
                 >

@@ -45,7 +45,7 @@ export function AuthCallback() {
         {failed ? (
           <>
             <p style={{ fontWeight: 800 }}>Tidak bisa masuk</p>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 13, textAlign: 'center', maxWidth: 300 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', maxWidth: 300 }}>
               Gagal masuk dengan Google. Silakan coba lagi nanti.
             </p>
             <Button variant="ghost" icon={<Icon name="back" size={16} />} onClick={() => navigate('/home', { replace: true })}>

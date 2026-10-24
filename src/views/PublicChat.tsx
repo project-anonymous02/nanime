@@ -13,6 +13,7 @@ function timeLabel(value: string) {
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 }
 
+/** Public Chat (Supabase 014): kanal publik, realtime, balas/hapus. */
 export function PublicChat() {
   const navigate = useNavigate();
   const [channels, setChannels] = useState<PublicChatChannel[]>([]);
@@ -89,42 +90,60 @@ export function PublicChat() {
     catch (cause) { setError((cause as Error)?.message || 'Pesan gagal dihapus.'); }
   }
 
-  return <div className="public-chat-page">
-    <header className="public-chat-header">
-      <button type="button" className="ibtn" aria-label="Kembali" onClick={() => navigate(-1)}><Icon name="left" /></button>
-      <div className="public-chat-title"><span className="eyebrow">NANIME COMMUNITY</span><h1>Public Chat</h1><p><i className={connected ? 'chat-online' : 'chat-offline'} />{connected ? 'Terhubung' : 'Menghubungkan…'}</p></div>
-      <button type="button" className="ibtn" aria-label="SocialLine" onClick={() => navigate('/community')}><Icon name="chart" /></button>
+  return <div className="hn-chatscreen">
+    <header className="hn-pagehead">
+      <button type="button" className="hn-back" aria-label="Kembali" onClick={() => navigate(-1)}><Icon name="left" /></button>
+      <div style={{ flex: 1 }}>
+        <h1 className="hn-pagehead-title">Public Chat</h1>
+        <p className="hn-profilehero-sub"><span className="hn-dot" style={{ display: 'inline-block', background: connected ? 'var(--accent-green)' : 'var(--accent-orange)', boxShadow: 'none' }} /> {connected ? 'Terhubung langsung' : 'Menghubungkan…'}</p>
+      </div>
     </header>
 
-    {channels.length ? <div className="public-chat-channels" role="tablist" aria-label="Kanal chat">
-      {channels.map(channel => <button key={channel.id} type="button" role="tab" aria-selected={active?.id === channel.id} className={active?.id === channel.id ? 'active' : ''} onClick={() => setActive(channel)}># {channel.name}</button>)}
+    {channels.length ? <div className="hn-datetabs no-scrollbar" role="tablist" aria-label="Kanal chat">
+      {channels.map(channel => <button key={channel.id} type="button" role="tab" aria-selected={active?.id === channel.id} className={`hn-datetab${active?.id === channel.id ? ' hn-active' : ''}`} onClick={() => setActive(channel)}>#{channel.name}</button>)}
     </div> : null}
 
-    {error ? <div className="public-chat-error" role="alert"><span>{error}{/nanime_public_chat_channels|nanime_public_chat_messages/.test(error) ? ' Terapkan migration 014_public_chat.sql di Supabase.' : ''}</span><button type="button" onClick={() => active && void refreshMessages(active.id)}><Icon name="refresh" size={15} /> Coba lagi</button></div> : null}
-    {loadingChannels ? <div className="public-chat-state" role="status"><span className="spinner-sm" />Memuat kanal…</div> : !channels.length ? <div className="public-chat-state"><Icon name="chat" /><strong>Kanal chat belum tersedia</strong><span>Terapkan migration Supabase 014 untuk menyiapkan kanal Umum.</span></div> : null}
+    {error ? <div className="hn-inline-warn" role="alert"><span>{error}{/nanime_public_chat_channels|nanime_public_chat_messages/.test(error) ? ' Terapkan migration 014_public_chat.sql di Supabase.' : ''}</span>
+      <button type="button" className="hn-textbtn" onClick={() => active && void refreshMessages(active.id)}><Icon name="refresh" size={15} /> Coba lagi</button>
+    </div> : null}
+    {loadingChannels ? <div className="hn-spin" role="status" /> : !channels.length ? <div className="hn-state"><span className="hn-state-icon"><Icon name="chat" /></span><span className="hn-state-title">Kanal chat belum tersedia</span><span className="hn-state-sub">Terapkan migration Supabase 014 untuk menyiapkan kanal Umum.</span></div> : null}
 
-    <section className="public-chat-messages" ref={listRef} aria-label="Pesan publik" aria-live="polite">
-      {loadingMessages && !messages.length ? <div className="public-chat-state" role="status"><span className="spinner-sm" />Memuat pesan…</div> : null}
-      {!loadingMessages && active && !messages.length ? <div className="public-chat-state"><span className="public-chat-empty"><Icon name="chat" /></span><strong>Belum ada pesan di {active.name}</strong><span>Mulai percakapan dengan komunitas.</span></div> : null}
+    <section className="hn-chatlog" ref={listRef} aria-label="Pesan publik" aria-live="polite">
+      {loadingMessages && !messages.length ? <div className="hn-spin" role="status" /> : null}
+      {!loadingMessages && active && !messages.length ? <div className="hn-state"><span className="hn-state-icon"><Icon name="chat" /></span><span className="hn-state-title">Belum ada pesan di #{active.name}</span><span className="hn-state-sub">Mulai percakapan dengan komunitas.</span></div> : null}
       {messages.map(message => {
         const profile = message.profile;
-        const name = profile?.username || (message.user_id === userId ? 'Kamu' : 'Pengguna Nanime');
-        const rank = profile ? RANK_META[profile.rank] : null;
-        return <article className={'public-chat-message' + (message.user_id === userId ? ' own' : '')} key={message.id}>
-          <CommunityAvatar name={name} src={profile?.avatar_url} />
-          <div className="public-chat-bubble"><header><strong className={profile?.is_developer ? 'developer' : ''}>{name}</strong>{rank ? <span style={{ color: rank.color }}><RankInsignia rank={profile!.rank} size={14} />{rank.label}</span> : null}<time>{timeLabel(message.created_at)}</time></header>
-            {message.reply_to_id ? <span className="public-chat-reply-tag">Membalas pesan</span> : null}
-            <p>{message.content}</p>
-            <footer>{message.user_id === userId ? <button type="button" onClick={() => void remove(message)} aria-label="Hapus pesan"><Icon name="trash" size={13} /> Hapus</button> : <button type="button" onClick={() => setReply(message)}><Icon name="reply" size={13} /> Balas</button>}</footer>
+        const mine = message.user_id === userId;
+        const name = profile?.username || (mine ? 'Kamu' : 'Pengguna Nanime');
+        const rankMeta = profile ? RANK_META[profile.rank] : null;
+        return <article className={`hn-chatrow${mine ? ' hn-mine' : ''}`} key={message.id}>
+          {mine ? null : <CommunityAvatar name={name} src={profile?.avatar_url} />}
+          <div className="hn-bubble">
+            <header style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="hn-bubble-name">{name}</span>
+              {profile?.is_developer ? <span style={{ color: 'var(--accent-pink)', fontSize: 9, fontWeight: 800 }}>DEV</span> : null}
+            </header>
+            <p className="hn-bubble-text">{message.content}</p>
+            <footer style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+              <time className="hn-bubble-time">{timeLabel(message.created_at)}</time>
+              {mine ? (
+                <button type="button" className="hn-textbtn" style={{ pointerEvents: 'auto' }} onClick={() => void remove(message)} aria-label="Hapus pesan"><Icon name="trash" size={11} /></button>
+              ) : (
+                <button type="button" className="hn-textbtn" onClick={() => setReply(message)} aria-label="Balas pesan"><Icon name="reply" size={11} /> Balas</button>
+              )}
+            </footer>
           </div>
         </article>;
       })}
     </section>
 
-    {active ? <form className="public-chat-composer" onSubmit={event => void submit(event)}>
-      {reply ? <div className="public-chat-replying"><span>Membalas <b>{reply.profile?.username || 'Pengguna Nanime'}</b>: {reply.content}</span><button type="button" aria-label="Batal membalas" onClick={() => setReply(null)}><Icon name="x" size={15} /></button></div> : null}
-      <textarea value={text} onChange={event => setText(event.target.value)} maxLength={2000} rows={1} placeholder={`Kirim pesan ke ${active.name}…`} aria-label="Kirim pesan publik" />
-      <button type="submit" disabled={!text.trim() || sending} aria-label="Kirim"><Icon name="send" size={18} />{sending ? '…' : ''}</button>
+    {active ? <form className="hn-chatbar" onSubmit={event => void submit(event)}>
+      {reply ? <div className="hn-typinghint" style={{ flex: '1 0 auto' }}>
+        <span>Membalas <b>{reply.profile?.username || 'Pengguna Nanime'}</b></span>
+        <button type="button" aria-label="Batal membalas" onClick={() => setReply(null)}><Icon name="x" size={14} /></button>
+      </div> : null}
+      <textarea className="hn-chatinput" value={text} onChange={event => setText(event.target.value)} maxLength={2000} rows={1} placeholder={`Kirim pesan ke ${active.name}…`} aria-label="Kirim pesan publik" />
+      <button className="hn-chatsend" type="submit" disabled={!text.trim() || sending} aria-label="Kirim"><Icon name="send" size={18} strokeWidth={0} /></button>
     </form> : null}
   </div>;
 }

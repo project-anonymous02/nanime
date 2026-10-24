@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Catalog } from '../src/core/services/Catalog';
+import { CacheManager } from '../src/core/services/CacheManager';
 import { TitleIndex } from '../src/core/services/TitleIndex';
 import { getProvider } from '../src/providers/registry';
 import type { Card, Detail, EpisodeItem } from '../src/core/types';
@@ -112,5 +113,26 @@ describe('Catalog lazy detail fallback', () => {
     expect(bundle.episodeList).toHaveLength(12);
     expect(samaSearch).not.toHaveBeenCalled();
     expect(animekuSearch).not.toHaveBeenCalled();
+  });
+
+  it('rebuilds the provider index when a cached detail survives without its TitleIndex entry', async () => {
+    const id = `cached-detail-index-${++serial}`;
+    const ota = getProvider('otakudesu')!;
+    await TitleIndex.upsert({
+      id,
+      title: 'Bleach',
+      type: 'TV',
+      sources: [{ provider: 'otakudesu', id: `${id}-source`, slug: `${id}-source` }]
+    });
+    vi.spyOn(ota, 'detail').mockResolvedValue(detail('otakudesu'));
+    await Catalog.detail(id, { title: 'Bleach' });
+
+    const detailCache = vi.spyOn(CacheManager, 'detail');
+    vi.spyOn(TitleIndex, 'get').mockImplementationOnce(async () => null);
+    const cached = await Catalog.detail(id, { title: 'Bleach' });
+
+    expect(cached.episodeList).toHaveLength(12);
+    expect(detailCache).toHaveBeenCalled();
+    expect(await TitleIndex.get(id)).toBeTruthy();
   });
 });

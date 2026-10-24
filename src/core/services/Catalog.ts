@@ -114,7 +114,19 @@ async function healEntry(id: string, titleHint?: string): Promise<IndexedEntry |
     const exact = r.items.find(i => i.canonicalId === id);
     const best = exact || r.items[0];
     if (!best) return null;
-    remember(r.items.slice(0, 12));
+    // The selected result must be indexed before detail loading continues.
+    // `remember` is intentionally fire-and-forget for background feed items,
+    // but doing that here can race the immediate TitleIndex.get below.
+    await TitleIndex.upsert({
+      id: best.canonicalId,
+      title: best.title,
+      poster: best.poster,
+      score: best.score,
+      type: best.type,
+      status: best.status,
+      sources: best.sources
+    });
+    remember(r.items.slice(0, 12).filter(item => item.canonicalId !== best.canonicalId));
     return await TitleIndex.get(best.canonicalId);
   } catch {
     return null;
@@ -279,23 +291,40 @@ export const Catalog = {
   },
 
   /** Detail anime berdasarkan canonicalId — tahan refresh berkat TitleIndex. */
-  detail(id: string, opts: { title?: string } = {}): Promise<DetailBundle> {
+  async detail(id: string, opts: { title?: string } = {}): Promise<DetailBundle> {
     // Remove older entries that may have been cached before policy checks ran
     // inside the cache boundary.
     CacheManager.invalidate('detailBundle', id);
     CacheManager.invalidate('detailBundleV2', id);
     CacheManager.invalidate('detailBundleV3', id);
-    return CacheManager.get('detailBundleV4', id, TTL.detail, async () => {
-      const bundle = await buildDetail(id, opts);
-      const entry = await TitleIndex.get(id);
-      const providers = [...new Set([...(bundle.providers || []), ...(entry?.sources || []).map(source => source.provider)])].map(provider => getProvider(provider)).filter(Boolean);
-      const unclassifiedMixedProvider = providers.some(provider => provider?.content === 'mixed') && !bundle.genres.length;
-      if (unclassifiedMixedProvider || isAdultContent({ title: bundle.title, alt: bundle.alt, genres: bundle.genres })) {
+    const validate = async (candidate: DetailBundle): Promise<IndexedEntry | null> => {
+      const indexed = await TitleIndex.get(id);
+      if (!indexed?.sources.length) return null;
+      const providers = [...new Set([...(candidate.providers || []), ...indexed.sources.map(source => source.provider)])]
+        .map(provider => getProvider(provider)).filter(Boolean);
+      const unclassifiedMixedProvider = providers.some(provider => provider?.content === 'mixed') && !candidate.genres.length;
+      if (unclassifiedMixedProvider || isAdultContent({ title: candidate.title, alt: candidate.alt, genres: candidate.genres })) {
         throw new Error('Konten ini dibatasi oleh kebijakan katalog Nanime.');
       }
       policyValidatedDetails.add(id);
-      return bundle;
+      return indexed;
+    };
+
+    let bundle = await CacheManager.get('detailBundleV4', id, TTL.detail, async () => {
+      const built = await buildDetail(id, opts);
+      if (!await validate(built)) throw new Error(GENERIC_ERROR);
+      return built;
     });
+    let entry = await TitleIndex.get(id);
+    // Detail bundles and TitleIndex are persisted separately. A cached detail
+    // can survive while its provider/source index is missing, which makes the
+    // page render but causes the first Nonton action to fail immediately.
+    if (!entry?.sources.length) {
+      bundle = await buildDetail(id, opts);
+    }
+    entry = await validate(bundle);
+    if (!entry?.sources.length) throw new Error(GENERIC_ERROR);
+    return bundle;
   },
 
   /** Sumber putar satu episode dengan 4 kualitas yang selalu tersedia. */

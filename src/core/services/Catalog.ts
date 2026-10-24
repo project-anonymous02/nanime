@@ -793,11 +793,19 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
     .map(s => {
       const eps = s.episodes || [];
       const targeted = !!opts.episodeProvider && s.provider === opts.episodeProvider && (opts.episodeId || opts.episodeSlug);
-      const hit = targeted
+      const exactHit = targeted
         ? eps.find(e => (opts.episodeId && e.id === opts.episodeId) || (opts.episodeSlug && e.slug === opts.episodeSlug))
-        : !isNaN(want)
-          ? eps.find(e => Number(e.num) === want) || eps.find(e => episodeNumber(e.title || '') === want)
-          : eps.find(e => e.id === episode || e.slug === episode);
+        : undefined;
+      // UI and indexed episode references can come from different detail
+      // snapshots. Prefer exact identity, but recover within the same provider
+      // by the requested episode number when that identity has gone stale.
+      const numberedHit = !isNaN(want)
+        ? eps.find(e => Number(e.num) === want) || eps.find(e => episodeNumber(e.title || '') === want)
+        : undefined;
+      const identityHit = isNaN(want)
+        ? eps.find(e => e.id === episode || e.slug === episode)
+        : undefined;
+      const hit = exactHit || numberedHit || identityHit;
       if (!hit) return null;
       return {
         provider: s.provider,

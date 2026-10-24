@@ -187,8 +187,9 @@ export const CacheManager = {
 
   /* ── Pembungkus TTL bernama ── */
 
-  home<T>(provider: string, fn: () => Promise<T>): Promise<T> {
-    return run('home:' + provider, TTL.home, fn);
+  home<T>(provider: string, fn: () => Promise<T>, fresh = false): Promise<T> {
+    const key = 'home:' + provider;
+    return fresh ? refresh(key, TTL.home, fn) : run(key, TTL.home, fn);
   },
 
   detail<T>(provider: string, id: string, fn: () => Promise<T>): Promise<T> {

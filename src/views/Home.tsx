@@ -13,11 +13,9 @@ import { PullToRefreshIndicator } from '../ui/PullToRefresh';
 import { SmartImage } from '../ui/SmartImage';
 import { detailPath, genrePath } from '../lib/nav';
 import { filterSubscribedUpdates, subscriptionUpdateId } from '../lib/subscriptions';
-import { leaderboard, type CommunityProfile } from '../lib/community';
 import { listPublicChatChannels, listPublicChatMessages } from '../lib/publicChat';
-import { CommunityAvatar } from '../ui/CommunityAvatar';
 
-/** Beranda: kartu profil, hero, leaderboard, lalu rail/grid konten. */
+/** Beranda: kartu profil, hero anime, lalu rail/grid konten. */
 
 const GENRES = [
   'Action', 'Adult Cast', 'Adventure', 'Avant Garde', 'Award Winning', 'Comedy', 'Demons', 'Drama', 'Ecchi',
@@ -36,7 +34,6 @@ export function Home() {
   const [feed, setFeed] = useState<HomeFeed | null>(null);
   const [error, setError] = useState(false);
   const [slide, setSlide] = useState(0);
-  const [communityLeaders, setCommunityLeaders] = useState<CommunityProfile[]>([]);
   const [latestPublicMessage, setLatestPublicMessage] = useState<{ content: string; username: string } | null>(null);
   const [searchPinned, setSearchPinned] = useState(false);
 
@@ -85,10 +82,11 @@ export function Home() {
       const message = rows[0];
       return message ? { content: message.content, username: message.profile?.username || 'Pengguna Nanime' } : null;
     };
-    void Promise.allSettled([leaderboard(10), latestMessage()]).then(results => {
+    void latestMessage().then(message => {
       if (!alive) return;
-      if (results[0].status === 'fulfilled') setCommunityLeaders(results[0].value);
-      if (results[1].status === 'fulfilled') setLatestPublicMessage(results[1].value);
+      setLatestPublicMessage(message);
+    }).catch(() => {
+      if (alive) setLatestPublicMessage(null);
     });
     return () => { alive = false; };
   }, [user?.id]);
@@ -107,7 +105,7 @@ export function Home() {
 
   const ranked = feed?.weekly ?? [];
   const heroes = useMemo(() => ranked.slice(0, 2), [ranked]);
-  const pages = (communityLeaders.length ? 1 : 0) + heroes.length;
+  const pages = heroes.length;
   const next = continueList[0];
 
   const openCard = (c: AggregatedCard) => navigate(detailPath(c.canonicalId, c.title));
@@ -127,6 +125,14 @@ export function Home() {
     const idx = Math.round(el.scrollLeft / w);
     setSlide(prev => (prev === idx ? prev : idx));
   };
+
+  // Feed stale/fresh may replace hero cards while the user is on a later slide.
+  // Reset to the first actual anime so the dots and visible card stay aligned.
+  const heroIds = heroes.map(hero => hero.canonicalId).join('|');
+  useEffect(() => {
+    setSlide(0);
+    if (carRef.current) carRef.current.scrollLeft = 0;
+  }, [heroIds]);
 
   return (
     <>
@@ -178,29 +184,6 @@ export function Home() {
           {pages ? (
             <div>
               <div className="hn-hero-track no-scrollbar" ref={carRef} onScroll={onCarScroll}>
-                {communityLeaders.length ? <div className="hn-page" style={{ scrollSnapAlign: 'center', width: '100%' }}>
-                  <div className="hn-rowlist">
-                    <button type="button" className="hn-menuitem" onClick={() => navigate('/leaderboard')}>
-                      <span className="hn-menuitem-icon"><Icon name="crown" size={16} strokeWidth={0} /></span>
-                      <span className="hn-row-main">
-                        <span className="hn-row-title">Leaderboard Waktu Aktif</span>
-                        <span className="hn-row-sub">Pengguna paling aktif menonton</span>
-                      </span>
-                      <Icon name="right" size={16} />
-                    </button>
-                    <div className="hn-rowlist" style={{ gap: 8 }}>
-                      {communityLeaders.slice(0, 4).map((person, i) => <button type="button" className="hn-row" key={person.id} onClick={() => navigate(`/profile/${person.id}`)}>
-                        <span className={`hn-ranknum${i === 0 ? ' hn-top' : i === 1 ? ' hn-second' : i === 2 ? ' hn-third' : ''}`}>{i + 1}</span>
-                        <CommunityAvatar name={person.username} src={person.avatar_url} />
-                        <span className="hn-row-main">
-                          <span className="hn-row-title">{person.username}</span>
-                          <span className="hn-row-sub">{Math.floor(person.app_usage_seconds / 3600)} jam aktif</span>
-                        </span>
-                      </button>)}
-                      {!communityLeaders.length ? <span className="hn-row-sub" style={{ padding: '4px 6px' }}>Belum ada data</span> : null}
-                    </div>
-                  </div>
-                </div> : null}
                 {heroes.map(c => (
                   <div className="hn-hero" key={c.canonicalId} style={{ width: '100%', scrollSnapAlign: 'center' }}>
                     <button type="button" onClick={() => openCard(c)} aria-label={c.title} style={{ width: '100%', display: 'block' }}>
@@ -299,17 +282,6 @@ export function Home() {
                   <UpdateCard key={c.canonicalId} card={c} index={i} onOpen={openCard} />
                 ))}
               </Grid>
-            </section>
-          ) : null}
-
-          {feed.donghua.length ? (
-            <section className="hn-section">
-              <SectionHead title="Donghua Update" link="Semua" onLink={() => navigate('/search')} />
-              <div className="hn-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
-                {feed.donghua.slice(0, 6).map((c, i) => (
-                  <RankCard key={c.canonicalId} card={{ ...c, rank: undefined }} index={i} onOpen={openCard} />
-                ))}
-              </div>
             </section>
           ) : null}
 

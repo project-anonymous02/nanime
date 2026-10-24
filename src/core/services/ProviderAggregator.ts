@@ -74,7 +74,6 @@ export function timeToMinutes(raw: string): number {
 export interface HomeFeedRaw {
   newUpdate: Card[];
   completed: Card[];
-  donghua: Card[];
   movie: Card[];
   sources: SourceResult[];
 }
@@ -93,8 +92,10 @@ export const ProviderAggregator = {
   async search(query: string, opts: { timeout?: number; deadline?: number; max?: number; providerIds?: string[]; includeAdult?: boolean; signal?: AbortSignal; onUpdate?: (sources: SourceResult[]) => void } = {}): Promise<SourceResult[]> {
     const q = String(query || '').trim();
     if (!q) return [];
-    const timeout = opts.timeout || 12000;
-    const deadline = opts.deadline ?? 8500;
+    // Default budgets leave room for the complete three-provider fallback
+    // chain while still bounding each slow provider attempt.
+    const timeout = opts.timeout || 5000;
+    const deadline = opts.deadline ?? 15000;
     const started = Date.now();
     const available = searchProviders().filter(p => isProviderSearchAllowed(p, opts.providerIds, opts.includeAdult));
     const explicit = !!opts.providerIds?.length;
@@ -103,7 +104,7 @@ export const ProviderAggregator = {
     const chain = explicit ? available : normalChain;
     const results: SourceResult[] = [];
 
-    const searchOne = async (p: AnimeProvider): Promise<SourceResult> => {
+    const searchOne = async (p: AnimeProvider, budget: number): Promise<SourceResult> => {
       const t0 = performance.now();
       try {
         const allowAdult = !!opts.includeAdult && p.content === 'hentai';
@@ -111,7 +112,7 @@ export const ProviderAggregator = {
           const normalized = cards.map(card => ({ ...card, provider: card.provider || p.id }));
           return allowAdult ? normalized : filterDiscovery(normalized, p.id);
         };
-        const fetched = await withTimeout(CacheManager.search(p.id, q, async () => visible(await p.search(q))), timeout);
+        const fetched = await withTimeout(CacheManager.search(p.id, q, async () => visible(await p.search(q))), budget);
         // Re-filter cache hits too; persisted search results predate current policy.
         const items = visible(fetched).map(card => ({ ...card, match: matchScore(q, card.title) }));
         markHealth(p.id, true);
@@ -133,8 +134,9 @@ export const ProviderAggregator = {
 
     // Jalur normal: berhenti pada sumber pertama yang punya hasil relevan.
     for (const p of chain.slice(0, opts.max || 99)) {
-      if (opts.signal?.aborted || remaining() <= 0) break;
-      const result = await searchOne(p);
+      const budget = Math.min(timeout, remaining());
+      if (opts.signal?.aborted || budget <= 0) break;
+      const result = await searchOne(p, budget);
       results.push(result);
       publish();
       if (result.ok && result.items.some(card => matchScore(q, card.title) >= 40)) break;
@@ -143,8 +145,9 @@ export const ProviderAggregator = {
     // Jalur dewasa terpisah: hanya saat pengguna memilih opt-in.
     if (!explicit && opts.includeAdult && !opts.signal?.aborted) {
       for (const p of adultChain) {
-        if (remaining() <= 0) break;
-        const result = await searchOne(p);
+        const budget = Math.min(timeout, remaining());
+        if (budget <= 0) break;
+        const result = await searchOne(p, budget);
         results.push(result);
         publish();
       }
@@ -161,6 +164,7 @@ export const ProviderAggregator = {
   async homeFeed(opts: {
     timeout?: number;
     deadline?: number;
+    fresh?: boolean;
     onUpdate?: (feed: HomeFeedRaw) => void;
   } = {}): Promise<HomeFeedRaw> {
     const timeout = opts.timeout || 15000;
@@ -168,7 +172,7 @@ export const ProviderAggregator = {
     const startedAt = Date.now();
     const providers = officialProviders();
 
-    const feed: HomeFeedRaw = { newUpdate: [], completed: [], donghua: [], movie: [], sources: [] };
+    const feed: HomeFeedRaw = { newUpdate: [], completed: [], movie: [], sources: [] };
     const filled = () => feed.newUpdate.length > 0 && feed.completed.length > 0 && feed.movie.length > 0;
 
     for (const p of providers) {
@@ -177,7 +181,7 @@ export const ProviderAggregator = {
       if (remaining <= 0) break;
       const started = performance.now();
       try {
-        const data = await withTimeout(CacheManager.home(p.id, () => p.home()), Math.min(timeout, remaining));
+        const data = await withTimeout(CacheManager.home(p.id, () => p.home(), opts.fresh), Math.min(timeout, remaining));
         const ongoing = filterDiscovery((data.ongoing || []).map(c => ({ ...c, provider: c.provider || p.id })), p.id).filter(c => !isMovieCard(c));
         const completed = filterDiscovery((data.completed || []).map(c => ({ ...c, provider: c.provider || p.id })), p.id).filter(c => !isMovieCard(c));
         const movie = filterDiscovery(

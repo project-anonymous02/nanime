@@ -131,14 +131,13 @@ function sortSources(entry: IndexedEntry): IndexedEntry['sources'] {
 function sanitizeDiscoveryFeed(feed: Omit<HomeFeed, 'stale'>): Omit<HomeFeed, 'stale'> {
   const newUpdate = filterDiscovery(feed.newUpdate);
   const completed = filterDiscovery(feed.completed);
-  const donghua = filterDiscovery(feed.donghua);
   const movie = filterDiscovery(feed.movie);
   const weekly = newUpdate
     .slice()
     .sort((a, b) => (parseFloat(b.score) || 0) - (parseFloat(a.score) || 0))
     .slice(0, 6)
     .map((card, index) => ({ ...card, rank: index + 1 }));
-  return { ...feed, newUpdate, completed, donghua, movie, weekly };
+  return { ...feed, newUpdate, completed, movie, weekly };
 }
 
 function sanitizeSearchResult(result: AggregatedSearchResult, includeAdult = false): AggregatedSearchResult {
@@ -168,9 +167,8 @@ export const Catalog = {
     const transform = async (raw: Awaited<ReturnType<typeof ProviderAggregator.homeFeed>>): Promise<Omit<HomeFeed, 'stale'>> => {
       const newUpdate = filterDiscovery((await SearchEngineMerge(raw.newUpdate))).slice(0, 24);
       const completed = filterDiscovery((await SearchEngineMerge(raw.completed))).slice(0, 24);
-      const donghua = filterDiscovery((await SearchEngineMerge(raw.donghua))).slice(0, 24);
       const movie = filterDiscovery((await SearchEngineMerge(raw.movie))).slice(0, 24);
-      if (!newUpdate.length && !completed.length && !donghua.length && !movie.length) {
+      if (!newUpdate.length && !completed.length && !movie.length) {
         throw new Error('empty');
       }
       const weekly = newUpdate
@@ -178,13 +176,13 @@ export const Catalog = {
         .sort((a, b) => (parseFloat(b.score) || 0) - (parseFloat(a.score) || 0))
         .slice(0, 6)
         .map((c, i) => ({ ...c, rank: i + 1 }));
-      return { newUpdate, weekly, completed, donghua, movie, sources: raw.sources };
+      return { newUpdate, weekly, completed, movie, sources: raw.sources };
     };
     const publishUpdate = async (raw: Awaited<ReturnType<typeof ProviderAggregator.homeFeed>>) => {
       try {
         const d = await transform(raw);
         if (opts.signal?.aborted) return;
-        remember([...d.newUpdate, ...d.completed, ...d.donghua, ...d.movie]);
+        remember([...d.newUpdate, ...d.completed, ...d.movie]);
         opts.onFresh?.({ ...d, stale: false });
       } catch {
         /* snapshot kosong sementara sumber lain masih memuat */
@@ -216,9 +214,12 @@ export const Catalog = {
     opts.signal?.addEventListener('abort', onAbort, { once: true });
     const build = async (): Promise<Omit<HomeFeed, 'stale'>> =>
       ProviderAggregator.homeFeed({
+        // The outer feed cache owns freshness. Reusing each provider's 24-hour
+        // cache here would make SWR and pull-to-refresh return the same data.
+        fresh: true,
         onUpdate: raw => {
           if (!opts.onFresh || opts.signal?.aborted) return;
-          if (!raw.newUpdate.length && !raw.completed.length && !raw.donghua.length && !raw.movie.length) return;
+          if (!raw.newUpdate.length && !raw.completed.length && !raw.movie.length) return;
           pendingRaw = raw;
           scheduleUpdate();
         }
@@ -227,7 +228,7 @@ export const Catalog = {
       ? (d: Omit<HomeFeed, 'stale'>) => {
           if (opts.signal?.aborted) return;
           const safe = sanitizeDiscoveryFeed(d);
-          remember([...safe.newUpdate, ...safe.completed, ...safe.donghua, ...safe.movie]);
+          remember([...safe.newUpdate, ...safe.completed, ...safe.movie]);
           opts.onFresh!({ ...safe, stale: false });
         }
       : undefined;
@@ -240,7 +241,7 @@ export const Catalog = {
     );
     if (!data) throw new Error(GENERIC_ERROR);
     const safe = sanitizeDiscoveryFeed(data);
-    remember([...safe.newUpdate, ...safe.completed, ...safe.donghua, ...safe.movie]);
+    remember([...safe.newUpdate, ...safe.completed, ...safe.movie]);
     return { ...safe, stale };
   },
 

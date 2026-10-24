@@ -93,7 +93,7 @@ export function Onboarding() {
           <div className="hn-auth-head">
             <h1 className="hn-auth-title">WELCOME</h1>
             <p className="hn-auth-sub">
-              Platform anime, donghua &amp; movie
+              Platform anime &amp; movie
               <br />
               untuk komunitas Indonesia.
             </p>

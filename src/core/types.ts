@@ -445,7 +445,6 @@ export interface HomeFeed {
   newUpdate: AggregatedCard[];
   weekly: AggregatedCard[];
   completed: AggregatedCard[];
-  donghua: AggregatedCard[];
   movie: AggregatedCard[];
   sources: SourceResult[];
   stale: boolean;

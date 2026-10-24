@@ -57,6 +57,29 @@ describe('ProviderAggregator sequential search', () => {
     expect(animekuSearch).not.toHaveBeenCalled();
   });
 
+  it('continues to the next provider after the primary provider times out', async () => {
+    vi.useFakeTimers();
+    const ota = getProvider('otakudesu')!;
+    const sama = getProvider('samehadaku')!;
+    const animeku = getProvider('animeku')!;
+    vi.spyOn(ota, 'search').mockReturnValue(new Promise<Card[]>(() => undefined));
+    const samaSearch = vi.spyOn(sama, 'search').mockResolvedValue([card('samehadaku', 'Naruto')]);
+    const animekuSearch = vi.spyOn(animeku, 'search').mockResolvedValue([]);
+
+    try {
+      const resultPromise = ProviderAggregator.search('Naruto', { timeout: 20, deadline: 100 });
+      await vi.advanceTimersByTimeAsync(20);
+      const sources = await resultPromise;
+
+      expect(sources.map(source => source.id)).toEqual(['otakudesu', 'samehadaku']);
+      expect(sources[0].ok).toBe(false);
+      expect(samaSearch).toHaveBeenCalledTimes(1);
+      expect(animekuSearch).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('fills home rails lazily and skips Animeku once every rail is filled', async () => {
     CacheManager.clear();
     const ota = getProvider('otakudesu')!;
@@ -108,6 +131,24 @@ describe('ProviderAggregator sequential search', () => {
     expect(feed.movie[0]?.title).toBe('Suzume');
     expect(movieList).toHaveBeenCalledTimes(1);
     expect(animekuHome).not.toHaveBeenCalled();
+  });
+
+  it('bypasses the provider home cache when refreshing the feed', async () => {
+    const ota = getProvider('otakudesu')!;
+    const title: { value: string } = { value: 'Old update' };
+    const home = vi.spyOn(ota, 'home').mockImplementation(async () => ({
+      ongoing: [card('otakudesu', title.value)],
+      completed: [card('otakudesu', 'Completed title')],
+      movie: [{ ...card('otakudesu', 'A movie'), type: 'Movie' }]
+    }));
+
+    const cached = await ProviderAggregator.homeFeed();
+    title.value = 'Fresh update';
+    const fresh = await ProviderAggregator.homeFeed({ fresh: true });
+
+    expect(cached.newUpdate[0]?.title).toBe('Old update');
+    expect(fresh.newUpdate[0]?.title).toBe('Fresh update');
+    expect(home).toHaveBeenCalledTimes(2);
   });
 
   it('keeps Nekopoi out of normal search and includes it only on opt-in', async () => {

@@ -11,7 +11,8 @@ interface PlayableSource { label: string; provider: string; url: string; kind: '
 const PROVIDER_NAMES: Record<string, string> = {
   otakudesu: 'Otakudesu',
   samehadaku: 'Samehadaku',
-  animeku: 'Animeku'
+  animeku: 'Animeku',
+  nekopoi: 'Nekopoi'
 };
 
 function providerName(id: string): string {
@@ -180,7 +181,7 @@ export function PlayerOverlay() {
       </div> : null}
       {!session.loading && !session.error && source ? <>
         <div className="episode-player-video" style={{ filter: `brightness(${brightness})`, touchAction: playerControls ? 'pan-x' : undefined }} onPointerDown={beginControlGesture} onPointerMove={moveControlGesture} onPointerUp={endControlGesture} onPointerCancel={endControlGesture}>
-          {source.kind === 'file' ? <AdaptiveVideo key={source.url} videoElementRef={mediaRef} src={source.url} poster={session.stream?.poster || session.poster} volume={volume} fit={fit} onTimeUpdate={onTimeUpdate} onPause={event => { setPlaying(false); session.onProgress(event); }} onPlay={() => setPlaying(true)} onEnded={event => { setPlaying(false); session.onProgress(event); }} onError={onError} /> : <iframe key={source.url} src={source.url} title={`${session.title} episode ${session.episode}`} allow="autoplay; fullscreen; picture-in-picture" referrerPolicy="no-referrer" allowFullScreen />}
+          {source.kind === 'file' ? <AdaptiveVideo key={source.url} videoElementRef={mediaRef} src={source.url} poster={session.stream?.poster || session.poster} volume={volume} fit={fit} onTimeUpdate={onTimeUpdate} onPause={event => { setPlaying(false); session.onProgress(event); }} onPlay={() => setPlaying(true)} onEnded={event => { setPlaying(false); session.onProgress(event); }} onError={onError} /> : <iframe key={source.url} src={source.url} title={`${session.title} episode ${session.episode}`} allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />}
           {mode === 'full' && source.kind === 'file' ? <div className="player-controls" onPointerDown={event => event.stopPropagation()}>
             <div className="player-control-row">
               <button type="button" aria-label="Episode sebelumnya" disabled={!session.onPrevious} onClick={() => session.onPrevious?.()}><Icon name="skipPrev" size={19} /></button>
@@ -202,6 +203,7 @@ export function PlayerOverlay() {
           </div> : null}
           {gestureLabel ? <span className="player-gesture-status" role="status">{gestureLabel}</span> : null}
         </div>
+        {source.kind === 'embed' && sources.length === 1 ? <div className="episode-player-source"><span>Pemutar provider</span><strong>{providerName(source.provider)} · {source.label}</strong></div> : null}
         {sources.length > 1 ? <button type="button" className="episode-player-source" onClick={() => setQualitiesOpen(true)}><span>Sumber aktif</span><strong>{providerName(source.provider)} · {source.label}　⌄</strong></button> : null}
         <section className="episode-player-info">
           {session.poster ? <img src={session.poster} alt="" /> : null}

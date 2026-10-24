@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Catalog } from '../core/services/Catalog';
 import { recordClientMetric } from '../core/services/Telemetry';
-import type { AggregatedCard } from '../core/types';
+import type { AggregatedCard, SourceResult } from '../core/types';
 import { Grid, UpdateCard } from '../ui/Cards';
 import { EmptyState, ErrorState, ListSkel } from '../ui/Feedback';
 import { Icon } from '../ui/icons';
@@ -13,6 +13,14 @@ import { detailPath } from '../lib/nav';
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function getSearchSourceStatus(sources: SourceResult[]): { partial: boolean; failed: boolean } {
+  const failedCount = sources.filter(source => !source.ok).length;
+  return {
+    partial: failedCount > 0 && failedCount < sources.length,
+    failed: sources.length > 0 && failedCount === sources.length
+  };
 }
 
 function Highlight({ text, q }: { text: string; q: string }) {
@@ -88,7 +96,9 @@ export function Search() {
     Catalog.search(dq, { sort: 'relevance', includeAdult: adult, signal: controller.signal, onUpdate: result => {
       if (alive && !controller.signal.aborted) {
         setItems(result.items);
-        setPartial(true);
+        const status = getSearchSourceStatus(result.sources);
+        setPartial(status.partial);
+        setError(status.failed);
         if (!firstResultMeasured && result.items.length) {
           firstResultMeasured = true;
           recordClientMetric({ name: 'search-first-result', durationMs: performance.now() - startedAt, count: result.items.length, ok: true });
@@ -98,8 +108,10 @@ export function Search() {
       .then(r => {
         if (alive && !controller.signal.aborted) {
           setItems(r.items);
-          setPartial(r.sources.some(source => source.error === 'deadline'));
-          recordClientMetric({ name: 'search', durationMs: performance.now() - startedAt, count: r.items.length, ok: true });
+          const status = getSearchSourceStatus(r.sources);
+          setPartial(status.partial);
+          setError(status.failed);
+          recordClientMetric({ name: 'search', durationMs: performance.now() - startedAt, count: r.items.length, ok: !status.failed });
         }
       })
       .catch(() => {

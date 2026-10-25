@@ -98,7 +98,7 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
         label: s.name || 'Server ' + (si + 1),
         url: /^https?:\/\//i.test(s.id || '') ? s.id : '',
         providerRef: provider,
-        quality: label || undefined
+        quality: label && (directMedia || (st.sourceKind === 'embed-page' && /^https?:\/\//i.test(s.id || ''))) ? label : undefined
       });
     });
   });

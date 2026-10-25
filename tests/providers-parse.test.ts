@@ -162,7 +162,7 @@ describe('Otakudesu episode pages with many opaque mirrors', () => {
       'https://otakudesu.blog/episode/fxskc-episode-4-sub-indo/'
     );
 
-    expect(parsed.data.details.defaultStreamingUrl).toBe('https://otakudesu.blog/episode/fxskc-episode-4-sub-indo/');
+    expect(parsed.data.details.defaultStreamingUrl).toBe('');
     expect(parsed.data.details.server.qualityList.flatMap((group: any) => group.serverList)).toHaveLength(9);
   });
 });

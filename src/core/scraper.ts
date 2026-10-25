@@ -169,10 +169,7 @@ export function parseHtml(task: ScrapeTask, html: string, pageUrl: string): any 
     return { data: { details: d } };
   }
   if (action === 'episode') {
-    const iframe = doc.querySelector('#embed_holder iframe, iframe');
-    /* Embed halaman episode Otakudesu sendiri. Server default sering menunjuk
-       Desustream yang menolak iframe dengan ERR_BLOCKED_BY_RESPONSE. */
-    const d = { title: txt(doc.querySelector('.venutama h1.posttl')), defaultStreamingUrl: pageUrl, server: { qualityList: otakudesuServerList(doc) }, download: { qualityList: downloadFormatList(doc, pageUrl) }, info: {} };
+    const d = { title: txt(doc.querySelector('.venutama h1.posttl')), defaultStreamingUrl: '', server: { qualityList: otakudesuServerList(doc) }, download: { qualityList: downloadFormatList(doc, pageUrl) }, info: {} };
     return { data: { details: d } };
   }
   if (action === 'batch') {

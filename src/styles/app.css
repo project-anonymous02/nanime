@@ -401,6 +401,8 @@
 .player-download-sheet > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .player-download-sheet > p { margin: 4px 0 12px; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
 .player-download-list { display: grid; gap: 8px; }
+.player-quality-group { display: grid; gap: 8px; }
+.player-quality-group-title { padding: 8px 2px 0; color: var(--text-muted); font-size: 12px; }
 .player-download-list a { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 14px; color: inherit; text-decoration: none; background: rgba(255,255,255,.035); }
 .player-download-list a > span { display: grid; min-width: 0; gap: 3px; }
 .player-download-list strong { font-size: 13px; }

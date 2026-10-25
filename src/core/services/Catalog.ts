@@ -830,7 +830,7 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
       const key = `${request.provider}:${request.params.episodeId}`;
       if (attempted.has(key)) continue;
       attempted.add(key);
-      const r = await FallbackEngine.resolveAll([request], { timeout: 8000, max: 1 });
+      const r = await FallbackEngine.resolveAll([request], { timeout: 20000, max: 1 });
       const hit = r.results[0];
       if (!hit) continue;
       results.push(hit);

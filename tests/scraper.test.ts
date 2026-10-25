@@ -34,7 +34,7 @@ describe('parseHtml — daftar server streaming otakudesu', () => {
     const r = parseHtml({ provider: 'otakudesu', action: 'episode', id: 'btr-ng-episode-293-sub-indo' }, ODU_EPISODE, 'https://otakudesu.blog/episode/btr-ng-episode-293-sub-indo/');
     const d = r.data.details;
     expect(d.title).toContain('Episode 293');
-    expect(d.defaultStreamingUrl).toBe('https://otakudesu.blog/episode/btr-ng-episode-293-sub-indo/');
+    expect(d.defaultStreamingUrl).toBe('');
 
     const ql = d.server.qualityList;
     expect(ql.map((q: any) => q.title)).toEqual(['360p', '480p', '720p']);

@@ -146,11 +146,10 @@ describe('Catalog.stream episode identity', () => {
     expect(result.servers[0]?.url).toBe(`https://media.test/${fallbackEpisodeId}.mp4`);
   });
 
-  it('keeps the primary embed playable when an episode has more than eight opaque mirror IDs', async () => {
+  it('resolves and preserves every quality mirror when an episode has more than eight opaque IDs', async () => {
     const animeId = 'fx-senshi-kurumi-sub-indo';
     const provider = getProvider('otakudesu')!;
     const episodeId = 'fxskc-episode-4-sub-indo';
-    const playerUrl = 'https://desustream.net/dstream/odcdn/?id=valid-episode-embed';
     const serverIds = Array.from({ length: 9 }, (_, i) => `opaque-server-${i + 1}`);
     await TitleIndex.upsert({
       id: animeId,
@@ -162,7 +161,7 @@ describe('Catalog.stream episode identity', () => {
     vi.spyOn(provider, 'stream').mockResolvedValue({
       provider: provider.id,
       title: 'FX Senshi Kurumi-chan Episode 4',
-      playerUrl,
+      playerUrl: `https://otakudesu.blog/episode/${episodeId}/`,
       qualities: ['360p', '480p', '720p'].map((quality, qualityIndex) => ({
         title: quality,
         servers: serverIds.slice(qualityIndex * 3, qualityIndex * 3 + 3).map((serverId, i) => ({
@@ -174,10 +173,10 @@ describe('Catalog.stream episode identity', () => {
       info: {}
     });
     const providerWithResolver = provider as typeof provider & { resolveServer: (serverId: string) => Promise<string> };
-    const resolveServer = vi.spyOn(providerWithResolver, 'resolveServer').mockImplementation(async () => new Promise<string>(() => {}));
+    const resolveServer = vi.spyOn(providerWithResolver, 'resolveServer').mockImplementation(async serverId => `https://mirror.test/${serverId}`);
     const fetchSpy = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       if (init?.method === 'HEAD') return new Response(null, { status: 200, headers: { 'content-type': 'text/html' } });
-      throw new Error('iframe page should not be fetched as a video file');
+      throw new Error('mirror pages should only be probed, not scraped as media');
     });
     vi.stubGlobal('fetch', fetchSpy);
 
@@ -185,9 +184,12 @@ describe('Catalog.stream episode identity', () => {
       title: 'FX Senshi Kurumi-chan', episodeProvider: provider.id, episodeId
     });
 
-    expect(resolveServer).not.toHaveBeenCalled();
+    expect(resolveServer).toHaveBeenCalledTimes(serverIds.length);
     expect(result.availability).toBe('external-embed');
-    expect(result.servers.some(server => server.url === playerUrl)).toBe(true);
+    expect(result.servers).toHaveLength(serverIds.length);
+    expect(result.servers.map(server => server.label)).toEqual(serverIds.map((_, i) => `Mirror ${i + 1}`));
+    expect(result.servers.map(server => server.quality)).toEqual(['360p', '360p', '480p', '480p', '480p', '720p', '720p', '720p', '720p']);
+    expect(result.servers.every(server => server.url.startsWith('https://mirror.test/'))).toBe(true);
     expect(fetchSpy.mock.calls.every(([, init]) => init?.method === 'HEAD')).toBe(true);
   });
 

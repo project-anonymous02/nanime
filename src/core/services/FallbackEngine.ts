@@ -29,8 +29,8 @@ export interface StreamParams {
   episode?: string;
 }
 
-/** Batas waktu satu percobaan stream (per spesifikasi: 8 detik). */
-const STREAM_TIMEOUT = 8000;
+/** Mirror episode diselesaikan paralel, dengan waktu cukup untuk seluruh daftar. */
+const STREAM_TIMEOUT = 20000;
 
 async function verifyDirectMedia(url: string): Promise<boolean> {
   let parsed: URL;
@@ -92,107 +92,82 @@ async function tryProvider(
           if (server.id && group.title) qualityByRef.set(server.id, group.title);
         }
       }
-      const raw: { name: string; ref: string; quality?: string }[] = [];
+      const raw: { name: string; ref: string; quality?: string; sourceRef?: string }[] = [];
       const seen = new Set<string>();
       const pushRef = (ref: string, name: string, quality?: string) => {
         if (!ref || seen.has(ref)) return;
         seen.add(ref);
         raw.push({ name, ref, quality: quality || qualityByRef.get(ref) || undefined });
       };
-      pushRef(stream.playerUrl, 'Utama');
-      (stream.servers || []).forEach(server => pushRef(server.id, server.name, server.quality));
-      const distinctQualities: typeof raw = [];
-      const extras: typeof raw = [];
-      const seenQuality = new Set<string>();
-      for (const item of raw) {
-        const label = item.quality || '';
-        if (label && !seenQuality.has(label)) {
-          seenQuality.add(label);
-          distinctQualities.push(item);
-        } else {
-          extras.push(item);
+      const isOtakudesuEpisodePage = (() => {
+        if (p.id !== 'otakudesu' || !stream.playerUrl) return false;
+        try {
+          const url = new URL(stream.playerUrl);
+          return /(?:^|\.)otakudesu\.(?:blog|com|net)$/.test(url.hostname) && /\/episode\//i.test(url.pathname);
+        } catch {
+          return false;
         }
-      }
-      const ranked = [...distinctQualities, ...extras];
+      })();
+      if (!isOtakudesuEpisodePage) pushRef(stream.playerUrl, 'Utama');
+      (stream.servers || []).forEach(server => pushRef(server.id, server.name, server.quality));
+      const ranked = raw;
+      const candidateOrder = new Map(ranked.map((candidate, index) => [candidate.ref, index]));
       const httpCandidates = ranked.filter(candidate => /^https?:\/\//i.test(candidate.ref));
       const opaqueCandidates = ranked.filter(candidate => !/^https?:\/\//i.test(candidate.ref));
       const candidates = [...httpCandidates, ...opaqueCandidates];
-      // The primary player URL is often the only immediately usable embed.
-      // Never let a long mirror list truncate it out of the bounded candidates.
-      if (stream.playerUrl && /^https?:\/\//i.test(stream.playerUrl) && !candidates.some(candidate => candidate.ref === stream.playerUrl)) {
-        candidates.push({
-          name: 'Utama', ref: stream.playerUrl, quality: undefined
-        });
-      }
-      /* Keep the provider's own episode page first; Otakudesu's default
-         mirror may be a Desustream frame blocked by the browser. */
-      if (stream.playerUrl && /^https?:\/\//i.test(stream.playerUrl)) {
-        const primaryIndex = candidates.findIndex(candidate => candidate.ref === stream.playerUrl);
-        if (primaryIndex > 0) candidates.unshift(candidates.splice(primaryIndex, 1)[0]);
-      }
       if (!candidates.length) return null;
 
       const media: typeof raw = [];
       const embeds: typeof raw = [];
-      // Resolve explicit URLs first. If one is a usable embed, opaque server
-      // IDs must not delay or suppress it; those IDs are only useful when the
-      // provider supplied no playable URL at all.
-      for (const batch of [httpCandidates, opaqueCandidates]) {
-        for (const candidate of batch) {
-          if (!candidates.includes(candidate)) continue;
-          let url = candidate.ref;
-          if (!/^https?:\/\//i.test(url)) {
-            if (!p.resolveServer) continue;
-            try { url = await p.resolveServer(url); } catch { continue; }
-          }
-          if (!url) continue;
-          try {
-            if (await verifyDirectMedia(url)) {
-              media.push({ ...candidate, ref: url });
-              continue;
-            }
-          } catch { /* try extraction or the next server */ }
-          const sameEpisodePage = (() => {
-            try {
-              return /^https?:\/\//i.test(params.episodeId) && new URL(url).href === new URL(params.episodeId).href;
-            } catch {
-              return false;
-            }
-          })();
-          if (sameEpisodePage) continue;
-          let isEmbed = false;
-          try {
-            const probe = await httpProbe(url, 4000);
-            if (probe.status >= 200 && probe.status < 300 && /^(?:text\/html|application\/xhtml\+xml)$/.test(probe.contentType)) {
-              isEmbed = true;
-            } else if ([403, 405, 501].includes(probe.status)) {
-              // Embed hosts commonly deny HEAD while still allowing iframe GET.
-              isEmbed = true;
-            }
-          } catch {
-            // HEAD/CORS restrictions do not prove that a provider-parsed iframe is unusable.
-            isEmbed = true;
-          }
-          if (isEmbed) {
-            embeds.push({ ...candidate, ref: url });
-            continue;
-          }
-          // Only crawl an endpoint when HEAD did not already prove it is an
-          // iframe page. A slow embed GET must not consume the provider timeout
-          // before we can return the playable iframe URL.
-          if (!isVideoUrl(url)) {
-            try {
-              const resolved = await resolveMediaUrl(url);
-              if (resolved.kind === 'file' && resolved.url && (await verifyDirectMedia(resolved.url))) {
-                media.push({ ...candidate, ref: resolved.url });
-              }
-            } catch { /* embed tidak dapat diekstrak */ }
-          }
+      const inspect = async (candidate: typeof raw[number]) => {
+        let url = candidate.ref;
+        if (!/^https?:\/\//i.test(url)) {
+          if (!p.resolveServer) return;
+          try { url = await p.resolveServer(url); } catch { return; }
         }
-        if (media.length || embeds.length) break;
+        if (!url) return;
+        try {
+          if (await verifyDirectMedia(url)) {
+            media.push({ ...candidate, ref: url, sourceRef: candidate.ref });
+            return;
+          }
+        } catch { /* try the next server */ }
+        const sameEpisodePage = (() => {
+          try {
+            return /^https?:\/\//i.test(params.episodeId) && new URL(url).href === new URL(params.episodeId).href;
+          } catch {
+            return false;
+          }
+        })();
+        if (sameEpisodePage) return;
+        try {
+          const probe = await httpProbe(url, 4000);
+          if ((probe.status >= 200 && probe.status < 300 && /^(?:text\/html|application\/xhtml\+xml)$/.test(probe.contentType)) || [403, 405, 501].includes(probe.status)) {
+            embeds.push({ ...candidate, ref: url, sourceRef: candidate.ref });
+            return;
+          }
+        } catch {
+          // HEAD/CORS restrictions do not prove a provider-parsed iframe is unusable.
+          embeds.push({ ...candidate, ref: url, sourceRef: candidate.ref });
+          return;
+        }
+        if (!isVideoUrl(url)) {
+          try {
+            const resolved = await resolveMediaUrl(url);
+            if (resolved.kind === 'file' && resolved.url && await verifyDirectMedia(resolved.url)) {
+              media.push({ ...candidate, ref: resolved.url, sourceRef: candidate.ref });
+            }
+          } catch { /* server has no extractable video */ }
+        }
+      };
+
+      // Resolve every server so the player can show all real mirrors grouped
+      // by the quality declared on the episode page.
+      for (const batch of [httpCandidates, opaqueCandidates]) {
+        await Promise.all(batch.map(inspect));
       }
       if (!media.length && !embeds.length) return null;
-      const chosen = media.length ? media : embeds;
+      const chosen = [...media, ...embeds].sort((a, b) => (candidateOrder.get(a.sourceRef || a.ref) ?? Infinity) - (candidateOrder.get(b.sourceRef || b.ref) ?? Infinity));
       return { stream, chosen, kind: media.length ? ('direct-media' as const) : ('embed-page' as const) };
     })(), timeout);
     if (!result) {

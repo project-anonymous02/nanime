@@ -7,7 +7,7 @@ import { listenNativePipMode, setNativePipActive } from '../lib/nativePip';
 import { AdaptiveVideo } from './AdaptiveVideo';
 import { Icon } from './icons';
 
-interface PlayableSource { label: string; provider: string; url: string; kind: 'file' | 'embed' }
+interface PlayableSource { label: string; provider: string; url: string; kind: 'file' | 'embed'; quality?: string }
 
 /** Normalize persisted/provider data before it reaches JSX. Old cache rows can
  * outlive a deploy and may not satisfy the current StreamBundle shape. */
@@ -24,7 +24,8 @@ export function playableSourcesFrom(stream?: Partial<StreamBundle> | null): Play
       label: typeof item.label === 'string' && item.label ? item.label : 'Sumber video',
       provider: typeof source.providerRef === 'string' ? source.providerRef : '',
       url: source.url,
-      kind: source.kind === 'file' ? 'file' : 'embed'
+      kind: source.kind === 'file' ? 'file' : 'embed',
+      quality: typeof item.label === 'string' ? item.label : undefined
     }];
   });
   const qualityUrls = new Set(qualitySources.map(source => source.url));
@@ -33,10 +34,11 @@ export function playableSourcesFrom(stream?: Partial<StreamBundle> | null): Play
     const item = raw as { url?: unknown; label?: unknown; providerRef?: unknown; quality?: unknown };
     if (typeof item.url !== 'string' || !isHttpUrl(item.url) || qualityUrls.has(item.url)) return [];
     return [{
-      label: [typeof item.quality === 'string' ? item.quality : '', typeof item.label === 'string' && item.label ? item.label : 'Server video'].filter(Boolean).join(' · '),
+      label: typeof item.label === 'string' && item.label ? item.label : 'Server video',
       provider: typeof item.providerRef === 'string' ? item.providerRef : '',
       url: item.url,
-      kind: stream?.sourceKind === 'direct-media' && /\.(?:m3u8|mp4|webm|mov|mpd)(?:[?#]|$)/i.test(item.url) ? 'file' : 'embed'
+      kind: stream?.sourceKind === 'direct-media' && /\.(?:m3u8|mp4|webm|mov|mpd)(?:[?#]|$)/i.test(item.url) ? 'file' : 'embed',
+      quality: typeof item.quality === 'string' ? item.quality : undefined
     }];
   });
   return [...qualitySources, ...serverSources];
@@ -268,7 +270,7 @@ export function PlayerOverlay() {
       {qualitiesOpen && mode === 'full' ? <div className="player-download-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setQualitiesOpen(false); }}>
         <section className="player-download-sheet" role="dialog" aria-modal="true" aria-label="Pilihan kualitas video">
           <span className="player-download-handle" /><header><strong>Pilihan Kualitas Video</strong><button type="button" className="ibtn" onClick={() => setQualitiesOpen(false)} aria-label="Tutup pilihan kualitas"><Icon name="x" /></button></header>
-          <div className="player-download-list">{sources.map((item, index) => <button type="button" className={`player-quality-option ${qualityClass(item.label)}${session.sourceIndex === index ? ' selected' : ''}`} key={`${item.url}-${index}`} onClick={() => { update(session.request, { sourceIndex: index, error: '' }); setQualitiesOpen(false); }}><span><strong>{displayQuality(item.label)}</strong><small>{providerName(item.provider)} · {qualityDescription(item.label, item.kind)}</small></span><span>{session.sourceIndex === index ? '✓' : '›'}</span></button>)}</div>
+          <div className="player-download-list">{qualityGroups(sources).map(group => <div className="player-quality-group" key={group.label}><strong className="player-quality-group-title">{group.label}</strong>{group.items.map(({ item, index }) => <button type="button" className={`player-quality-option ${qualityClass(group.label)}${session.sourceIndex === index ? ' selected' : ''}`} key={`${item.url}-${index}`} onClick={() => { update(session.request, { sourceIndex: index, error: '' }); setQualitiesOpen(false); }}><span><strong>{item.label}</strong><small>{qualityDescription(group.label, item.kind)}</small></span><span>{session.sourceIndex === index ? '✓' : '›'}</span></button>)}</div>)}</div>
         </section>
       </div> : null}
       {downloadsOpen && mode === 'full' ? <div className="player-download-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setDownloadsOpen(false); }}>
@@ -295,8 +297,15 @@ function clockTime(value: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-function displayQuality(label: string): string {
-  return label.replace(/\s*\(premium\)/ig, '').replace(/\s*·\s*gratis/ig, '').trim() || 'Sumber video';
+function qualityGroups(sources: PlayableSource[]): { label: string; items: { item: PlayableSource; index: number }[] }[] {
+  const groups = new Map<string, { item: PlayableSource; index: number }[]>();
+  sources.forEach((item, index) => {
+    const label = item.quality || 'Kualitas lain';
+    const items = groups.get(label) || [];
+    items.push({ item, index });
+    groups.set(label, items);
+  });
+  return Array.from(groups, ([label, items]) => ({ label, items }));
 }
 
 function qualityClass(label: string): string {

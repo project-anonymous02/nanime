@@ -65,7 +65,7 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
         : null;
       if (label) put(label, { url: st.playerUrl, providerRef: provider, label: primary?.quality || label, kind: 'file', exact: true });
       const ref = provider + ':main:' + idx;
-      if (!seenServer.has(ref)) {
+      if (!primary && !seenServer.has(ref)) {
         seenServer.add(ref);
         servers.push({
           ref,
@@ -98,7 +98,7 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
         label: s.name || 'Server ' + (si + 1),
         url: /^https?:\/\//i.test(s.id || '') ? s.id : '',
         providerRef: provider,
-        quality: directMedia ? label || undefined : undefined
+        quality: label || undefined
       });
     });
   });

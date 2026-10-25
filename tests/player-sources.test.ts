@@ -36,8 +36,25 @@ describe('player stream rendering guards', () => {
       label: '720p',
       provider: 'otakudesu',
       url: 'https://embed.test/watch',
-      kind: 'embed'
+      kind: 'embed',
+      quality: '720p'
     }]);
+  });
+
+  it('keeps mirror names separate from their quality labels', () => {
+    const stream = {
+      sourceKind: 'embed-page',
+      qualities: [],
+      servers: [
+        { url: 'https://mirror.test/mega', label: 'Mega', quality: '360p', providerRef: 'otakudesu' },
+        { url: 'https://mirror.test/vidhide', label: 'Vidhide', quality: '360p', providerRef: 'otakudesu' },
+        { url: 'https://mirror.test/other', label: 'Streamtape', quality: '480p', providerRef: 'otakudesu' }
+      ]
+    } as unknown as Partial<StreamBundle>;
+
+    expect(playableSourcesFrom(stream).map(source => [source.quality, source.label])).toEqual([
+      ['360p', 'Mega'], ['360p', 'Vidhide'], ['480p', 'Streamtape']
+    ]);
   });
 
   it('keeps the player usable when provider arrays exist but every playback URL is invalid', async () => {

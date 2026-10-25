@@ -151,19 +151,15 @@ describe('ProviderAggregator sequential search', () => {
     expect(home).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps Nekopoi out of normal search and includes it only on opt-in', async () => {
+  it('does not call an unregistered adult provider, even when adult search is requested', async () => {
     const query = `naruto adult chain ${++serial}`;
     const ota = getProvider('otakudesu')!;
-    const nekopoi = getProvider('nekopoi')!;
     vi.spyOn(ota, 'search').mockResolvedValue([card('otakudesu', 'Naruto')]);
-    const adultSearch = vi.spyOn(nekopoi, 'search').mockResolvedValue([card('nekopoi', 'Naruto')]);
 
     const normal = await search(query);
     expect(normal.map(source => source.id)).not.toContain('nekopoi');
-    expect(adultSearch).not.toHaveBeenCalled();
 
     const optedIn = await search(`${query} adult`, { includeAdult: true });
-    expect(optedIn.map(source => source.id)).toContain('nekopoi');
-    expect(adultSearch).toHaveBeenCalledTimes(1);
+    expect(optedIn.map(source => source.id)).not.toContain('nekopoi');
   });
 });

@@ -12,12 +12,12 @@ interface DiscoveryMetadata {
 }
 
 /** Providers or metadata that explicitly mark adult content are never part of discovery feeds. */
-const ADULT_PROVIDER_IDS = new Set(['nekopoi', 'nekopoi-care', 'nekopoi_care']);
 const ADULT_LABEL = /(?:\bhentai\b|\badult\b|\brx\b|18\s*\+)/i;
+const LEGACY_ADULT_PROVIDER_IDS = new Set(['nekopoi', 'nekopoi-care', 'nekopoi_care']);
 
 export function isAdultContent(card: DiscoveryMetadata): boolean {
   const providerId = String(card.provider || '').toLowerCase();
-  if (ADULT_PROVIDER_IDS.has(providerId) || getProvider(providerId)?.content === 'hentai') return true;
+  if (LEGACY_ADULT_PROVIDER_IDS.has(providerId) || getProvider(providerId)?.content === 'hentai') return true;
 
   const labels = [card.contentRating, card.classification, ...(card.genres || []), ...(card.tags || [])];
   if (labels.some(label => ADULT_LABEL.test(String(label || '')))) return true;
@@ -29,7 +29,7 @@ export function isAdultContent(card: DiscoveryMetadata): boolean {
 /** Discovery feeds are conservative: explicit adult source/category metadata is excluded. */
 export function isAllowedInDiscovery(card: DiscoveryMetadata, providerId = card.provider): boolean {
   const provider = getProvider(String(providerId || '').toLowerCase());
-  if (provider?.content === 'hentai' || ADULT_PROVIDER_IDS.has(String(providerId || '').toLowerCase())) return false;
+  if (provider?.content === 'hentai' || LEGACY_ADULT_PROVIDER_IDS.has(String(providerId || '').toLowerCase())) return false;
   if (isAdultContent(card)) return false;
   if (provider?.content === 'mixed') {
     if (!(card.contentRating || card.classification || card.genres?.length || card.tags?.length)) return false;

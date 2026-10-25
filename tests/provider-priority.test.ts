@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { parseBsxCards, parseIframeEmbeds } from '../src/providers/shared';
 import {
   allProviders,
-  downloadProviders,
   officialProviders,
   orderedProviders,
   searchProviders,
@@ -23,12 +22,11 @@ describe('provider priority and verified page structure', () => {
     expect(streamingPriority('samehadaku')).toBeLessThan(streamingPriority('animeku'));
   });
 
-  it('keeps Nekopoi searchable but out of discovery, streaming, and downloads', () => {
+  it('does not register the removed Nekopoi provider', () => {
     const ids = allProviders().map(provider => provider.id);
-    expect(ids).toEqual(['otakudesu', 'samehadaku', 'animeku', 'nekopoi']);
-    expect(searchProviders().map(provider => provider.id)).toContain('nekopoi');
+    expect(ids).toEqual(['otakudesu', 'samehadaku', 'animeku']);
+    expect(searchProviders().map(provider => provider.id)).not.toContain('nekopoi');
     expect(streamingProviders().some(provider => provider.id === 'nekopoi')).toBe(false);
-    expect(downloadProviders().some(provider => provider.id === 'nekopoi')).toBe(false);
     expect(orderedProviders('otakudesu').some(provider => provider.id === 'nekopoi')).toBe(false);
   });
 

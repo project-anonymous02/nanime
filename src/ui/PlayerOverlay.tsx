@@ -30,10 +30,10 @@ export function playableSourcesFrom(stream?: Partial<StreamBundle> | null): Play
   const qualityUrls = new Set(qualitySources.map(source => source.url));
   const serverSources = servers.flatMap((raw): PlayableSource[] => {
     if (!raw || typeof raw !== 'object') return [];
-    const item = raw as { url?: unknown; label?: unknown; providerRef?: unknown };
+    const item = raw as { url?: unknown; label?: unknown; providerRef?: unknown; quality?: unknown };
     if (typeof item.url !== 'string' || !isHttpUrl(item.url) || qualityUrls.has(item.url)) return [];
     return [{
-      label: typeof item.label === 'string' && item.label ? item.label : 'Server video',
+      label: [typeof item.quality === 'string' ? item.quality : '', typeof item.label === 'string' && item.label ? item.label : 'Server video'].filter(Boolean).join(' · '),
       provider: typeof item.providerRef === 'string' ? item.providerRef : '',
       url: item.url,
       kind: stream?.sourceKind === 'direct-media' && /\.(?:m3u8|mp4|webm|mov|mpd)(?:[?#]|$)/i.test(item.url) ? 'file' : 'embed'
@@ -68,7 +68,6 @@ const PROVIDER_NAMES: Record<string, string> = {
   otakudesu: 'Otakudesu',
   samehadaku: 'Samehadaku',
   animeku: 'Animeku',
-  nekopoi: 'Nekopoi'
 };
 
 function providerName(id: string): string {

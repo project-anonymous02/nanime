@@ -56,10 +56,8 @@ export function Search() {
   const [error, setError] = useState(false);
   const [partial, setPartial] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [adult, setAdult] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const dq = useDebounced(q.trim(), 260);
-  const hasAdultSources = useMemo(() => Catalog.adultSearchProviders().length > 0, []);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -93,7 +91,7 @@ export function Search() {
     setLoading(true);
     setError(false);
     setPartial(false);
-    Catalog.search(dq, { sort: 'relevance', includeAdult: adult, signal: controller.signal, onUpdate: result => {
+    Catalog.search(dq, { sort: 'relevance', signal: controller.signal, onUpdate: result => {
       if (alive && !controller.signal.aborted) {
         setItems(result.items);
         const status = getSearchSourceStatus(result.sources);
@@ -127,7 +125,7 @@ export function Search() {
       alive = false;
       controller.abort();
     };
-  }, [dq, retry, adult]);
+  }, [dq, retry]);
 
   const openCard = (c: AggregatedCard) => navigate(detailPath(c.canonicalId, c.title));
 
@@ -166,19 +164,6 @@ export function Search() {
           ) : null}
         </div>
       </header>
-
-      {hasAdultSources ? (
-        <div className="hn-chiprow" style={{ justifyContent: 'center', paddingBottom: 14 }}>
-          <button
-            type="button"
-            className={`hn-chip${adult ? ' hn-active' : ''}`}
-            aria-pressed={adult}
-            onClick={() => setAdult(value => !value)}
-          >
-            18+ Sumber dewasa
-          </button>
-        </div>
-      ) : null}
 
       {loading && !items ? <ListSkel count={4} /> : null}
       {loading && items ? <p role="status" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '0 20px 12px' }}>Mengumpulkan dan menggabungkan hasil dari beberapa sumber…</p> : null}

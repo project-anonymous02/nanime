@@ -90,10 +90,9 @@ describe('provider and feature contradiction analyzer', () => {
     }
   });
 
-  it('separates the adult download-only catalog from streaming sources', () => {
+  it('does not register an unavailable adult download provider', () => {
     const byId = new Map(allProviders().map(provider => [provider.id, provider]));
-    expect(byId.get('nekopoi')?.downloadOnly).toBe(true);
-    expect(byId.get('nekopoi')?.movieOnly).not.toBe(true);
+    expect(byId.has('nekopoi')).toBe(false);
     expect(streamingProviders().some(provider => provider.id === 'nekopoi')).toBe(false);
     expect(downloadProviders().some(provider => provider.id === 'nekopoi')).toBe(false);
   });

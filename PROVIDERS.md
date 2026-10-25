@@ -1,13 +1,12 @@
 # Catatan Provider Nanime
 
-Registry final berisi empat sumber (lihat `src/providers/registry.ts`):
+Registry final berisi tiga sumber (lihat `src/providers/registry.ts`):
 
 | # | Provider | Domain | Peran | Stream | Unduhan | Catatan |
 |---|----------|--------|-------|--------|---------|---------|
 | 1 | Otakudesu | otakudesu.blog | Utama | Ajax nonce → media langsung | Episode + batch | Parser lama `src/core/scraper.ts` dipertahankan |
 | 2 | Samehadaku | samehadaku.li | Pelengkap | Iframe embed | `parseSoraDownloads` | Domain berganti-ganti; butuh header Referer |
 | 3 | Animeku | ww2.animeku.lol | Fallback terakhir | Embed `putarin.xyz` | Tidak ada | Tema `aku-*`; detail `/{slug}/`, play `/play/…` |
-| 4 | Nekopoi | www.nekopoi.web.id | Pencarian terpisah (opt-in) | Tidak ada | `.boxdownload .liner` | Konten dewasa; hanya muncul bila `includeAdult` atau provider diminta eksplisit |
 
 Aturan perilaku:
 
@@ -19,9 +18,8 @@ Aturan perilaku:
   belum ada). Data yang sudah lengkap tidak ditimpa.
 - Unduhan diambil dari halaman episode sumber (Otakudesu dan Samehadaku);
   Animeku tidak menyediakan tautan unduhan.
-- Mirror Otakudesu memakai token admin-ajax; URL media langsung diekstrak dari
-  halaman embed, bukan di-iframe (CSP `frame-ancestors` memblokir embed).
-- Nekopoi tidak pernah masuk home, jadwal, rekomendasi, atau katalog umum.
+- Pemutar utama menampilkan halaman episode Otakudesu langsung; mirror tiap
+  kualitas tetap tersedia sebagai pilihan sumber alternatif.
 - Scraping live hanya berjalan di APK Android (`CapacitorHttp`); browser web
   dibatasi CORS. Kegagalan provider ditangani dengan fallback diam-diam.
 

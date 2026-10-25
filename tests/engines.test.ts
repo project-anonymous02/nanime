@@ -173,8 +173,8 @@ describe('registry ordering', () => {
     expect(ids).not.toContain('nekopoi');
   });
 
-  it('registry hanya memuat empat provider resmi', () => {
-    expect(allProviders().map(p => p.id)).toEqual(['otakudesu', 'samehadaku', 'animeku', 'nekopoi']);
+  it('registry hanya memuat tiga provider katalog aktif', () => {
+    expect(allProviders().map(p => p.id)).toEqual(['otakudesu', 'samehadaku', 'animeku']);
   });
 });
 

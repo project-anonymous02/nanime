@@ -99,8 +99,8 @@ async function tryProvider(
         seen.add(ref);
         raw.push({ name, ref, quality: quality || qualityByRef.get(ref) || undefined });
       };
-      (stream.servers || []).forEach(server => pushRef(server.id, server.name, server.quality));
       pushRef(stream.playerUrl, 'Utama');
+      (stream.servers || []).forEach(server => pushRef(server.id, server.name, server.quality));
       const distinctQualities: typeof raw = [];
       const extras: typeof raw = [];
       const seenQuality = new Set<string>();
@@ -116,13 +116,19 @@ async function tryProvider(
       const ranked = [...distinctQualities, ...extras];
       const httpCandidates = ranked.filter(candidate => /^https?:\/\//i.test(candidate.ref));
       const opaqueCandidates = ranked.filter(candidate => !/^https?:\/\//i.test(candidate.ref));
-      const candidates = [...httpCandidates, ...opaqueCandidates].slice(0, 8);
+      const candidates = [...httpCandidates, ...opaqueCandidates];
       // The primary player URL is often the only immediately usable embed.
       // Never let a long mirror list truncate it out of the bounded candidates.
       if (stream.playerUrl && /^https?:\/\//i.test(stream.playerUrl) && !candidates.some(candidate => candidate.ref === stream.playerUrl)) {
-        candidates[candidates.length < 8 ? candidates.length : 7] = {
+        candidates.push({
           name: 'Utama', ref: stream.playerUrl, quality: undefined
-        };
+        });
+      }
+      /* Keep the provider's own episode page first; Otakudesu's default
+         mirror may be a Desustream frame blocked by the browser. */
+      if (stream.playerUrl && /^https?:\/\//i.test(stream.playerUrl)) {
+        const primaryIndex = candidates.findIndex(candidate => candidate.ref === stream.playerUrl);
+        if (primaryIndex > 0) candidates.unshift(candidates.splice(primaryIndex, 1)[0]);
       }
       if (!candidates.length) return null;
 

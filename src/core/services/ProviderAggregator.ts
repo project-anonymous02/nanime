@@ -87,7 +87,7 @@ export const ProviderAggregator = {
   /**
    * Pencarian berjenjang: Otakudesu → Samehadaku → Animeku. Sumber berikutnya
    * hanya dipanggil ketika sumber sebelumnya gagal atau tidak menemukan judul
-   * yang relevan. Nekopoi (bila diaktifkan) berjalan sebagai jalur terpisah.
+   * yang relevan.
    */
   async search(query: string, opts: { timeout?: number; deadline?: number; max?: number; providerIds?: string[]; includeAdult?: boolean; signal?: AbortSignal; onUpdate?: (sources: SourceResult[]) => void } = {}): Promise<SourceResult[]> {
     const q = String(query || '').trim();

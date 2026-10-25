@@ -2,19 +2,16 @@ import type { AnimeProvider, ProviderHealth } from './types';
 import { otakudesu } from './legacy';
 import { samehadaku } from './samehadaku';
 import { animeku } from './AnimeKuProvider';
-import { nekopoi } from './NekopoiProvider';
 
 /**
- * Registry sources — hanya empat sumber resmi:
+ * Registry sumber aktif:
  *   1. Otakudesu  → katalog, detail, episode, streaming utama.
  *   2. Samehadaku → pelengkap ketika data Otakudesu kurang.
  *   3. Animeku    → fallback terakhir.
- *   4. Nekopoi    → jalur pencarian terpisah (opt-in), tidak pernah masuk
- *                   home/jadwal/rekomendasi/katalog umum.
  * Integrasi provider lain sengaja dihapus agar tidak ada pemanggilan borongan.
  */
 
-const PROVIDER_LIST: AnimeProvider[] = [otakudesu, samehadaku, animeku, nekopoi];
+const PROVIDER_LIST: AnimeProvider[] = [otakudesu, samehadaku, animeku];
 
 /** Provider katalog resmi, urut sesuai peran. */
 export const OFFICIAL_PROVIDER_IDS = ['otakudesu', 'samehadaku', 'animeku'] as const;

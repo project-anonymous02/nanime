@@ -90,4 +90,25 @@ describe('buildForcedQualities — hanya kualitas yang benar-benar tersedia', ()
     expect(out.servers[1].providerRef).toBe('a');
     expect(out.servers[1].quality).toBeUndefined();
   });
+
+  it('tidak pernah menaikkan halaman embed menjadi kualitas direct-media pada stream campuran', () => {
+    const out = buildForcedQualities({
+      streams: [{
+        provider: 'otakudesu',
+        stream: stream({
+          sourceKind: 'direct-media',
+          playerUrl: 'https://embed.test/player/1',
+          title: 'Episode 1',
+          servers: [
+            { name: 'Mirror', id: 'https://embed.test/player/1', quality: '480p' },
+            { name: 'Media', id: 'https://cdn.test/480.mp4', quality: '480p' }
+          ]
+        })
+      }],
+      downloads: []
+    });
+
+    expect(out.qualities.map(q => q.source?.url)).toEqual(['https://cdn.test/480.mp4']);
+    expect(out.qualities[0]?.source?.kind).toBe('file');
+  });
 });

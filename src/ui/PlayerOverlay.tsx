@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type SyntheticEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent, type SyntheticEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { usePlayer } from '../state/player';
 import { useSettings } from '../state/settings';
@@ -102,22 +102,39 @@ export function PlayerOverlay() {
   const [volume, setVolume] = useState(1);
   const [gestureLabel, setGestureLabel] = useState('');
   const [playing, setPlaying] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [mutedAutoplay, setMutedAutoplay] = useState(false);
   const [playhead, setPlayhead] = useState(0);
   const [duration, setDuration] = useState(0);
   const [fit, setFit] = useState<'contain' | 'cover'>('contain');
   const [playbackRate, setPlaybackRate] = useState(1);
   const mediaRef = useRef<HTMLVideoElement | null>(null);
   const gestureRef = useRef<{ pointerId: number; y: number; value: number; kind: 'brightness' | 'volume' } | null>(null);
+  const gestureMovedRef = useRef(false);
+  const autoplayAttemptRef = useRef(false);
   const gestureTimer = useRef<number | null>(null);
   const boxRef = useRef<HTMLElement | null>(null);
 
   const onTimeUpdate = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
+    const video = event.currentTarget;
+    const preferences = useSettings.getState();
+    const current = usePlayer.getState().session;
+    if (preferences.skipIntro && current && current.request === session?.request) {
+      const introEnd = Math.max(0, Number(preferences.introDuration) || 0);
+      if (introEnd > 0 && video.currentTime > 0 && video.currentTime < introEnd - 2 && (!Number.isFinite(video.duration) || introEnd < video.duration - 1)) {
+        video.currentTime = introEnd;
+        setGestureLabel('Intro dilewati');
+        if (gestureTimer.current) window.clearTimeout(gestureTimer.current);
+        gestureTimer.current = window.setTimeout(() => setGestureLabel(''), 1200);
+        return;
+      }
+    }
     const nextPosition = event.currentTarget.currentTime || 0;
     const nextDuration = Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0;
     setPlayhead(current => Math.floor(current) === Math.floor(nextPosition) ? current : nextPosition);
     setDuration(current => current === nextDuration ? current : nextDuration);
     session?.onProgress(event);
-  }, [session?.onProgress]);
+  }, [session?.onProgress, session?.request]);
 
   useEffect(() => {
     if (!session) return;
@@ -134,7 +151,8 @@ export function PlayerOverlay() {
     return () => setNativePipActive(false);
   }, [session?.request, session?.loading, session?.error, session?.stream?.sourceKind, session?.title, session?.episode, playing]);
   useEffect(() => { if (mode === 'mini') setDownloadsOpen(false); }, [mode]);
-  useEffect(() => { setPlayhead(0); setDuration(0); setPlaying(false); setPlaybackRate(1); }, [session?.request]);
+  useEffect(() => { setPlayhead(0); setDuration(0); setPlaying(false); setAutoplayBlocked(false); setMutedAutoplay(false); setPlaybackRate(1); autoplayAttemptRef.current = false; }, [session?.request]);
+  useEffect(() => { setAutoplayBlocked(false); setMutedAutoplay(false); setPlaying(false); autoplayAttemptRef.current = false; }, [session?.sourceIndex]);
   useEffect(() => { if (mediaRef.current) mediaRef.current.playbackRate = playbackRate; }, [session?.request, session?.sourceIndex, playbackRate]);
   useEffect(() => () => { if (gestureTimer.current) window.clearTimeout(gestureTimer.current); }, []);
 
@@ -166,7 +184,8 @@ export function PlayerOverlay() {
   };
   const endDrag = () => { dragRef.current = null; };
   const beginControlGesture = (event: PointerEvent<HTMLDivElement>) => {
-    if (!playerControls || mode !== 'full' || event.pointerType !== 'touch' || (event.target as HTMLElement).closest('button,input,select')) return;
+    if (!mediaRef.current || source?.kind !== 'file' || !playerControls || mode !== 'full' || event.pointerType !== 'touch' || (event.target as HTMLElement).closest('button,input,select')) return;
+    gestureMovedRef.current = false;
     const rect = event.currentTarget.getBoundingClientRect();
     const kind = event.clientX < rect.left + rect.width / 2 ? 'brightness' : 'volume';
     gestureRef.current = { pointerId: event.pointerId, y: event.clientY, value: kind === 'brightness' ? brightness : volume, kind };
@@ -175,6 +194,7 @@ export function PlayerOverlay() {
   const moveControlGesture = (event: PointerEvent<HTMLDivElement>) => {
     const gesture = gestureRef.current;
     if (!gesture || gesture.pointerId !== event.pointerId) return;
+    if (Math.abs(event.clientY - gesture.y) > 8) gestureMovedRef.current = true;
     const next = Math.max(0, Math.min(1, gesture.value + (gesture.y - event.clientY) / 220));
     if (gesture.kind === 'brightness') setBrightness(next);
     else setVolume(next);
@@ -186,8 +206,24 @@ export function PlayerOverlay() {
   const togglePlayback = () => {
     const video = mediaRef.current;
     if (!video) return;
-    if (video.paused) void video.play().then(() => setPlaying(true)).catch(onError);
+    if (video.paused) void video.play().then(() => { setPlaying(true); setAutoplayBlocked(false); }).catch(() => setAutoplayBlocked(true));
     else { video.pause(); setPlaying(false); }
+  };
+  const enableAutoplayAudio = () => {
+    const video = mediaRef.current;
+    if (!video) return;
+    video.muted = false;
+    void video.play().then(() => { setMutedAutoplay(false); setAutoplayBlocked(false); setPlaying(true); }).catch(() => {
+      video.muted = true;
+      setAutoplayBlocked(true);
+    });
+  };
+  const toggleFromSurface = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (mode !== 'full' || source?.kind !== 'file') return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button,input,select,textarea,a,label')) return;
+    if (gestureMovedRef.current) { gestureMovedRef.current = false; return; }
+    togglePlayback();
   };
   const togglePlaybackRate = () => {
     const rates = [1, 1.25, 1.5, 2, 0.75];
@@ -237,8 +273,19 @@ export function PlayerOverlay() {
         <button type="button" className="hn-ghostbtn" onClick={event => { event.stopPropagation(); session.retry(); }}>Coba lagi</button>
       </div> : null}
       {!session.loading && !session.error && source ? <>
-        <div className="episode-player-video" style={{ filter: `brightness(${brightness})`, touchAction: playerControls ? 'pan-x' : undefined }} onPointerDown={beginControlGesture} onPointerMove={moveControlGesture} onPointerUp={endControlGesture} onPointerCancel={endControlGesture}>
-          {source.kind === 'file' ? <AdaptiveVideo key={source.url} videoElementRef={mediaRef} src={source.url} poster={session.stream?.poster || session.poster} volume={volume} fit={fit} onTimeUpdate={onTimeUpdate} onPause={event => { setPlaying(false); session.onProgress(event); }} onPlay={() => setPlaying(true)} onEnded={event => { setPlaying(false); session.onProgress(event); }} onError={onError} /> : <iframe key={source.url} src={source.url} title={`${session.title} episode ${session.episode}`} allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />}
+        <div className="episode-player-video" style={{ filter: `brightness(${brightness})`, touchAction: source.kind === 'file' && playerControls ? 'pan-x' : undefined }} onPointerDown={beginControlGesture} onPointerMove={moveControlGesture} onPointerUp={endControlGesture} onPointerCancel={endControlGesture} onClick={toggleFromSurface}>
+          {source.kind === 'file' ? <AdaptiveVideo key={source.url} videoElementRef={mediaRef} src={source.url} poster={session.stream?.poster || session.poster} volume={volume} fit={fit} onTimeUpdate={onTimeUpdate} onPause={event => { setPlaying(false); session.onProgress(event); }} onPlay={() => { setPlaying(true); setAutoplayBlocked(false); }} onCanPlay={() => {
+            if (autoplayAttemptRef.current) return;
+            autoplayAttemptRef.current = true;
+            const video = mediaRef.current;
+            if (video?.paused) void video.play().then(() => { setAutoplayBlocked(false); setMutedAutoplay(false); }).catch(() => {
+              if (!video) return;
+              video.muted = true;
+              void video.play().then(() => { setMutedAutoplay(true); setAutoplayBlocked(false); setPlaying(true); }).catch(() => setAutoplayBlocked(true));
+            });
+          }} onEnded={event => { setPlaying(false); session.onProgress(event); }} onError={onError} /> : <iframe key={source.url} src={source.url} title={`${session.title} episode ${session.episode}`} allow="autoplay; encrypted-media; fullscreen; picture-in-picture" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />}
+          {mutedAutoplay && source.kind === 'file' ? <button type="button" className="player-gesture-status player-status-action" onClick={enableAutoplayAudio}>Aktifkan suara</button> : null}
+          {autoplayBlocked && source.kind === 'file' ? <span className="player-gesture-status player-status-blocked" role="status">Autoplay diblokir browser. Ketuk Putar untuk memulai.</span> : null}
           {mode === 'full' && source.kind === 'file' ? <div className="player-controls" onPointerDown={event => event.stopPropagation()}>
             <div className="player-control-row">
               <button type="button" aria-label="Episode sebelumnya" disabled={!session.onPrevious} onClick={() => session.onPrevious?.()}><Icon name="skipPrev" size={19} /></button>

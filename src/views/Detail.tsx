@@ -203,10 +203,6 @@ export function Detail() {
     if (!bundle) return;
     const video = event.currentTarget;
     const preferences = useSettings.getState();
-    if (event.type === 'timeupdate' && preferences.skipIntro && video.currentTime > 0 && video.currentTime < preferences.introDuration - 2) {
-      video.currentTime = preferences.introDuration;
-      return;
-    }
     const now = Date.now();
     if (event.type === 'timeupdate' && now - lastProgressWrite.current < 15_000) return;
     lastProgressWrite.current = now;

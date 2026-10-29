@@ -416,6 +416,8 @@
 .player-quality-option.quality-480 strong { color: #80d74d; }
 .player-quality-option.quality-360 strong { color: #f0f0f2; }
 .player-gesture-status { position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%,-50%); padding: 10px 14px; border-radius: 999px; background: rgba(8,10,15,.78); color: #fff; font-size: 13px; font-weight: 750; pointer-events: none; }
+.player-status-action { pointer-events: auto; cursor: pointer; border: 1px solid rgba(255,255,255,.24); }
+.episode-player-backdrop:not(.mini) .player-status-action, .episode-player-backdrop:not(.mini) .player-status-blocked { top: 30%; }
 .player-fit-icon { width: 16px; height: 13px; border: 2px solid currentColor; border-radius: 1px; position: relative; }
 .player-fit-icon::after { content: ''; position: absolute; inset: 2px; border: 1px solid currentColor; }
 
@@ -429,7 +431,8 @@
 .episode-player-backdrop:not(.mini) .episode-player-video video, .episode-player-backdrop:not(.mini) .episode-player-video iframe { object-fit: contain; }
 .player-video-top-controls { position: absolute; z-index: 4; top: 10px; right: 12px; display: flex; align-items: center; gap: 24px; }
 .player-video-top-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 32px; min-height: 34px; padding: 0; color: #e3e4e8; background: transparent; font-size: 16px; font-weight: 700; }
-.episode-player-backdrop:not(.mini) .player-controls { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 5px; padding: 0 14px max(10px, env(safe-area-inset-bottom)); background: linear-gradient(transparent 35%, #0009 100%); }
+.episode-player-backdrop:not(.mini) .player-controls { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 5px; padding: 0 14px max(10px, env(safe-area-inset-bottom)); background: linear-gradient(transparent 35%, #0009 100%); pointer-events: none; }
+.episode-player-backdrop:not(.mini) .player-controls button, .episode-player-backdrop:not(.mini) .player-controls input { pointer-events: auto; }
 .episode-player-backdrop:not(.mini) .player-control-row { position: absolute; top: 50%; left: 0; right: 0; justify-content: center; gap: clamp(14px, 5vw, 30px); transform: translateY(-50%); }
 .episode-player-backdrop:not(.mini) .player-control-row button { min-width: 34px; height: 38px; padding: 0 5px; border-radius: 50%; background: transparent; font-size: 13px; }
 .episode-player-backdrop:not(.mini) .player-control-row button:disabled { opacity: .35; }

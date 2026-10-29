@@ -58,7 +58,7 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
     const provider = entry.provider;
 
     if (st.playerUrl) {
-      const directMedia = st.sourceKind === 'direct-media' || (!st.sourceKind && isVideoUrl(st.playerUrl));
+      const directMedia = isVideoUrl(st.playerUrl);
       const primary = (st.servers || []).find(server => server.id === st.playerUrl);
       const label = directMedia
         ? guessQuality(st.playerUrl) || guessQuality(primary?.quality || '') || guessQuality(st.title || '')
@@ -83,7 +83,7 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
       if (seenServer.has(ref)) return;
       seenServer.add(ref);
       const label = guessQuality(s.quality || s.name || '') || guessQuality(s.id || '');
-      const directMedia = st.sourceKind === 'direct-media' || isVideoUrl(s.id || '');
+      const directMedia = isVideoUrl(s.id || '');
       if (label && directMedia) {
         put(label, {
           url: s.id,

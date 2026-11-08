@@ -7,8 +7,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.getcapacitor.annotation.PluginMethod;
 
 /**
  * Fullscreen native Android: sembunyikan status/navigation bar + keep-screen-on.

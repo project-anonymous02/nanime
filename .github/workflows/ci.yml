@@ -60,8 +60,6 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.2.1
 
       - name: Install dependencies
         run: npm ci
@@ -102,11 +100,13 @@ jobs:
       - name: Gradle assembleDebug
         working-directory: android
         run: |
-          gradle --version
-          for i in 1 2 3; do
-            gradle assembleDebug --no-daemon && exit 0
-            echo "Gradle gagal (percobaan $i/3), coba lagi..."
-            sleep 15
+          # Retry banyak kali: download distribusi Gradle dari
+          # services.gradle.org/github-releases sedang flaky (timeout 10s / 504).
+          # Sekali berhasil, setup-gradle meng-cache wrapper dist untuk run berikut.
+          for i in $(seq 1 15); do
+            ./gradlew assembleDebug --no-daemon && exit 0
+            echo "Gradle gagal (percobaan $i/15), coba lagi..."
+            sleep 20
           done
           exit 1
 

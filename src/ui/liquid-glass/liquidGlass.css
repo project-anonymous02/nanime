@@ -1,0 +1,240 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Liquid Glass material system — skill golden-glass-style.md (production
+   defaults, adapted for Nanime's light theme: tint is adaptive (light or dark
+   sampled from the backdrop), chrome uses a hairline + inner rim).
+   Numeric defaults live in src/styles/tokens.css (single source); this file
+   only defines the material contract, not per-surface numbers.
+   Layers: 1) solid fallback 2) backdrop blur 3) SVG refraction (Chromium).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.lg-filter-root {
+  position: absolute !important;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Numbers (--lg-tint/border/blur/saturate/...) live in tokens.css (single
+   source). This block only pins geometry/behavior defaults; anything not
+   set here resolves from :root tokens. */
+.lg-surface {
+  --lg-radius: 26px;
+  --lg-filter-url: none;
+  --lg-light-x: 84%;
+  --lg-light-y: 12%;
+  --lg-glare: 0.56;
+  --lg-elastic-x: 0px;
+  --lg-elastic-y: 0px;
+  --lg-press-scale: 1;
+  --lg-highlight:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.12) 34%, rgba(255, 255, 255, 0.03) 58%, rgba(255, 255, 255, 0.16));
+  --lg-shadow:
+    0 22px 60px rgba(0, 0, 0, 0.24),
+    0 1px 1px rgba(255, 255, 255, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.2),
+    inset 0 0 24px rgba(255, 255, 255, 0.18);
+  --lg-shadow-active:
+    0 30px 74px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.28),
+    inset 0 0 30px rgba(255, 255, 255, 0.22),
+    0 0 46px rgba(137, 221, 255, 0.16);
+  position: relative;
+  isolation: isolate;
+  color: var(--lg-adaptive-foreground, var(--text, #1d1d1f));
+  border: 1px solid var(--lg-adaptive-border, var(--lg-border));
+  border-radius: var(--lg-radius);
+  /* Split layers so adaptive tint can cross-fade in place. The highlight is
+     an image layer, the tint a color layer (last shorthand layer rule). */
+  background-color: var(--lg-adaptive-tint, var(--lg-tint));
+  background-image: var(--lg-highlight);
+  background-clip: padding-box;
+  box-shadow: var(--lg-shadow);
+  /* No overflow:hidden / clip-path here: sheets scroll (overflow-y:auto),
+     nav/header are sticky/fixed, and clip-path would cut focus outlines and
+     drop shadows. Pseudo-el glints are inset:0 + border-radius:inherit, so
+     they stay inside the rounded box without clipping the element. */
+  transform: translate3d(0, 0, 0);
+  /* Layer 2 — cross-browser frosted fallback (Safari/Firefox/iOS WebView). */
+  backdrop-filter: blur(var(--lg-fallback-blur)) saturate(var(--lg-adaptive-saturate, var(--lg-saturate))) brightness(var(--lg-adaptive-brightness, var(--lg-brightness))) contrast(var(--lg-adaptive-contrast, var(--lg-contrast)));
+  -webkit-backdrop-filter: blur(var(--lg-fallback-blur)) saturate(var(--lg-adaptive-saturate, var(--lg-saturate))) brightness(var(--lg-adaptive-brightness, var(--lg-brightness))) contrast(var(--lg-adaptive-contrast, var(--lg-contrast)));
+}
+
+.lg-surface > :not(.lg-filter-root) {
+  position: relative;
+  z-index: 2;
+}
+
+/* Layer 3 — Chromium: true refraction, near-zero blur so lensing stays crisp. */
+.lg-surface.lg-svg-ok.lg-map-ready {
+  backdrop-filter: var(--lg-filter-url) blur(var(--lg-blur)) saturate(var(--lg-adaptive-saturate, var(--lg-saturate))) brightness(var(--lg-adaptive-brightness, var(--lg-brightness))) contrast(var(--lg-adaptive-contrast, var(--lg-contrast)));
+  -webkit-backdrop-filter: var(--lg-filter-url) blur(var(--lg-blur)) saturate(var(--lg-adaptive-saturate, var(--lg-saturate))) brightness(var(--lg-adaptive-brightness, var(--lg-brightness))) contrast(var(--lg-adaptive-contrast, var(--lg-contrast)));
+}
+
+.lg-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at var(--lg-light-x) var(--lg-light-y), rgb(255 255 255 / calc(var(--lg-glare) * 0.72)), transparent 20%),
+    radial-gradient(circle at calc(100% - var(--lg-light-x)) calc(100% - var(--lg-light-y)), rgb(116 231 255 / calc(var(--lg-glare) * 0.3)), transparent 32%),
+    linear-gradient(118deg, transparent 0 35%, rgba(255, 255, 255, 0.2) 50%, transparent 64%),
+    radial-gradient(120% 70% at 50% -18%, rgba(255, 255, 255, 0.3), transparent 58%);
+  opacity: 0.96;
+  transition: opacity 0.22s ease, background 0.22s ease;
+}
+
+.lg-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+/* Variants resolve from tokens.css semantic glass vars (single source). */
+.lg-regular { --lg-tint: var(--glass-tint); }
+.lg-clear {
+  --lg-tint: var(--lg-tint-clear);
+  --lg-adaptive-tint: var(--lg-tint-clear);
+  --lg-border: var(--lg-border);
+}
+/* Tinted is an explicit dark material (player chrome / emphasis): force
+   white foreground and a low-sheen highlight so it stays dark. */
+.lg-tinted {
+  --lg-tint: var(--lg-tint-dark);
+  --lg-adaptive-tint: var(--lg-tint-dark);
+  color: #fff;
+  --lg-highlight: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05) 36%, rgba(255, 255, 255, 0.02) 60%, rgba(255, 255, 255, 0.08));
+}
+
+.lg-panel { padding: 20px 24px; }
+
+.lg-interactive {
+  cursor: pointer;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), background 0.24s ease, box-shadow 0.24s ease;
+  transform: translate3d(var(--lg-elastic-x), var(--lg-elastic-y), 0) scale(var(--lg-press-scale));
+}
+
+.lg-interactive:hover,
+.lg-interactive:focus-visible,
+.lg-interactive.is-active {
+  --lg-glare: 0.82;
+  box-shadow: var(--lg-shadow-active);
+  transform: translate3d(var(--lg-elastic-x), calc(var(--lg-elastic-y) - 1px), 0) scale(var(--lg-press-scale));
+  outline: none;
+}
+
+.lg-interactive:focus-visible {
+  outline: 2px solid var(--accent, #0071e3);
+  outline-offset: 2px;
+}
+
+.lg-interactive:active {
+  --lg-glare: 0.84;
+  transform: translate3d(var(--lg-elastic-x), var(--lg-elastic-y), 0) scale(0.985);
+}
+
+/* Adaptive dark mode: dark backdrop flips the material to a dark neutral
+   tint with white foreground. Remap text/hairline tokens inside the surface
+   so children that use var(--text*) flip together. */
+.lg-surface[data-lg-adaptive-mode='dark'],
+.lg-surface[data-glass-mode='dark'] {
+  --lg-highlight:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05) 34%, rgba(255, 255, 255, 0.02) 58%, rgba(255, 255, 255, 0.07));
+  --lg-highlight-bar:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.03) 52%, rgba(255, 255, 255, 0.06));
+  --lg-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.07),
+    inset 0 0 24px rgba(255, 255, 255, 0.05);
+  --text: #FFFFFF;
+  --text-body: #E5E5EA;
+  --text-2: #D1D1D6;
+  --text-3: #AEAEB2;
+  --text-muted: #AEAEB2;
+  --hairline: rgba(255, 255, 255, 0.16);
+  --accent: #0A84FF;
+  --accent-link: #0A84FF;
+}
+
+.lg-surface[data-lg-adaptive-mode='dark']::before,
+.lg-surface[data-glass-mode='dark']::before { opacity: 0.55; }
+
+.lg-surface[data-lg-adaptive-mode='dark']::after,
+.lg-surface[data-glass-mode='dark']::after {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 20px rgba(255, 255, 255, 0.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-interactive,
+  .lg-interactive:hover,
+  .lg-interactive:focus-visible,
+  .lg-interactive:active {
+    transform: none;
+    transition: background 0.16s ease, box-shadow 0.16s ease;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .lg-surface {
+    --lg-tint: rgba(255, 255, 255, 0.86);
+    --lg-border: rgba(0, 0, 0, 0.42);
+    background-color: var(--surface, #fff) !important;
+    color: #1d1d1f !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .lg-surface[data-lg-adaptive-mode='dark'],
+  .lg-surface[data-glass-mode='dark'] {
+    --text: #1d1d1f;
+    --text-body: #1d1d1f;
+    --text-2: #3a3a3c;
+    --text-3: #48484a;
+    --text-muted: #48484a;
+    --hairline: rgba(0, 0, 0, 0.18);
+    --accent: #0071e3;
+    --accent-link: #0071e3;
+  }
+  .lg-surface::before,
+  .lg-surface::after { display: none; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lg-surface,
+  .lg-surface.lg-svg-ok {
+    background: var(--surface, #fff);
+    color: #1d1d1f;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .lg-surface[data-lg-adaptive-mode='dark'],
+  .lg-surface[data-glass-mode='dark'] {
+    --text: #1d1d1f;
+    --text-body: #1d1d1f;
+    --text-2: #3a3a3c;
+    --text-3: #48484a;
+    --text-muted: #48484a;
+    --hairline: rgba(0, 0, 0, 0.12);
+    --accent: #0071e3;
+    --accent-link: #0071e3;
+  }
+  .lg-surface::before,
+  .lg-surface::after { display: none; }
+}

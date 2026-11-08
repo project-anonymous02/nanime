@@ -92,7 +92,7 @@ export function Friends() {
             </article>;
           }) : <div className="hn-state"><span className="hn-state-icon"><Icon name="chat" size={26} /></span><strong className="hn-state-title">Mulai percakapan</strong><span className="hn-state-sub">Kirim pesan pertama ke {selected.person.username}.</span></div>}
         </div>
-        <form className="hn-chatbar" onSubmit={submitMessage}>
+        <form className="hn-chatbar" data-lg-role="dock" onSubmit={submitMessage}>
           <input className="hn-chatinput" style={{ width: 'auto', flex: 1, minWidth: 0 }} value={draft} maxLength={2000} onChange={e => setDraft(e.target.value)} placeholder="Tulis pesan…" aria-label="Tulis pesan" />
           <button className="hn-chatsend" type="submit" disabled={busy || !draft.trim()}><Icon name="send" size={17} /> Kirim</button>
         </form>

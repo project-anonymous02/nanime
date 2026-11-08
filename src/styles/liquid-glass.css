@@ -1,209 +1,137 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Nanime Liquid Glass — mengikuti apple-liquid-glass skill persis.
-   Glass HANYA di: tab bar, sticky nav, sheet/modal, toast, chatbar,
-   search-pinned, badge di atas poster, kontrol player di atas video.
-   Konten biasa (row/menu/chip/input/bubble/rankcard/auth-rules/skel)
-   = solid #fff + shadow — browse:liquid-glass.css versi lama
-   (glass di semua elemen) sudah dihapus. Lihat SKILL.md §2.
+   Nanime Liquid Glass — material bindings (single source; layout lives in
+   app.css, numbers in tokens.css). Glass ONLY on nav/controls layer:
+   image.mp4 bar, sticky headers, sheet/modal, toast, chatbar, searchpin,
+   badges over posters, player controls over video. Content (rows, menus,
+   chips, inputs, bubbles, rankcards) = solid white, never glass.
+   Recipe: Mobile Focus Sheet + Media Glass Stage + Command Deck.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Resep glass nav (skill tokens.css .glass-nav) ── */
-.glass-nav {
-  background: rgba(245,245,247,0.72);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-}
+/* ── Bar variant: edge-anchored chrome stays sticky/fixed under lg-surface ── */
+.lg-surface.lg-bar { border-radius: 0; border-left: 0; border-right: 0; }
+.hn-pagehead.lg-surface, .hn-homehead.lg-surface { position: sticky; }
+.hn-detail-bar.lg-surface { position: fixed; }
+.hn-bottomnav.lg-surface { position: fixed; }
+.hn-chatbar.lg-surface { position: relative; }
+.lg-surface > :not(.lg-filter-root) { position: relative; z-index: 2; }
 
-/* ── Glass element di atas ground berwarna (CTA/poster) ── */
-.glass-chip {
-  background: rgba(255,255,255,0.16);
-  border: 1px solid rgba(255,255,255,0.22);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-/* ══ TAB BAR (app.md §3) — edge-anchored, bukan floating dock ══ */
+/* ══ TAB BAR — Command Deck dock, profile soft ══ */
 .hn-bottomnav {
-  left: 0; right: 0; bottom: 0;
-  height: calc(49px + env(safe-area-inset-bottom));
-  padding: 8px 0 env(safe-area-inset-bottom);
-  border-radius: 0;
   border: 0;
   border-top: 1px solid var(--hairline);
-  background: rgba(245,245,247,0.82);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  color: var(--lg-adaptive-foreground, var(--text));
+  background-color: var(--lg-adaptive-tint, var(--lg-tint-bar));
+  background-image: var(--lg-highlight-bar);
   box-shadow: none;
+  --lg-radius: 0;
+  --lg-fallback-blur: 8px;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
-.hn-bottomnav-item {
-  border-radius: 0;
-  margin: 0;
-  min-height: 49px;
-  color: var(--text-3, #86868b);
-}
-.hn-bottomnav-item::before { display: none; }
-.hn-bottomnav-item.hn-active {
-  color: var(--accent);
-}
-.hn-bottomnav-item.hn-active::before { display: none; }
+.hn-bottomnav-item { color: var(--text-3); }
+.hn-bottomnav-item.hn-active { color: var(--accent); }
 .hn-bottomnav-item:active { transform: scale(0.97); }
+/* Active tab: materialize pill (scale+opacity spring, not linear fade). */
+.hn-bottomnav-item { position: relative; }
+.hn-bottomnav-item::before {
+  content: '';
+  position: absolute;
+  inset: 4px 8px;
+  border-radius: 999px;
+  background: rgba(0, 113, 227, 0.10);
+  opacity: 0;
+  transform: scale(0.82);
+  transition: opacity var(--t-page) var(--spring-smooth), transform var(--t-page) var(--spring-smooth);
+  pointer-events: none;
+}
+.hn-bottomnav-item.hn-active::before { opacity: 1; transform: scale(1); }
 
-/* ══ STICKY NAV (scroll-edge: hairline hanya saat scroll) ══ */
+/* ══ STICKY HEADERS — scroll-edge: hairline only when scrolled ══ */
 .hn-pagehead, .hn-homehead {
-  background: rgba(245,245,247,0.72);
+  border-bottom: 1px solid transparent;
+  color: var(--lg-adaptive-foreground, var(--text));
+  background-color: var(--lg-adaptive-tint, var(--lg-tint-bar));
+  background-image: var(--lg-highlight-bar);
+  --lg-radius: 0;
+  --lg-fallback-blur: 8px;
+  transition: border-color .3s, box-shadow .3s, background-color .3s ease, color .3s ease;
+}
+.hn-pagehead.scrolled, .hn-homehead.scrolled {
+  border-bottom-color: var(--hairline);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04);
+}
+.hn-detail-bar[data-stuck='true'] {
+  color: var(--lg-adaptive-foreground, var(--text));
+  background-color: var(--lg-adaptive-tint, var(--lg-tint-bar));
+  background-image: var(--lg-highlight-bar);
   border-bottom: 1px solid var(--hairline);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  box-shadow: none;
-  transition: border-color 0.3s, box-shadow 0.3s;
-}
-.hn-detail-bar[data-stuck="true"] {
-  background: rgba(245,245,247,0.72);
-  border-bottom: 1px solid var(--hairline);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  box-shadow: 0 1px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04);
+  --lg-radius: 0;
+  --lg-fallback-blur: 8px;
+  transition: background-color .3s ease, color .3s ease, border-color .3s ease;
 }
 
-/* ══ TOMBOL IKON (solid — bukan glass; hover lift halus) ══ */
-.hn-back, .hn-iconbtn {
-  border: 1px solid rgba(0,0,0,0.08);
-  background: rgba(255,255,255,0.8);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  transition: transform 0.2s var(--ease-out-quart), box-shadow 0.2s var(--ease-out-quart);
-}
-.hn-back::before, .hn-iconbtn::before { display: none; }
-.hn-back:active, .hn-iconbtn:active { transform: scale(0.97); transition-duration: 100ms; }
-.hn-back:hover, .hn-iconbtn:hover { transform: translateY(-2px); box-shadow: var(--sh-lift); }
-
-/* ══ TOMBOL UTAMA (solid accent; ghost = white bordered) ══ */
-.hn-btn {
-  border: 1px solid transparent;
-  background: var(--accent);
-  box-shadow: none;
-}
-.hn-btn:active { transform: scale(0.97); transition: transform 100ms ease-out; }
-.hn-btn:hover { filter: none; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,113,227,0.28); }
-.hn-ghostbtn {
-  border: 1px solid rgba(0,0,0,0.08);
-  background: rgba(255,255,255,0.8);
-  color: var(--text);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-.hn-ghostbtn:active { transform: scale(0.97); transition: transform 100ms ease-out; }
-.hn-dangerbtn {
-  background: rgba(255,59,48,0.08);
-  color: var(--accent-red-deep, #d70015);
-  border-color: transparent;
-}
-
-/* ══ CHIP / TAB: solid — active = black pill (skill §5) ══ */
-.hn-chip, .hn-datetab {
-  border: 1px solid var(--hairline);
-  background: rgba(0,0,0,0.05);
-  color: var(--text-2);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: none;
-}
-.hn-chip.hn-active, .hn-datetab.hn-active {
-  background: var(--text);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.16);
-}
-
-/* ══ ROW / MENU / RANK / AUTH-RULES: solid white, BUKAN glass ══ */
-.hn-row, .hn-menuitem, .hn-rankcard, .hn-auth-rules li {
-  border: 1px solid transparent;
-  background: var(--surface);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: var(--sh-card);
-}
-.hn-row:active { transform: scale(0.985); }
-.hn-menuitem:active { transform: scale(0.985); }
-
-/* ══ SEARCH BAR: solid putih ══ */
-.hn-searchbar {
-  border: 1px solid var(--hairline);
-  background: var(--surface);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: var(--sh-card);
-}
-.hn-searchpin > button {
-  background: rgba(245,245,247,0.72);
-  border: 1px solid var(--hairline);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  box-shadow: var(--sh-panel);
-}
-
-/* ══ INPUT: solid, focus accent ring 200ms ══ */
-.hn-input, .hn-textarea, .hn-select, .hn-chatinput, .hn-searchinput {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  transition: border-color 0.2s var(--ease-out-quart), box-shadow 0.2s var(--ease-out-quart);
-}
-.hn-input:focus, .hn-textarea:focus, .hn-select:focus, .hn-chatinput:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(0,113,227,0.18);
-}
-
-/* ══ SHEET / MODAL (motion.md §5 materialize: blur+scale+opacity bersama) ══ */
+/* ══ SHEET / MODAL — materialize: opacity + scale + blur together ══ */
 .hn-sheet {
   border: 0;
-  background: rgba(245,245,247,0.72);
-  backdrop-filter: blur(0px) saturate(180%);
-  -webkit-backdrop-filter: blur(0px) saturate(180%);
+  background-color: var(--lg-tint-sheet);
+  background-image: var(--lg-highlight);
   box-shadow: var(--sh-overlay);
+  --lg-radius: 22px;
+  --lg-fallback-blur: 10px;
   opacity: 0;
   transform: translateY(12px) scale(0.98);
   transform-origin: 50% 100%;
-  transition: opacity 0.28s var(--ease-spring), transform 0.28s var(--ease-spring), backdrop-filter 0.28s var(--ease-spring), -webkit-backdrop-filter 0.28s var(--ease-spring);
+  transition: opacity 0.28s var(--spring-interactive), transform 0.28s var(--spring-interactive);
+  will-change: transform, opacity;
 }
 .hn-sheet.hn-open {
   opacity: 1;
   transform: none;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  transition: opacity 0.4s var(--ease-spring), transform 0.4s var(--ease-spring), backdrop-filter 0.4s var(--ease-spring), -webkit-backdrop-filter 0.4s var(--ease-spring);
+  transition: opacity 0.4s var(--spring-interactive), transform 0.4s var(--spring-interactive);
 }
-.hn-sheet[data-lg-role="focus"] { transform-origin: 50% 50%; }
-.hn-sheetmask {
-  background: rgba(0,0,0,0.28);
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  pointer-events: none;
-}
+.hn-sheet[data-lg-role='focus'] { transform-origin: 50% 50%; }
+/* Drag state: transform is driven by pointer, not transition. */
+.hn-sheet.lg-dragging { transition: none; }
+.hn-sheetmask { background: rgba(0, 0, 0, 0.28); opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
 .hn-sheetmask.hn-open { opacity: 1; pointer-events: auto; }
 
-/* ══ TOAST (overlay) ══ */
+/* Player panels share the sheet materialize motion. */
+.episode-player, .player-download-sheet {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+  transform-origin: 50% 100%;
+  transition: opacity 0.28s var(--spring-interactive), transform 0.28s var(--spring-interactive);
+  will-change: transform, opacity;
+}
+.episode-player.hn-open, .player-download-sheet.hn-open {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.4s var(--spring-interactive), transform 0.4s var(--spring-interactive);
+}
+.episode-player-backdrop.mini .episode-player { transition: transform 0.2s var(--spring-interactive), opacity 0.2s ease; }
+
+/* ══ TOAST — floating overlay, profile thin ══ */
 .hn-toast {
   border: 0;
-  background: rgba(245,245,247,0.72);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  background-color: var(--lg-tint-sheet);
+  background-image: var(--lg-highlight);
   box-shadow: var(--sh-overlay);
-  display: flex; align-items: center; gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  --lg-radius: 14px;
+  --lg-fallback-blur: 8px;
 }
-.hn-toast.hn-ok { border: 0; }
-.hn-toast.hn-err { border: 0; }
 
-/* ══ CHAT BAR (bottom overlay) ══ */
+/* ══ CHAT BAR — bottom command surface ══ */
 .hn-chatbar {
   border-top: 1px solid var(--hairline);
-  background: rgba(245,245,247,0.72);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  color: var(--lg-adaptive-foreground, var(--text));
+  background-color: var(--lg-adaptive-tint, var(--lg-tint-bar));
+  background-image: var(--lg-highlight-bar);
+  --lg-radius: 0;
+  --lg-fallback-blur: 8px;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 .hn-bubble {
   border: 0;
@@ -215,61 +143,165 @@
 .hn-mine .hn-bubble { background: var(--accent); color: #fff; }
 .hn-chatsend { border: 0; background: var(--accent); box-shadow: none; }
 
-/* ══ BADGE DI ATAS POSTER (glass-chip: sesuatu untuk direfraksi) ══ */
-.hn-badge, .hn-rankbadge, .hn-views, .hn-episodecode, .hn-hero-views, .hn-hero-rank {
-  background: rgba(255,255,255,0.16);
-  border: 1px solid rgba(255,255,255,0.22);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: none;
+/* ══ SEARCH PIN — floating control, profile thin, interactive ══ */
+.hn-searchpin > button {
+  color: var(--lg-adaptive-foreground, var(--text-2));
+  background-color: var(--lg-adaptive-tint, var(--lg-tint-sheet));
+  background-image: var(--lg-highlight);
+  border: 1px solid var(--lg-adaptive-border, var(--lg-border));
+  box-shadow: var(--sh-panel);
+  --lg-radius: 999px;
+  --lg-fallback-blur: 8px;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
-.hn-badge { background: rgba(255,255,255,0.16); color: #fff; }
-.hn-badge-accent { background: rgba(255,255,255,0.16); }
-.hn-hero-rank { background: rgba(255,255,255,0.16); color: #fff; }
+
+/* ══ BADGES OVER POSTERS — CSS-material only (thin). No JS refraction on
+   dozens of 40px chips: rim + highlight + fallback blur is the whole look
+   at that size. Over-media surfaces: hero, detail hero, player keep JS. ══ */
+.hn-badge, .hn-rankbadge, .hn-views, .hn-episodecode, .hn-hero-views, .hn-hero-rank {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.08) 45%, rgba(255, 255, 255, 0.20)),
+    rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 1px 4px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(var(--lg-fallback-blur)) saturate(var(--lg-saturate)) brightness(var(--lg-brightness)) contrast(var(--lg-contrast));
+  -webkit-backdrop-filter: blur(var(--lg-fallback-blur)) saturate(var(--lg-saturate)) brightness(var(--lg-brightness)) contrast(var(--lg-contrast));
+}
+.hn-badge { color: #fff; }
+.hn-badge-accent { color: #fff; }
+.hn-hero-rank { color: #fff; }
 .hn-hero-views { color: #fff; }
 
-/* ══ STATE / SKEL: solid ══ */
-.hn-state-icon, .hn-skel {
-  border: 0;
-  background: var(--track);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: none;
+/* ══ PLAYER — controls over video (clear variant), refraction-backed ══ */
+.player-controls { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.player-control-row button, .player-video-top-controls button {
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.06) 45%, rgba(255, 255, 255, 0.18)),
+    rgba(255, 255, 255, 0.16);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 2px 10px rgba(0, 0, 0, 0.28);
+  --lg-radius: 999px;
+  --lg-fallback-blur: 6px;
 }
-
-/* ══ PLAYER: kontrol di atas video (overlap, glass-chip putih) ══ */
-.player-controls { backdrop-filter: none; }
-.player-control-row button {
-  border: 1px solid rgba(255,255,255,0.22);
-  background: rgba(255,255,255,0.16);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: none;
-}
-.player-control-row .player-play { background: rgba(255,255,255,0.92); }
+.player-control-row .player-play { background: rgba(255, 255, 255, 0.92); color: #1d1d1f; }
 .episode-player, .player-download-sheet {
   border: 0;
-  background: rgba(245,245,247,0.72);
+  background-color: var(--lg-tint-sheet);
+  background-image: var(--lg-highlight);
   box-shadow: var(--sh-overlay);
+  --lg-radius: 26px;
+  --lg-fallback-blur: 10px;
 }
 .episode-player-backdrop { backdrop-filter: none; -webkit-backdrop-filter: none; }
 .player-gesture-status {
-  background: rgba(255,255,255,0.16);
-  border: 1px solid rgba(255,255,255,0.22);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.08) 45%, rgba(255, 255, 255, 0.20)),
+    rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 2px 10px rgba(0, 0, 0, 0.28);
+  --lg-radius: 999px;
+  --lg-fallback-blur: 6px;
+  backdrop-filter: blur(var(--lg-fallback-blur)) saturate(var(--lg-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-fallback-blur)) saturate(var(--lg-saturate));
 }
 .episode-player-backdrop.mini .episode-player { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.episode-player-backdrop:not(.mini) .episode-player { background: var(--surface); }
 
-/* ══ FOCUS KEYBOARD ══ */
-.hn-back:focus-visible, .hn-iconbtn:focus-visible, .hn-btn:focus-visible, .hn-ghostbtn:focus-visible, .hn-chip:focus-visible, .hn-row:focus-visible, .hn-menuitem:focus-visible, .hn-bottomnav-item:focus-visible {
+.hn-sheet.lg-surface { border-radius: 22px 22px 0 0; }
+.hn-toast.lg-surface { border-radius: 14px; }
+.hn-searchpin > button.lg-surface { border-radius: 999px; }
+.player-control-row button.lg-surface, .player-video-top-controls button.lg-surface,
+.player-gesture-status.lg-surface { border-radius: 999px; }
+.episode-player.lg-surface { border-radius: 26px; }
+.player-download-sheet.lg-surface { border-radius: 22px; }
+
+/* ══ CLASS-ORDER GUARDS (.lg-surface in liquidGlass.css sets border/color/
+   background; these double-class rules pin hn chrome regardless of import
+   order) ══ */
+.hn-bottomnav.lg-surface {
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  color: var(--lg-adaptive-foreground, var(--text));
+  background-color: var(--lg-adaptive-tint, var(--lg-tint-bar));
+  background-image: var(--lg-highlight-bar);
+  box-shadow: none;
+}
+.hn-pagehead.lg-surface, .hn-homehead.lg-surface {
+  border: 0;
+  border-bottom: 1px solid transparent;
+  color: var(--lg-adaptive-foreground, var(--text));
+  background-color: var(--lg-adaptive-tint, var(--lg-tint-bar));
+  background-image: var(--lg-highlight-bar);
+  box-shadow: none;
+}
+.hn-pagehead.lg-surface.scrolled, .hn-homehead.lg-surface.scrolled {
+  border-bottom-color: var(--hairline);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04);
+}
+.hn-detail-bar.lg-surface[data-stuck='true'] {
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  color: var(--lg-adaptive-foreground, var(--text));
+  background-color: var(--lg-adaptive-tint, var(--lg-tint-bar));
+  background-image: var(--lg-highlight-bar);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04);
+}
+.hn-sheet.lg-surface, .hn-toast.lg-surface, .player-download-sheet.lg-surface {
+  border: 0;
+  color: var(--text);
+  background-color: var(--lg-tint-sheet);
+  background-image: var(--lg-highlight);
+  box-shadow: var(--sh-overlay);
+}
+.hn-searchpin > button.lg-surface {
+  color: var(--lg-adaptive-foreground, var(--text));
+  background-color: var(--lg-adaptive-tint, var(--lg-tint-sheet));
+  background-image: var(--lg-highlight);
+  border: 1px solid var(--lg-adaptive-border, var(--lg-border));
+}
+.hn-chatbar.lg-surface {
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  color: var(--lg-adaptive-foreground, var(--text));
+  background-color: var(--lg-adaptive-tint, var(--lg-tint-bar));
+  background-image: var(--lg-highlight-bar);
+  box-shadow: none;
+}
+.player-control-row button.lg-surface, .player-video-top-controls button.lg-surface,
+.player-gesture-status.lg-surface { color: #fff; }
+.player-control-row button.lg-surface.player-play { color: #1d1d1f; }
+
+/* ══ CONTENT STAYS SOLID (never glass) ══ */
+.hn-back, .hn-iconbtn, .hn-ghostbtn, .hn-chip, .hn-datetab, .hn-row, .hn-menuitem,
+.hn-rankcard, .hn-auth-rules li, .hn-searchbar, .hn-input, .hn-textarea, .hn-select,
+.hn-chatinput, .hn-searchinput, .hn-state-icon, .hn-skel {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.hn-input:focus, .hn-textarea:focus, .hn-select:focus, .hn-chatinput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.18);
+}
+
+/* ══ FOCUS ══ */
+.hn-back:focus-visible, .hn-iconbtn:focus-visible, .hn-btn:focus-visible, .hn-ghostbtn:focus-visible,
+.hn-chip:focus-visible, .hn-row:focus-visible, .hn-menuitem:focus-visible, .hn-bottomnav-item:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* ══ Reduced motion / transparency / contrast (motion.md §8) ══ */
+/* ══ ACCESSIBILITY ══ */
 @media (prefers-reduced-motion: reduce) {
-  .hn-bottomnav-item, .hn-back, .hn-iconbtn, .hn-btn, .hn-ghostbtn, .hn-chip, .hn-row, .hn-menuitem, .hn-sheet, .hn-toast, .hn-sheetmask {
+  .hn-bottomnav-item, .hn-back, .hn-iconbtn, .hn-btn, .hn-ghostbtn, .hn-chip,
+  .hn-row, .hn-menuitem, .hn-sheet, .hn-toast, .hn-sheetmask, .hn-bottomnav-item::before {
     animation: none !important;
     transition: opacity 200ms ease !important;
     transform: none !important;
@@ -277,16 +309,34 @@
   .hn-sheet { transition: opacity 200ms ease; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .hn-bottomnav, .hn-pagehead, .hn-homehead, .hn-searchpin > button, .hn-sheet, .hn-toast, .hn-chatbar {
+  .hn-bottomnav, .hn-pagehead, .hn-homehead, .hn-searchpin > button, .hn-sheet,
+  .hn-toast, .hn-chatbar, .episode-player, .player-download-sheet {
     background: var(--surface);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
-  .hn-badge, .hn-rankbadge, .hn-views, .hn-episodecode, .hn-hero-views, .hn-hero-rank { background: var(--surface); }
+  .hn-bottomnav.lg-surface, .hn-pagehead.lg-surface, .hn-homehead.lg-surface,
+  .hn-searchpin > button.lg-surface, .hn-sheet.lg-surface, .hn-toast.lg-surface,
+  .hn-chatbar.lg-surface, .episode-player.lg-surface, .player-download-sheet.lg-surface {
+    background: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .hn-badge, .hn-rankbadge, .hn-views, .hn-episodecode, .hn-hero-views, .hn-hero-rank,
+  .player-control-row button, .player-video-top-controls button, .player-gesture-status {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 @media (prefers-contrast: more) {
-  .hn-bottomnav, .hn-pagehead, .hn-homehead, .hn-searchpin > button, .hn-sheet, .hn-toast, .hn-chatbar {
+  .hn-bottomnav, .hn-pagehead, .hn-homehead, .hn-searchpin > button, .hn-sheet,
+  .hn-toast, .hn-chatbar, .episode-player, .player-download-sheet {
     background: var(--surface);
-    border: 1px solid rgba(0,0,0,0.35);
+    border: 1px solid rgba(0, 0, 0, 0.35);
+  }
+  .hn-badge, .hn-rankbadge, .hn-views, .hn-episodecode, .hn-hero-views, .hn-hero-rank {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(0, 0, 0, 0.35);
   }
 }

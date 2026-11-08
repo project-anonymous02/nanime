@@ -156,7 +156,7 @@ export function PublicChat() {
       })}
     </section>
 
-    {active ? <form className="hn-chatbar" onSubmit={event => void submit(event)}>
+    {active ? <form className="hn-chatbar" data-lg-role="dock" onSubmit={event => void submit(event)}>
       {reply ? <div className="hn-typinghint" style={{ flex: '1 1 auto' }}>
         <span>Membalas <b>{reply.profile?.username || 'Pengguna Nanime'}</b></span>
         <button type="button" aria-label="Batal membalas" onClick={() => setReply(null)}><Icon name="x" size={14} /></button>

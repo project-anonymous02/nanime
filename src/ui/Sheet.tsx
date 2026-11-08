@@ -1,7 +1,8 @@
-import { useLayoutEffect, useRef, useState, useEffect, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, useEffect, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './icons';
 import { Button } from './Button';
+import { LiquidGlass } from './liquid-glass';
 
 /** Bottom sheet & modal — dirender lewat portal, mengunci gulir latar. */
 
@@ -89,15 +90,67 @@ export function Sheet({
 }) {
   const { mounted, visible } = useMaterialize(open);
   useLock(mounted, onClose);
+  const sheetRef = useRef<HTMLElement | null>(null);
+  const dragRef = useRef<{ startY: number; lastY: number; lastT: number; velocity: number } | null>(null);
+
+  const beginDrag = (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Drag only from grip/header so content scrolling stays untouched.
+    if (!((e.target as HTMLElement).closest('.hn-sheetgrip, .hn-sheethead'))) return;
+    dragRef.current = { startY: e.clientY, lastY: e.clientY, lastT: performance.now(), velocity: 0 };
+    sheetRef.current?.setPointerCapture?.(e.pointerId);
+    sheetRef.current?.classList.add('lg-dragging');
+  };
+  const moveDrag = (e: ReactPointerEvent<HTMLElement>) => {
+    const drag = dragRef.current;
+    const el = sheetRef.current;
+    if (!drag || !el) return;
+    const now = performance.now();
+    const dt = Math.max(1, now - drag.lastT);
+    drag.velocity = (e.clientY - drag.lastY) / dt;
+    drag.lastY = e.clientY;
+    drag.lastT = now;
+    const dy = Math.max(0, e.clientY - drag.startY);
+    el.style.transform = `translateY(${dy}px)`;
+  };
+  const endDrag = () => {
+    const drag = dragRef.current;
+    const el = sheetRef.current;
+    dragRef.current = null;
+    if (!el) return;
+    el.classList.remove('lg-dragging');
+    const dy = el.style.transform ? Math.max(0, Number.parseFloat(el.style.transform.replace(/[^0-9.]/g, '')) || 0) : 0;
+    el.style.transform = '';
+    if (dy > 100 || (drag && drag.velocity > 0.6)) {
+      onClose();
+    }
+  };
+
   if (!mounted) return null;
   return createPortal(
     <>
       <div className={`hn-sheetmask${visible ? ' hn-open' : ''}`} onClick={onClose} />
-      <div className={`hn-sheet${visible ? ' hn-open' : ''}`} data-lg-role="dock" role="dialog" aria-modal="true" aria-label={title}>
+      <LiquidGlass
+        as="div"
+        ref={sheetRef}
+        className={`hn-sheet ${visible ? 'hn-open' : ''}`}
+        data-lg-role="dock"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        profile="soft"
+        radius={22}
+        strength={110}
+        dispersion={0.02}
+        onPointerDown={beginDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
         <span className="hn-sheetgrip" />
         {title ? <div className="hn-sheethead"><span className="hn-sheettitle">{title}</span></div> : null}
         {children}
-      </div>
+      </LiquidGlass>
     </>,
     document.body
   );
@@ -138,10 +191,23 @@ export function Modal({
   if (!mounted) return null;
   return createPortal(
     <div className={`hn-sheetmask${visible ? ' hn-open' : ''}`} onClick={onClose} style={{ alignItems: 'center' }}>
-      <div className={`hn-sheet${visible ? ' hn-open' : ''}`} data-lg-role="focus" style={{ borderRadius: '22px', margin: '0 18px' }} role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}>
+      <LiquidGlass
+        as="div"
+        className={`hn-sheet ${visible ? 'hn-open' : ''}`}
+        data-lg-role="focus"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        profile="soft"
+        radius={22}
+        strength={110}
+        dispersion={0.02}
+        style={{ borderRadius: '22px', margin: '0 18px' }}
+        onClick={(e: { stopPropagation: () => void }) => e.stopPropagation()}
+      >
         {title ? <div className="hn-sheethead"><span className="hn-sheettitle">{title}</span></div> : null}
         {children}
-      </div>
+      </LiquidGlass>
     </div>,
     document.body
   );

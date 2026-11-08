@@ -4,6 +4,7 @@ import { Icon, type IconName } from '../ui/icons';
 import { useScrollGuard } from '../ui/hooks';
 import { AppUsageTracker } from '../features/AppUsageTracker';
 import { PlayerOverlay } from '../ui/PlayerOverlay';
+import { LiquidGlass, useLiquidGlassEnhancer } from '../ui/liquid-glass';
 
 /** Kerangka aplikasi: konten, navigasi bawah, dan pemutar mini. */
 
@@ -29,7 +30,17 @@ function isActive(pathname: string, item: NavItem): boolean {
 function BottomNav() {
   const { pathname } = useLocation();
   return (
-    <nav className="hn-bottomnav" data-lg-role="dock" aria-label="Navigasi utama">
+    <LiquidGlass
+      as="nav"
+      className="hn-bottomnav lg-bar"
+      data-lg-role="dock"
+      aria-label="Navigasi utama"
+      profile="soft"
+      radius={0}
+      strength={110}
+      dispersion={0.015}
+      adaptive
+    >
       {NAV.map(item => {
         const active = isActive(pathname, item);
         return (
@@ -39,7 +50,7 @@ function BottomNav() {
           </NavLink>
         );
       })}
-    </nav>
+    </LiquidGlass>
   );
 }
 
@@ -59,6 +70,7 @@ function useNavScrollEdge() {
 export function Shell({ children }: { children: ReactNode }) {
   useScrollGuard();
   useNavScrollEdge();
+  useLiquidGlassEnhancer();
   const { pathname } = useLocation();
   // Detail & pemutar fullscreen menyembunyikan nav bawah.
   const hideNav = pathname.startsWith('/detail/');

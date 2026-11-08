@@ -6,8 +6,8 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Skill neutrals ── */
-  --bg: #f5f5f7;
+  /* ── Skill neutrals (iOS secondary system background #F2F2F7) ── */
+  --bg: #F2F2F7;
   --surface: #ffffff;
   --hover: #fbfbfd;
   --text: #1d1d1f;
@@ -85,25 +85,32 @@
   --fs-small: 12px;
   --fs-label: 11px;
 
-  /* ── Motion (motion.md) ── */
+  /* ── Motion (motion.md + Apple spring presets translated to CSS).
+     CSS cannot do true spring physics; these curves approximate smooth /
+     snappy / interactive springs. Gesture-driven motion uses JS velocity,
+     not these curves (see Sheet drag). */
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease: var(--ease-out-quart);
+  --spring-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring-snappy: cubic-bezier(0.2, 0.85, 0.25, 1);
+  --spring-interactive: cubic-bezier(0.32, 0.72, 0, 1);
   --t-micro: 130ms;
+  --t-press: 120ms;
   --t-enter: 400ms;
   --t-page: 280ms;
   --t-hover: 200ms;
   --t-slow: 800ms;
 
   /* ── Alias kompatibilitas (komponen hn- lama) ── */
-  --bg-primary: #f5f5f7;
-  --bg-deep: #f5f5f7;
-  --bg-nav: #f5f5f7;
+  --bg-primary: #F2F2F7;
+  --bg-deep: #F2F2F7;
+  --bg-nav: #F2F2F7;
   --bg-card: #ffffff;
   --bg-card-hover: #fbfbfd;
   --bg-elevated: #ffffff;
-  --bg-press: #f5f5f7;
-  --bg-sheet: #f5f5f7;
+  --bg-press: #F2F2F7;
+  --bg-sheet: #F2F2F7;
   --accent-primary: #0071e3;
   --accent-primary-hover: #0066cc;
   --accent-primary-soft: rgba(0,113,227,0.08);
@@ -132,29 +139,53 @@
   --overlay: rgba(0,0,0,0.28);
   --grad-image: #e8e8ed;
   --grad-hero: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.29) 47%, rgba(0,0,0,0.72) 100%);
-  --grad-home: #f5f5f7;
+  --grad-home: #F2F2F7;
   --grad-gold: linear-gradient(135deg, #0071e3, #5e5ce6);
   --grad-purple: linear-gradient(135deg, #0071e3, #5e5ce6);
   --grad-deep: #ffffff;
-  --lg-tint: rgba(245,245,247,0.72);
-  --lg-tint-strong: rgba(245,245,247,0.72);
-  --lg-border: rgba(0,0,0,0.07);
-  --lg-blur: 20px;
-  --lg-fallback-blur: 20px;
-  --lg-saturate: 180%;
-  --lg-brightness: 1;
-  --lg-contrast: 1;
-  --lg-highlight: none;
+  /* ── Liquid Glass (skill golden-glass-style.md, production defaults).
+     Refraction replaces heavy blur: refractive blur 0.3px, fallback 6px.
+     Tint is light because Nanime is a light theme; the skill's dark tint
+     (rgba(30,36,46,.16)) is kept as --lg-tint-dark for over-media surfaces.
+     Bars/sheets need higher alpha than the .16 showcase default so text stays
+     legible over scrolling posters — lensing, not opacity, is the material. */
+  /* Semantic glass tints (user color audit): neutral white 20–30% for
+     navigation so poster/video color shows through; clear for over-media
+     controls; dark tint reserved for dark appearance. */
+  --glass-tint: rgba(255,255,255,0.26);
+  --glass-border: rgba(255,255,255,0.36);
+  --glass-tint-dark: rgba(28,28,30,0.44);
+  --glass-border-dark: rgba(255,255,255,0.16);
+  --lg-tint: var(--glass-tint);
+  --lg-tint-dark: rgba(30,36,46,0.16);
+  --lg-tint-bar: var(--glass-tint);
+  --lg-tint-sheet: rgba(255,255,255,0.32);
+  --lg-tint-clear: rgba(255,255,255,0.14);
+  --lg-border: var(--glass-border);
+  --lg-blur: 0.3px;
+  --lg-fallback-blur: 6px;
+  --lg-saturate: 1.55;
+  --lg-brightness: 1.1;
+  --lg-contrast: 1.12;
+  /* Lens tuning (golden defaults: measured scale = 2*range/dpr, never guessed) */
+  --lg-strength: 110;
+  --lg-magnify: 1.1;
+  --lg-bezel-ratio: 0.62;
+  --lg-spread: 0.58;
+  --lg-dispersion: 0.025;
+  --lg-highlight:
+    linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.12) 34%, rgba(255,255,255,0.03) 58%, rgba(255,255,255,0.16));
+  /* Bars sit over scrolling posters: halved sheen so the 26% tint stays the
+     dominant term and backdrop color reads through. */
+  --lg-highlight-bar:
+    linear-gradient(180deg, rgba(255,255,255,0.34), rgba(255,255,255,0.08) 34%, rgba(255,255,255,0.02) 58%, rgba(255,255,255,0.10));
   --lg-shadow-glass: var(--sh-panel);
   --lg-shadow-active: var(--sh-overlay);
-  --lg-light-x: 50%;
-  --lg-light-y: 0%;
-  --lg-glare: 0;
-  --lg-adaptive-tint: var(--lg-tint);
-  --lg-adaptive-border: var(--lg-border);
-  --lg-adaptive-saturate: var(--lg-saturate);
-  --lg-adaptive-brightness: var(--lg-brightness);
-  --lg-adaptive-contrast: var(--lg-contrast);
+  --lg-light-x: 84%;
+  --lg-light-y: 12%;
+  --lg-glare: 0.56;
+  /* --lg-adaptive-* are written inline by the adaptive controller only.
+     When absent, surfaces fall back to their static tint/saturate tokens. */
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -165,4 +196,42 @@
     --t-hover: 1ms;
     --t-slow: 1ms;
   }
+}
+
+/* ── Dark appearance (iOS system colors). Currently NANIME IS LIGHT-ONLY:
+   nothing sets data-theme="dark". These semantic overrides are the
+   contract for a future dark mode — glass switches to dark neutral tint
+   instead of white, following the adaptive-tint rule. Do not enable
+   without auditing every hardcoded #fff/text token (badges, player, hero). */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #000000;
+  --surface: #1C1C1E;
+  --hover: #2C2C2E;
+  --text: #FFFFFF;
+  --text-body: #AEAEB2;
+  --text-2: #AEAEB2;
+  --text-3: #8E8E93;
+  --text-4: #636366;
+  --hairline: rgba(255,255,255,0.16);
+  --track: #2C2C2E;
+  --accent: #0A84FF;
+  --accent-link: #0A84FF;
+  --glass-tint: var(--glass-tint-dark);
+  --glass-border: var(--glass-border-dark);
+  --bg-primary: #000000;
+  --bg-deep: #000000;
+  --bg-nav: #000000;
+  --bg-card: #1C1C1E;
+  --bg-card-hover: #2C2C2E;
+  --bg-elevated: #1C1C1E;
+  --bg-press: #000000;
+  --bg-sheet: #000000;
+  --text-primary: #FFFFFF;
+  --text-soft: #AEAEB2;
+  --text-secondary: #AEAEB2;
+  --text-muted: #8E8E93;
+  --text-dim: #8E8E93;
+  --border-subtle: rgba(255,255,255,0.16);
+  --border-strong: rgba(255,255,255,0.16);
 }

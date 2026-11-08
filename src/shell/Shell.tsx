@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from '../ui/icons';
 import { useScrollGuard } from '../ui/hooks';
@@ -29,12 +29,12 @@ function isActive(pathname: string, item: NavItem): boolean {
 function BottomNav() {
   const { pathname } = useLocation();
   return (
-    <nav className="hn-bottomnav" aria-label="Navigasi utama">
+    <nav className="hn-bottomnav" data-lg-role="dock" aria-label="Navigasi utama">
       {NAV.map(item => {
         const active = isActive(pathname, item);
         return (
           <NavLink key={item.to} to={item.to} className={`hn-bottomnav-item${active ? ' hn-active' : ''}`}>
-            <Icon name={item.icon} strokeWidth={active ? 2.3 : 1.9} />
+            <Icon name={item.icon} size={26} strokeWidth={1.75} />
             <span className="hn-bottomnav-label">{item.label}</span>
           </NavLink>
         );
@@ -43,13 +43,27 @@ function BottomNav() {
   );
 }
 
+/** Scroll-edge: hairline nav muncul hanya setelah konten bergulir di bawahnya (skill). */
+function useNavScrollEdge() {
+  useEffect(() => {
+    const toggle = () => {
+      const scrolled = window.scrollY > 8;
+      document.querySelectorAll('.hn-pagehead, .hn-homehead').forEach(el => el.classList.toggle('scrolled', scrolled));
+    };
+    toggle();
+    window.addEventListener('scroll', toggle, { passive: true });
+    return () => window.removeEventListener('scroll', toggle);
+  }, []);
+}
+
 export function Shell({ children }: { children: ReactNode }) {
   useScrollGuard();
+  useNavScrollEdge();
   const { pathname } = useLocation();
   // Detail & pemutar fullscreen menyembunyikan nav bawah.
   const hideNav = pathname.startsWith('/detail/');
   return (
-    <div className="hn-shell">
+    <div className="hn-shell" data-lg-role="stage">
       <AppUsageTracker />
       <main className="hn-main">
         <div className="hn-main-scroll" key={pathname}>

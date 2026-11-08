@@ -1,118 +1,160 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Nanime — token desain hasil ekstraksi source AniBiPlay (defpackage/pz2.java
-   + palet dominan seluruh dex). Jangan tambah warna di luar token ini.
+   Nanime — token mengikuti apple-liquid-glass skill (SKILL.md).
+   Nilai persis dari ~/.agents/skills/liquids-skill/tokens.css.
+   Alias lama bg/text/accent dipertahankan agar komponen lama
+   tidak pecah, tapi nilainya sekarang 1:1 dengan token skill.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Latar (source: #0F1520 / #0A0F18 / #141925) ── */
-  --bg-primary: #0f1420;
-  --bg-deep: #0a0f18;
-  --bg-nav: #141925;
-  --bg-card: #1a2232;
-  --bg-card-hover: #1f2a3c;
-  --bg-elevated: #1a1e27;
-  --bg-press: #0a0f18;
-  --bg-sheet: #141925;
+  /* ── Skill neutrals ── */
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --hover: #fbfbfd;
+  --text: #1d1d1f;
+  --text-body: #424245;
+  --text-2: #6e6e73;
+  --text-3: #86868b;
+  --text-4: #aeaeb2;
+  --faint: #d2d2d7;
+  --hairline: rgba(0,0,0,0.07);
+  --track: #e8e8ed;
 
-  /* ── Aksen (source) ── */
-  --accent-primary: #1d9bf0;
-  --accent-primary-hover: #2d8cff;
-  --accent-primary-soft: rgba(29, 155, 240, 0.16);
-  --accent-strong: #2d8cff;
-  --accent-cyan: #7ec8ff;
-  --accent-gold: #ffd54f;
-  --accent-purple: #a855f7;
-  --accent-purple-soft: #b388ff;
-  --accent-pink: #ec4899;
-  --accent-orange: #f59e0b;
-  --accent-red: #e53935;
-  --accent-red-deep: #dc2626;
-  --accent-green: #22c55e;
+  /* ── Skill accents (satu per view) ── */
+  --accent: #0071e3;
+  --accent-link: #0066cc;
+  --indigo: #5e5ce6;
+  --x-blue: #1d9bf0;
+  --heat: #ff6b00;
+  --heat-bg: rgba(255,107,0,0.1);
+  --live: #30d158;
 
-  /* ── Teks (source) ── */
-  --text-primary: #ffffff;
-  --text-soft: #d3dbea;
-  --text-secondary: #b5c6e1;
-  --text-muted: #9fb0cb;
-  --text-dim: #7f8ea8;
+  /* ── Signature gradients (hero/CTA saja) ── */
+  --grad-blue: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%);
+  --grad-warm: linear-gradient(135deg, #ff9f0a 0%, #ff375f 100%);
+  --grad-green: linear-gradient(135deg, #30d158 0%, #0a84ff 100%);
+  --grad-cta: linear-gradient(135deg, #0071e3 0%, #5e5ce6 100%);
 
-  /* ── Garis & scrim (source) ── */
-  --border-subtle: #283041;
-  --border-strong: #2a3346;
-  --border-blue: #1f3a5c;
-  --scrim-80: rgba(13, 19, 32, 0.8);
-  --scrim-33: rgba(13, 19, 32, 0.33);
-  --scrim-29: rgba(13, 19, 32, 0.29);
-  --chip-bg: rgba(20, 24, 32, 0.75);
-  --overlay: rgba(6, 7, 10, 0.72);
+  /* ── Type (system only) ── */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-display: var(--font);
 
-  /* ── Gradasi ── */
-  --grad-image: linear-gradient(160deg, #1a2232 0%, #0f1420 100%);
-  --grad-hero: linear-gradient(180deg, rgba(13, 19, 32, 0) 0%, rgba(13, 19, 32, 0.29) 47%, #111827 100%);
-  --grad-home: linear-gradient(160deg, #3b1324 0%, #2a0e1b 48%, #0f1420 100%);
-  --grad-gold: linear-gradient(135deg, #ffd54f 0%, #f59e0b 100%);
-  --grad-purple: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
-  --grad-blue: linear-gradient(135deg, #1d9bf0 0%, #2d8cff 100%);
-  --grad-deep: linear-gradient(180deg, #1a2130 0%, #0f1420 100%);
-
-  /* ── Bayangan ── */
-  --shadow-card: 0 4px 18px rgba(0, 0, 0, 0.32);
-  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.46);
-  --shadow-sheet: 0 -14px 44px rgba(0, 0, 0, 0.55);
-
-  /* ── Radius (source: 8/10/12/14/18) ── */
-  --r-xs: 8px;
-  --r-sm: 10px;
-  --r-11: 11px;
+  /* ── Radius tiers ── */
+  --r-pill: 999px;
+  --r-chip: 6px;
+  --r-thumb: 12px;
+  --r-sheet: 16px;
+  --r-card: 18px;
+  --r-panel: 22px;
+  --r-hero: 26px;
+  /* alias lama → tier skill */
+  --r-xs: 12px;
+  --r-sm: 12px;
+  --r-11: 12px;
   --r-md: 12px;
-  --r-lg: 14px;
+  --r-lg: 18px;
   --r-xl: 18px;
-  --r-sheet: 24px;
   --r-btn: 999px;
   --r-input: 999px;
   --r-poster: 8px;
-  --r-pill: 999px;
 
-  /* ── Spasi ── */
-  --pad-x: 16px;
+  /* ── Shadow two-layer ── */
+  --sh-card: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05);
+  --sh-panel: 0 1px 3px rgba(0,0,0,0.05), 0 14px 40px rgba(0,0,0,0.05);
+  --sh-lift: 0 12px 32px rgba(0,0,0,0.1);
+  --sh-cta: 0 20px 54px rgba(0,113,227,0.24);
+  --sh-overlay: 0 2px 8px rgba(0,0,0,0.10), 0 30px 80px rgba(0,0,0,0.24);
+  --shadow-card: var(--sh-card);
+  --shadow-float: var(--sh-panel);
+  --shadow-sheet: var(--sh-overlay);
+
+  /* ── Layout ── */
+  --max-read: 720px;
+  --max-grid: 1080px;
+  --pad-x: 22px;
   --pad-top: 16px;
-  --section-gap: 26px;
-  --nav-h: 64px;
+  --section-gap: clamp(34px, 6vw, 56px);
+  --nav-h: 83px;
   --tap: 44px;
 
-  /* ── Tipografi (font ter-bundel referensi mobinime) ── */
-  --font: 'Mobinime', Roboto, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Mobinime', Roboto, sans-serif;
-  --fs-hero: 34px;
+  /* ── Type scale ── */
+  --fs-hero: clamp(27px, 5vw, 46px);
   --fs-title: 28px;
   --fs-card: 13px;
   --fs-body: 14px;
   --fs-small: 12px;
   --fs-label: 11px;
 
-  /* ── Gerak (GPU-only) ── */
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* ── Motion (motion.md) ── */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease: var(--ease-out-quart);
   --t-micro: 130ms;
-  --t-enter: 240ms;
+  --t-enter: 400ms;
   --t-page: 280ms;
   --t-hover: 200ms;
   --t-slow: 800ms;
-}
 
-[data-theme='light'] {
-  --bg-primary: #f3f5f9;
+  /* ── Alias kompatibilitas (komponen hn- lama) ── */
+  --bg-primary: #f5f5f7;
+  --bg-deep: #f5f5f7;
+  --bg-nav: #f5f5f7;
   --bg-card: #ffffff;
-  --bg-card-hover: #e8eef7;
+  --bg-card-hover: #fbfbfd;
   --bg-elevated: #ffffff;
-  --bg-nav: #ffffff;
-  --text-primary: #0b1220;
-  --text-soft: #1f2a3c;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --border-subtle: rgba(15, 23, 42, 0.1);
-  --border-strong: rgba(15, 23, 42, 0.2);
-  --overlay: rgba(15, 23, 42, 0.4);
-  --grad-home: linear-gradient(160deg, #f8d7df 0%, #f3e8ee 48%, #f3f5f9 100%);
+  --bg-press: #f5f5f7;
+  --bg-sheet: #f5f5f7;
+  --accent-primary: #0071e3;
+  --accent-primary-hover: #0066cc;
+  --accent-primary-soft: rgba(0,113,227,0.08);
+  --accent-strong: #0071e3;
+  --accent-cyan: #0071e3;
+  --accent-gold: #1d1d1f;
+  --accent-purple: #5e5ce6;
+  --accent-purple-soft: #5e5ce6;
+  --accent-pink: #0071e3;
+  --accent-orange: #ff6b00;
+  --accent-red: #ff3b30;
+  --accent-red-deep: #d70015;
+  --accent-green: #30d158;
+  --text-primary: #1d1d1f;
+  --text-soft: #424245;
+  --text-secondary: #6e6e73;
+  --text-muted: #86868b;
+  --text-dim: #86868b;
+  --border-subtle: rgba(0,0,0,0.07);
+  --border-strong: rgba(0,0,0,0.07);
+  --border-blue: rgba(0,113,227,0.28);
+  --scrim-80: rgba(0,0,0,0.72);
+  --scrim-33: rgba(0,0,0,0.33);
+  --scrim-29: rgba(0,0,0,0.29);
+  --chip-bg: rgba(0,0,0,0.05);
+  --overlay: rgba(0,0,0,0.28);
+  --grad-image: #e8e8ed;
+  --grad-hero: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.29) 47%, rgba(0,0,0,0.72) 100%);
+  --grad-home: #f5f5f7;
+  --grad-gold: linear-gradient(135deg, #0071e3, #5e5ce6);
+  --grad-purple: linear-gradient(135deg, #0071e3, #5e5ce6);
+  --grad-deep: #ffffff;
+  --lg-tint: rgba(245,245,247,0.72);
+  --lg-tint-strong: rgba(245,245,247,0.72);
+  --lg-border: rgba(0,0,0,0.07);
+  --lg-blur: 20px;
+  --lg-fallback-blur: 20px;
+  --lg-saturate: 180%;
+  --lg-brightness: 1;
+  --lg-contrast: 1;
+  --lg-highlight: none;
+  --lg-shadow-glass: var(--sh-panel);
+  --lg-shadow-active: var(--sh-overlay);
+  --lg-light-x: 50%;
+  --lg-light-y: 0%;
+  --lg-glare: 0;
+  --lg-adaptive-tint: var(--lg-tint);
+  --lg-adaptive-border: var(--lg-border);
+  --lg-adaptive-saturate: var(--lg-saturate);
+  --lg-adaptive-brightness: var(--lg-brightness);
+  --lg-adaptive-contrast: var(--lg-contrast);
 }
 
 @media (prefers-reduced-motion: reduce) {

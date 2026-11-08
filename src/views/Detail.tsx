@@ -257,7 +257,7 @@ export function Detail() {
         </button>
       </div>
 
-      <div className="hn-detail-hero">
+      <div className="hn-detail-hero" data-lg-role="stage">
         <div style={{ position: 'relative', aspectRatio: '16 / 8', overflow: 'hidden' }}>
           <SmartImage key={bundle.id} className="hn-hero-fade" src={bundle.heroImage || bundle.poster} animeId={bundle.id} alt={bundle.title} eager style={{ position: 'absolute', inset: 0 }} />
           <div className="hn-hero-scrim" />

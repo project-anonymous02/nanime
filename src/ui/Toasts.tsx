@@ -7,7 +7,7 @@ export function Toasts() {
   const dismiss = useUI(s => s.dismiss);
   if (!toasts.length) return null;
   return (
-    <div className="hn-toastwrap" aria-live="polite">
+    <div className="hn-toastwrap" data-lg-role="rail" aria-live="polite">
       {toasts.map(t => (
         <button
           key={t.id}

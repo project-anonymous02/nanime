@@ -414,7 +414,7 @@ export interface IconProps extends SVGProps<SVGSVGElement> {
   strokeWidth?: number;
 }
 
-export function Icon({ name, size = 24, strokeWidth = 1.9, ...rest }: IconProps) {
+export function Icon({ name, size = 24, strokeWidth = 1.75, ...rest }: IconProps) {
   return (
     <svg
       viewBox="0 0 24 24"

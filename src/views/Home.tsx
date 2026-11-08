@@ -185,7 +185,7 @@ export function Home() {
             <div>
               <div className="hn-hero-track no-scrollbar" ref={carRef} onScroll={onCarScroll}>
                 {heroes.map(c => (
-                  <div className="hn-hero" key={c.canonicalId} style={{ width: '100%', scrollSnapAlign: 'center' }}>
+                  <div className="hn-hero" data-lg-role="focus" key={c.canonicalId} style={{ width: '100%', scrollSnapAlign: 'center' }}>
                     <button type="button" onClick={() => openCard(c)} aria-label={c.title} style={{ width: '100%', display: 'block' }}>
                       <SmartImage className="hn-hero-img" src={c.poster} animeId={c.canonicalId} alt={c.title} />
                       <span className="hn-hero-scrim" />

@@ -60,6 +60,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.2.1
 
       - name: Install dependencies
         run: npm ci
@@ -79,6 +81,13 @@ jobs:
           npx cap add android || true
           npx cap sync android
 
+      # Naikkan timeout download wrapper (default 10s, terlalu pendek untuk
+      # services.gradle.org yang lambat/504) sebagai cadangan bila gradlew dipakai.
+      - name: Tune Gradle wrapper timeout
+        run: |
+          sed -i 's/networkTimeout=.*/networkTimeout=300000/' android/gradle/wrapper/gradle-wrapper.properties || true
+          grep networkTimeout android/gradle/wrapper/gradle-wrapper.properties || true
+
       - name: Install native Android PiP plugin
         run: bash scripts/setup-android-pip.sh
 
@@ -93,10 +102,11 @@ jobs:
       - name: Gradle assembleDebug
         working-directory: android
         run: |
+          gradle --version
           for i in 1 2 3; do
-            ./gradlew assembleDebug --no-daemon && exit 0
+            gradle assembleDebug --no-daemon && exit 0
             echo "Gradle gagal (percobaan $i/3), coba lagi..."
-            sleep 10
+            sleep 15
           done
           exit 1
 

@@ -49,13 +49,13 @@ afterEach(async () => {
 });
 
 describe('detail hero artwork', () => {
-  it('renders and loads the poster in the real detail image element', async () => {
+  it('renders and loads the hero artwork in the real detail image element', async () => {
     api.detail.mockResolvedValue(bundle('anime-a', 'https://images.test/anime-a-banner.jpg'));
     await act(async () => {
       root.render(createElement(MemoryRouter, { initialEntries: ['/detail/anime-a'] },
         createElement(Routes, null, createElement(Route, { path: '/detail/:id', element: createElement(Detail) }))));
     });
-    await until(() => expect(host.querySelector<HTMLImageElement>('.hn-hero-fade img')?.src).toBe('https://images.test/anime-a-poster.jpg'));
+    await until(() => expect(host.querySelector<HTMLImageElement>('.hn-hero-fade img')?.src).toBe('https://images.test/anime-a-banner.jpg'));
     const image = host.querySelector<HTMLImageElement>('.hn-hero-fade img');
     expect(image?.alt).toBe('anime-a');
     expect(image?.getAttribute('loading')).toBe('eager');
@@ -64,13 +64,13 @@ describe('detail hero artwork', () => {
     await until(() => expect(host.querySelector<HTMLImageElement>('.hn-hero-fade img')?.style.opacity).toBe('1'));
   });
 
-  it('falls back to the hero artwork when the poster is absent', async () => {
-    api.detail.mockResolvedValue(bundle('anime-a', 'https://images.test/anime-a-banner.jpg', ''));
+  it('falls back to the poster when the hero artwork is absent', async () => {
+    api.detail.mockResolvedValue(bundle('anime-a', '', 'https://images.test/anime-a-poster.jpg'));
     await act(async () => {
       root.render(createElement(MemoryRouter, { initialEntries: ['/detail/anime-a'] },
         createElement(Routes, null, createElement(Route, { path: '/detail/:id', element: createElement(Detail) }))));
     });
-    await until(() => expect(host.querySelector<HTMLImageElement>('.hn-hero-fade img')?.src).toBe('https://images.test/anime-a-banner.jpg'));
+    await until(() => expect(host.querySelector<HTMLImageElement>('.hn-hero-fade img')?.src).toBe('https://images.test/anime-a-poster.jpg'));
   });
 
   it('does not let a late anime A response replace the hero after navigating to anime B', async () => {
@@ -85,8 +85,8 @@ describe('detail hero artwork', () => {
       ))));
     await until(() => expect(api.detail).toHaveBeenCalledWith('anime-a', { title: '' }));
     await act(async () => { (host.querySelector('a') as HTMLAnchorElement).click(); });
-    await until(() => expect(host.querySelector<HTMLImageElement>('.hn-hero-fade img')?.src).toBe('https://images.test/anime-b-poster.jpg'));
+    await until(() => expect(host.querySelector<HTMLImageElement>('.hn-hero-fade img')?.src).toBe('https://images.test/anime-b-banner.jpg'));
     await act(async () => { resolveA(bundle('anime-a', 'https://images.test/anime-a-banner.jpg')); await sleep(20); });
-    expect(host.querySelector<HTMLImageElement>('.hn-hero-fade img')?.src).toBe('https://images.test/anime-b-poster.jpg');
+    expect(host.querySelector<HTMLImageElement>('.hn-hero-fade img')?.src).toBe('https://images.test/anime-b-banner.jpg');
   });
 });

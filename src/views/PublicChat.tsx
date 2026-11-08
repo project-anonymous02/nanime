@@ -28,10 +28,15 @@ export function PublicChat() {
   const [reply, setReply] = useState<PublicChatMessage | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const activeIdRef = useRef<string | null>(null);
+  const seqRef = useRef(0);
+  const draftsRef = useRef<Map<string, string>>(new Map());
+  const prevActiveIdRef = useRef<string | null>(null);
   const userId = currentUserId();
 
   const refreshMessages = useCallback(async (channelId: string) => {
+    const seq = ++seqRef.current;
     const rows = await listPublicChatMessages(channelId);
+    if (seq !== seqRef.current) return;
     if (activeIdRef.current === channelId) setMessages(rows);
   }, []);
 
@@ -50,7 +55,12 @@ export function PublicChat() {
   }, []);
 
   useEffect(() => {
-    activeIdRef.current = active?.id || null;
+    const prevId = prevActiveIdRef.current;
+    const nextId = active?.id || null;
+    if (prevId && prevId !== nextId) draftsRef.current.set(prevId, text);
+    if (nextId) setText(draftsRef.current.get(nextId) || '');
+    prevActiveIdRef.current = nextId;
+    activeIdRef.current = nextId;
     setMessages([]);
     if (!active) { setConnected(false); return; }
     let alive = true;
@@ -60,12 +70,14 @@ export function PublicChat() {
       .finally(() => { if (alive) setLoadingMessages(false); });
     const sb = getClient();
     if (!sb) return () => { alive = false; };
+    let pendingTimer: number | null = null;
     const channel = sb.channel(`nanime-public-chat-${active.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'nanime_public_chat_messages', filter: `channel_id=eq.${active.id}` }, () => {
-        void refreshMessages(active.id).catch(() => undefined);
+        if (pendingTimer) window.clearTimeout(pendingTimer);
+        pendingTimer = window.setTimeout(() => { pendingTimer = null; void refreshMessages(active.id).catch(() => undefined); }, 250);
       })
       .subscribe(status => { if (alive) setConnected(status === 'SUBSCRIBED'); });
-    return () => { alive = false; if (activeIdRef.current === active.id) activeIdRef.current = null; setConnected(false); void sb.removeChannel(channel); };
+    return () => { alive = false; if (pendingTimer) window.clearTimeout(pendingTimer); if (activeIdRef.current === active.id) activeIdRef.current = null; setConnected(false); void sb.removeChannel(channel); };
   }, [active?.id, refreshMessages]);
 
   useEffect(() => {
@@ -76,11 +88,18 @@ export function PublicChat() {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!active || !text.trim() || sending) return;
+    const sentChannelId = active.id;
+    const sentText = text;
+    const sentReplyId = reply?.id;
     setSending(true); setError('');
     try {
-      await sendPublicChatMessage(active.id, text, reply?.id);
-      setText(''); setReply(null);
-      await refreshMessages(active.id);
+      await sendPublicChatMessage(sentChannelId, sentText, sentReplyId);
+      draftsRef.current.set(sentChannelId, '');
+      if (activeIdRef.current === sentChannelId) {
+        setText('');
+        setReply(null);
+      }
+      await refreshMessages(sentChannelId);
     } catch (cause) { setError((cause as Error)?.message || 'Pesan gagal dikirim.'); }
     finally { setSending(false); }
   }

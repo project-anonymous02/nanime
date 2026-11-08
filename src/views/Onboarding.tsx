@@ -139,7 +139,7 @@ export function Onboarding() {
         </section>
 
         <section className="hn-auth-slide">
-          <SmartImage className="hn-auth-art" src={`${BASE}ref/anya-login.png`} alt="Ilustrasi" eager style={{ objectFit: 'contain', background: 'transparent', boxShadow: 'none' }} />
+          <SmartImage className="hn-auth-art" src={`${BASE}ref/anya-login.png`} alt="Ilustrasi" style={{ objectFit: 'contain', background: 'transparent', boxShadow: 'none' }} />
           <div className="hn-auth-head">
             <h1 className="hn-auth-title">SIAP MULAI <span className="hn-auth-free">GRATIS</span></h1>
             <p className="hn-auth-sub">Masuk untuk sinkronisasi riwayat dan preferensi tontonan kamu.</p>

@@ -4,6 +4,8 @@ import { usePlayer } from '../state/player';
 import { useSettings } from '../state/settings';
 import type { DownloadLink, StreamBundle } from '../core/types';
 import { listenNativePipMode, setNativePipActive } from '../lib/nativePip';
+import { setNativeFullscreenActive } from '../lib/nativeFullscreen';
+import { isTrustedExternalUrl } from '../lib/hostPolicy';
 import { AdaptiveVideo } from './AdaptiveVideo';
 import { Icon } from './icons';
 
@@ -169,6 +171,24 @@ export function PlayerOverlay() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [fallbackFullscreen]);
+  useEffect(() => {
+    const active = isFullscreen || fallbackFullscreen;
+    setNativeFullscreenActive(active);
+    return () => setNativeFullscreenActive(false);
+  }, [isFullscreen, fallbackFullscreen]);
+  useEffect(() => {
+    const w = window as unknown as { __nanimeExitFullscreen?: () => boolean };
+    const previous = w.__nanimeExitFullscreen;
+    w.__nanimeExitFullscreen = () => {
+      if (fallbackFullscreen) { setFallbackFullscreen(false); return true; }
+      if (document.fullscreenElement) { void document.exitFullscreen().catch(() => undefined); return true; }
+      return false;
+    };
+    return () => {
+      if (w.__nanimeExitFullscreen && previous !== w.__nanimeExitFullscreen) w.__nanimeExitFullscreen = previous;
+      else if (!previous) w.__nanimeExitFullscreen = undefined;
+    };
+  }, [fallbackFullscreen]);
   useEffect(() => { setAutoplayBlocked(false); setMutedAutoplay(false); setPlaying(false); autoplayAttemptRef.current = false; }, [session?.sourceIndex]);
   useEffect(() => { if (mediaRef.current) mediaRef.current.playbackRate = playbackRate; }, [session?.request, session?.sourceIndex, playbackRate]);
   useEffect(() => () => { if (gestureTimer.current) window.clearTimeout(gestureTimer.current); }, []);
@@ -304,7 +324,7 @@ export function PlayerOverlay() {
               video.muted = true;
               void video.play().then(() => { setMutedAutoplay(true); setAutoplayBlocked(false); setPlaying(true); }).catch(() => setAutoplayBlocked(true));
             });
-          }} onEnded={event => { setPlaying(false); session.onProgress(event); }} onError={onError} /> : <iframe key={source.url} src={source.url} title={`${session.title} episode ${session.episode}`} allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />}
+          }} onEnded={event => { setPlaying(false); session.onProgress(event); }} onError={onError} /> : isTrustedExternalUrl(source.url) ? <iframe key={source.url} src={source.url} title={`${session.title} episode ${session.episode}`} loading="lazy" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen /> : <div className="episode-player-state error" role="alert"><p>Sumber embed tidak tersedia atau tidak dipercaya. Coba server lain.</p></div>}
           {mutedAutoplay && source.kind === 'file' ? <button type="button" className="player-gesture-status player-status-action" onClick={enableAutoplayAudio}>Aktifkan suara</button> : null}
           {autoplayBlocked && source.kind === 'file' ? <span className="player-gesture-status player-status-blocked" role="status">Autoplay diblokir browser. Ketuk Putar untuk memulai.</span> : null}
           {mode === 'full' && source.kind === 'file' ? <div className="player-controls" onPointerDown={event => event.stopPropagation()}>
@@ -356,8 +376,7 @@ export function PlayerOverlay() {
 }
 
 function isHttpUrl(value: string): boolean {
-  try { return ['http:', 'https:'].includes(new URL(value).protocol); }
-  catch { return false; }
+  return isTrustedExternalUrl(value);
 }
 
 function clockTime(value: number): string {

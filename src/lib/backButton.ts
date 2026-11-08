@@ -1,7 +1,7 @@
 /**
  * Tombol back hardware Android (`backButton`).
- * Di dalam aplikasi: navigasi riwayat. Di layar paling awal:
- * keluar aplikasi. Pola binding sama dengan `bindNativeDeepLink` (aman di web).
+ * Prioritas: keluar fullscreen player → tutup overlay player bila
+ * sesuai → navigasi riwayat → keluar aplikasi di layar paling awal.
  */
 export function bindNativeBackButton(): () => void {
   let disposed = false;
@@ -11,9 +11,17 @@ export function bindNativeBackButton(): () => void {
     .then(mod => {
       if (disposed) return;
       void mod.App.addListener('backButton', () => {
+        // 1. Keluar dari fullscreen (native Web API atau fallback PlayerOverlay).
+        if (document.fullscreenElement) {
+          void document.exitFullscreen().catch(() => undefined);
+          return;
+        }
+        const w = window as unknown as { __nanimeExitFullscreen?: () => boolean };
+        if (w.__nanimeExitFullscreen?.()) return;
+
         const path = window.location.hash.replace(/^#/, '') || '/';
 
-        // Layar paling awal (onboarding/beranda tanpa riwayat): keluar.
+        // 2. Layar paling awal (onboarding/beranda tanpa riwayat): keluar.
         if (path === '/' || path === '/home' || window.history.length <= 1) {
           void mod.App.exitApp();
           return;

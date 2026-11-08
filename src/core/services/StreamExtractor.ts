@@ -2,6 +2,7 @@ import { httpGetText } from '../http';
 import { isVideoUrl } from '../utils';
 import { qualityRank } from '../utils/qualitySorter';
 import { CacheManager, TTL } from './CacheManager';
+import { isCrawlableExternalUrl } from '../../lib/hostPolicy';
 
 /**
  * StreamExtractor — menerjemahkan URL halaman/embed provider menjadi URL video
@@ -57,7 +58,7 @@ export function extractMediaCandidates(html: string, baseUrl: string): string[] 
   const seen = new Set<string>();
   const push = (raw: string, index: number) => {
     const u = absolutize(raw, baseUrl);
-    if (!u || seen.has(u) || !isVideoUrl(u)) return;
+    if (!u || seen.has(u) || !isVideoUrl(u) || !isCrawlableExternalUrl(u)) return;
     seen.add(u);
     matches.push({ index, url: u });
   };
@@ -85,7 +86,7 @@ export function extractEmbedUrls(html: string, baseUrl: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = IFRAME_RE.exec(html))) {
     const u = absolutize(m[1], baseUrl);
-    if (!u || seen.has(u) || isVideoUrl(u)) continue;
+    if (!u || seen.has(u) || isVideoUrl(u) || !isCrawlableExternalUrl(u)) continue;
     seen.add(u);
     out.push(u);
   }
@@ -137,6 +138,7 @@ async function crawl(url: string, depth: number): Promise<string> {
 export async function resolveMediaUrl(url: string): Promise<ResolvedMedia> {
   const target = String(url || '').trim();
   if (!target) return { url: '', kind: 'embed' };
+  if (!isCrawlableExternalUrl(target)) return { url: '', kind: 'embed' };
   try {
     const protocol = new URL(target).protocol;
     if (protocol !== 'http:' && protocol !== 'https:') return { url: '', kind: 'embed' };

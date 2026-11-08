@@ -59,17 +59,19 @@ export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onP
           if (Hls.isSupported()) {
             const instance = new Hls({ enableWorker: true, lowLatencyMode: false, backBufferLength: 30 });
             player = instance;
-            const noteHlsData = () => resetPlaybackWatchdogRef.current();
+            /** Aktivitas jaringan saja tidak membuktikan video maju.
+             * Watchdog pemutaran hanya direset oleh kemajuan currentTime
+             * (timeupdate); event HLS di sini hanya dicatat agar tidak
+             * menyalahartikan buffering sebagai playback. */
+            const noteHlsData = () => { /* sengaja tidak me-reset watchdog pemutaran */ };
             instance.on(Hls.Events.ERROR, (_event, data) => {
               if (!data.fatal) {
-                resetPlaybackWatchdogRef.current();
                 return;
               }
               if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !recoveredMediaError && typeof instance.recoverMediaError === 'function') {
                 recoveredMediaError = true;
                 try {
                   instance.recoverMediaError();
-                  resetPlaybackWatchdogRef.current();
                   return;
                 } catch {
                   reportError();
@@ -88,6 +90,9 @@ export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onP
           } else reportError();
           return;
         }
+        // DASH: hanya native bila WebView mendukungnya (canPlayType '' = tidak).
+        // Tidak ada DASH.js — keterbatasan format yang eksplisit, bukan
+        // mengklasifikasikan semua .mpd sebagai pasti dapat diputar.
         if (video.canPlayType('application/dash+xml')) {
           video.src = src;
           video.load();
@@ -131,8 +136,13 @@ export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onP
       ready = true;
       clear();
     };
+    let lastBufferedEnd = -1;
     const markProgress = () => {
-      if (!ready && !disposed) arm();
+      if (ready || disposed) return;
+      try {
+        const end = video.buffered.length ? video.buffered.end(video.buffered.length - 1) : 0;
+        if (end > lastBufferedEnd) { lastBufferedEnd = end; arm(); }
+      } catch { /* buffered tidak tersedia di jsdom */ }
     };
     const readyEvents = ['loadeddata', 'canplay', 'playing'];
     readyEvents.forEach(event => video.addEventListener(event, markReady));
@@ -192,12 +202,11 @@ export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onP
       lastTime = video.currentTime;
       arm();
     };
-    const noteData = () => {
-      if (active && !seeking && !video.paused && !video.ended) arm();
-    };
-    const noteWaiting = () => {
-      if (active && !seeking && !video.paused && !video.ended) arm();
-    };
+    /** Aktivitas jaringan (progress/waiting/stalled) tidak membuktikan
+     * pemutaran maju — jangan reset watchdog di sini. Kemajuan hanya
+     * dibuktikan oleh timeupdate/currentTime (noteAdvance). */
+    const noteData = () => { /* lihat noteAdvance */ };
+    const noteWaiting = () => { /* waiting/stalled = tidak maju */ };
     const beginSeeking = () => {
       seeking = true;
       clear();

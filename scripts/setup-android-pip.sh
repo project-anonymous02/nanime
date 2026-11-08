@@ -15,6 +15,7 @@ fi
 mkdir -p "$TARGET"
 cp "$SOURCE/MainActivity.java" "$TARGET/MainActivity.java"
 cp "$SOURCE/PictureInPicturePlugin.java" "$TARGET/PictureInPicturePlugin.java"
+cp "$SOURCE/FullscreenPlugin.java" "$TARGET/FullscreenPlugin.java"
 
 python3 - "$MANIFEST" <<'PY'
 import sys
@@ -34,4 +35,4 @@ path.write_text(xml, encoding='utf-8')
 print('✓ dukungan Picture-in-Picture ditambahkan ke activity Nanime')
 PY
 
-echo "✓ native PiP plugin dan MainActivity Nanime dipasang"
+echo "✓ native PiP, fullscreen plugin dan MainActivity Nanime dipasang"

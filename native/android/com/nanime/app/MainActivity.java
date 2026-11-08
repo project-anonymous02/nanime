@@ -10,6 +10,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     public MainActivity() {
         registerPlugin(PictureInPicturePlugin.class);
+        registerPlugin(FullscreenPlugin.class);
     }
 
     @Override

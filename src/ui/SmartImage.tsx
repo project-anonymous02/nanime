@@ -25,11 +25,13 @@ export function SmartImage({ src, animeId, alt, className = '', style, eager, fa
   });
   const [index, setIndex] = useState(0);
   const fallbackRequested = useRef(false);
+  const fallbackRequestId = useRef(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const current = candidates[index] || (index === 0 ? src || '' : '');
 
   useEffect(() => {
     let live = true;
+    const requestId = ++fallbackRequestId.current;
     setLoaded(false);
     setIndex(0);
     fallbackRequested.current = false;
@@ -39,7 +41,7 @@ export function SmartImage({ src, animeId, alt, className = '', style, eager, fa
       const resolve = () => {
         fallbackRequested.current = true;
         void resolveAnimeImages(animeId).then(images => {
-          if (live) setCandidates(unique(images));
+          if (live && fallbackRequestId.current === requestId) setCandidates(unique(images));
         });
       };
       const node = containerRef.current;
@@ -77,8 +79,12 @@ export function SmartImage({ src, animeId, alt, className = '', style, eager, fa
             }
             if (animeId && !fallbackRequested.current) {
               fallbackRequested.current = true;
-              void resolveAnimeImages(animeId).then(images => {
-                const primary = validImageUrl(src);
+              const requestId = ++fallbackRequestId.current;
+              const requestedSrc = src;
+              const requestedAnimeId = animeId;
+              void resolveAnimeImages(requestedAnimeId).then(images => {
+                if (fallbackRequestId.current !== requestId) return;
+                const primary = validImageUrl(requestedSrc);
                 const next = unique([primary, ...images].filter(Boolean));
                 setCandidates(next);
                 // If the primary URL is absent, the first resolved artwork is

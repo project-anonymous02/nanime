@@ -37,6 +37,10 @@ const MAX_BYTES = 50 * 1024 * 1024;
 
 const mem = new Map<string, { data: unknown; expiresAt: number; at?: number }>();
 const inflight = new Map<string, Promise<unknown>>();
+/** Generation per key: invalidate/clear menaikkan generasi sehingga
+ * request lama yang masih berjalan tidak lagi boleh menulis ke cache. */
+const generations = new Map<string, number>();
+let globalGeneration = 0;
 const counters = { memoryHits: 0, indexedDbHits: 0, networkMisses: 0, inflightJoins: 0 };
 
 /** Jendela revalidasi lembut: data di memori lebih tua dari ini disegarkan di latar. */
@@ -48,27 +52,31 @@ async function run<T>(full: string, ttl: number, fn: () => Promise<T>): Promise<
   const running = inflight.get(full);
   if (running) { counters.inflightJoins++; return running as Promise<T>; }
 
+  const genAtStart = generations.get(full) || 0;
+  const globalAtStart = globalGeneration;
+  const isCurrent = () => (generations.get(full) || 0) === genAtStart && globalGeneration === globalAtStart;
+
   const job = (async () => {
     const persisted = await idbGet<T>(full);
     if (persisted != null) {
       counters.indexedDbHits++;
-      mem.set(full, { data: persisted, expiresAt: Date.now() + Math.min(ttl, 60 * 1000), at: Date.now() });
+      if (isCurrent()) mem.set(full, { data: persisted, expiresAt: Date.now() + Math.min(ttl, 60 * 1000), at: Date.now() });
       return persisted;
     }
     counters.networkMisses++;
     const data = await fn();
-    const expiresAt = Date.now() + ttl;
-    mem.set(full, { data, expiresAt, at: Date.now() });
-    void idbSet(full, data, ttl);
-    void idbPrune(MAX_BYTES);
+    if (isCurrent()) {
+      const expiresAt = Date.now() + ttl;
+      mem.set(full, { data, expiresAt, at: Date.now() });
+      void idbSet(full, data, ttl);
+      void idbPrune(MAX_BYTES);
+    }
     return data;
   })();
 
   inflight.set(full, job);
-  job.then(
-    () => inflight.delete(full),
-    () => inflight.delete(full)
-  );
+  const cleanup = () => { if (inflight.get(full) === job) inflight.delete(full); };
+  job.then(cleanup, cleanup);
   return job;
 }
 
@@ -76,18 +84,21 @@ async function run<T>(full: string, ttl: number, fn: () => Promise<T>): Promise<
 function refresh<T>(full: string, ttl: number, fn: () => Promise<T>): Promise<T> {
   const running = inflight.get(full);
   if (running) return running as Promise<T>;
+  const genAtStart = generations.get(full) || 0;
+  const globalAtStart = globalGeneration;
+  const isCurrent = () => (generations.get(full) || 0) === genAtStart && globalGeneration === globalAtStart;
   const job = (async () => {
     const data = await fn();
-    mem.set(full, { data, expiresAt: Date.now() + ttl, at: Date.now() });
-    void idbSet(full, data, ttl);
-    void idbPrune(MAX_BYTES);
+    if (isCurrent()) {
+      mem.set(full, { data, expiresAt: Date.now() + ttl, at: Date.now() });
+      void idbSet(full, data, ttl);
+      void idbPrune(MAX_BYTES);
+    }
     return data;
   })();
   inflight.set(full, job);
-  job.then(
-    () => inflight.delete(full),
-    () => inflight.delete(full)
-  );
+  const cleanup = () => { if (inflight.get(full) === job) inflight.delete(full); };
+  job.then(cleanup, cleanup);
   return job;
 }
 
@@ -182,6 +193,7 @@ export const CacheManager = {
     const full = ns + ':' + key;
     mem.delete(full);
     inflight.delete(full);
+    generations.set(full, (generations.get(full) || 0) + 1);
     void idbDel(full);
   },
 
@@ -223,6 +235,8 @@ export const CacheManager = {
   clear(): void {
     mem.clear();
     inflight.clear();
+    generations.clear();
+    globalGeneration++;
     void idbClear();
   },
 

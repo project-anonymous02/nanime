@@ -13,6 +13,7 @@ export function bindNativeDeepLink(onUrl: (url: string) => void): () => void {
       const App = mod.App;
       void App.getLaunchUrl()
         .then(res => {
+          if (disposed) return;
           if (res && res.url) onUrl(res.url);
         })
         .catch(() => {

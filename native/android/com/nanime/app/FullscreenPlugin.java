@@ -21,6 +21,7 @@ import com.getcapacitor.annotation.PluginMethod;
 public class FullscreenPlugin extends Plugin {
 
     @PluginMethod
+    @SuppressWarnings("deprecation")
     public void setActive(PluginCall call) {
         boolean active = call.getBoolean("active", false);
         Activity activity = getActivity();
@@ -42,9 +43,7 @@ public class FullscreenPlugin extends Plugin {
                     window.getInsetsController().hide(
                         android.view.WindowInsets.Type.systemBars());
                 } else {
-                    @SuppressWarnings("deprecation")
                     View decor = window.getDecorView();
-                    @SuppressWarnings("deprecation")
                     decor.setSystemUiVisibility(
                         View.SYSTEM_UI_FLAG_FULLSCREEN
                         | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
@@ -59,9 +58,7 @@ public class FullscreenPlugin extends Plugin {
                     window.getInsetsController().show(
                         android.view.WindowInsets.Type.systemBars());
                 } else {
-                    @SuppressWarnings("deprecation")
                     View decor = window.getDecorView();
-                    @SuppressWarnings("deprecation")
                     decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
                 }
             }

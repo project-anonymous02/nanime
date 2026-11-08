@@ -19,7 +19,10 @@ export interface SmartImageProps {
  */
 export function SmartImage({ src, animeId, alt, className = '', style, eager, fallback = 'film', children }: SmartImageProps) {
   const [loaded, setLoaded] = useState(false);
-  const [candidates, setCandidates] = useState<string[]>([]);
+  const [candidates, setCandidates] = useState<string[]>(() => {
+    const primary = validImageUrl(src);
+    return primary ? [primary] : [];
+  });
   const [index, setIndex] = useState(0);
   const fallbackRequested = useRef(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -61,6 +64,7 @@ export function SmartImage({ src, animeId, alt, className = '', style, eager, fa
           src={current}
           alt={alt}
           loading={eager ? 'eager' : 'lazy'}
+          fetchPriority={eager ? 'high' : 'auto'}
           decoding="async"
           draggable={false}
           style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity var(--t-enter) var(--ease)' }}

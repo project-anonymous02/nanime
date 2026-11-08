@@ -114,6 +114,8 @@ export function PlayerOverlay() {
   const autoplayAttemptRef = useRef(false);
   const gestureTimer = useRef<number | null>(null);
   const boxRef = useRef<HTMLElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fallbackFullscreen, setFallbackFullscreen] = useState(false);
 
   const onTimeUpdate = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
     const video = event.currentTarget;
@@ -151,7 +153,22 @@ export function PlayerOverlay() {
     return () => setNativePipActive(false);
   }, [session?.request, session?.loading, session?.error, session?.stream?.sourceKind, session?.title, session?.episode, playing]);
   useEffect(() => { if (mode === 'mini') setDownloadsOpen(false); }, [mode]);
-  useEffect(() => { setPlayhead(0); setDuration(0); setPlaying(false); setAutoplayBlocked(false); setMutedAutoplay(false); setPlaybackRate(1); autoplayAttemptRef.current = false; }, [session?.request]);
+  useEffect(() => { setPlayhead(0); setDuration(0); setPlaying(false); setAutoplayBlocked(false); setMutedAutoplay(false); setPlaybackRate(1); setFallbackFullscreen(false); autoplayAttemptRef.current = false; }, [session?.request]);
+  useEffect(() => {
+    const sync = () => {
+      const active = document.fullscreenElement === boxRef.current;
+      setIsFullscreen(active);
+      if (active) setFallbackFullscreen(false);
+    };
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+  useEffect(() => {
+    if (!fallbackFullscreen) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setFallbackFullscreen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [fallbackFullscreen]);
   useEffect(() => { setAutoplayBlocked(false); setMutedAutoplay(false); setPlaying(false); autoplayAttemptRef.current = false; }, [session?.sourceIndex]);
   useEffect(() => { if (mediaRef.current) mediaRef.current.playbackRate = playbackRate; }, [session?.request, session?.sourceIndex, playbackRate]);
   useEffect(() => () => { if (gestureTimer.current) window.clearTimeout(gestureTimer.current); }, []);
@@ -232,21 +249,25 @@ export function PlayerOverlay() {
     if (mediaRef.current) mediaRef.current.playbackRate = next;
   };
   const toggleFullscreen = async () => {
-    try {
-      const target = boxRef.current;
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else if (target?.requestFullscreen) await target.requestFullscreen();
-      try {
-        const orientation = (screen as Screen & { orientation?: { lock?: (value: string) => Promise<void>; unlock?: () => void } }).orientation;
-        if (document.fullscreenElement) await orientation?.lock?.('landscape');
-        else orientation?.unlock?.();
-      } catch { /* orientasi layar tidak didukung browser */ }
-    } catch { /* fullscreen tidak tersedia untuk konteks ini */ }
+    if (fallbackFullscreen) { setFallbackFullscreen(false); return; }
+    if (document.fullscreenElement) {
+      try { await document.exitFullscreen(); } catch { setFallbackFullscreen(false); }
+      return;
+    }
+    const target = boxRef.current;
+    if (!target?.requestFullscreen) { setFallbackFullscreen(true); return; }
+    try { await target.requestFullscreen(); }
+    catch { setFallbackFullscreen(true); }
+  };
+  const closePlayer = () => {
+    setFallbackFullscreen(false);
+    if (document.fullscreenElement === boxRef.current && document.exitFullscreen) void document.exitFullscreen().catch(() => undefined);
+    close();
   };
   return <div className={'episode-player-backdrop' + (mode === 'mini' ? ' mini' : '')} role={mode === 'mini' ? undefined : 'presentation'} onMouseDown={event => { if (mode === 'full' && event.target === event.currentTarget) close(); }}>
     <section
       ref={boxRef}
-      className="episode-player"
+      className={`episode-player${fallbackFullscreen ? ' player-fs' : ''}`}
       role={mode === 'mini' ? undefined : 'dialog'}
       aria-modal={mode === 'mini' ? undefined : true}
       aria-label={`Episode ${session.episode}`}
@@ -261,7 +282,7 @@ export function PlayerOverlay() {
         {mode === 'full' && sources.length > 1 ? <button type="button" className="ibtn" onClick={event => { event.stopPropagation(); setQualitiesOpen(true); }} aria-label="Pilihan kualitas"><Icon name="settings" /></button> : null}
         {mode === 'full' && downloads.length ? <button type="button" className="ibtn" onClick={event => { event.stopPropagation(); setDownloadsOpen(true); }} aria-label="Pilihan download"><Icon name="download" /></button> : null}
         {mode === 'mini' ? <button type="button" className="ibtn" onClick={event => { event.stopPropagation(); setMode('full'); }} aria-label="Buka pemutar"><Icon name="expand" /></button> : null}
-        <button type="button" className="ibtn" onClick={event => { event.stopPropagation(); close(); }} aria-label="Tutup pemutar"><Icon name="x" /></button>
+        <button type="button" className="ibtn" onClick={event => { event.stopPropagation(); closePlayer(); }} aria-label="Tutup pemutar"><Icon name="x" /></button>
       </div></header>
       {session.loading ? <div className="episode-player-state" role="status"><span className="spinner-sm" />Menyiapkan sumber video…</div> : null}
       {!session.loading && session.error ? <div className="episode-player-state error" role="alert">
@@ -283,7 +304,7 @@ export function PlayerOverlay() {
               video.muted = true;
               void video.play().then(() => { setMutedAutoplay(true); setAutoplayBlocked(false); setPlaying(true); }).catch(() => setAutoplayBlocked(true));
             });
-          }} onEnded={event => { setPlaying(false); session.onProgress(event); }} onError={onError} /> : <iframe key={source.url} src={source.url} title={`${session.title} episode ${session.episode}`} allow="autoplay; encrypted-media; fullscreen; picture-in-picture" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />}
+          }} onEnded={event => { setPlaying(false); session.onProgress(event); }} onError={onError} /> : <iframe key={source.url} src={source.url} title={`${session.title} episode ${session.episode}`} allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />}
           {mutedAutoplay && source.kind === 'file' ? <button type="button" className="player-gesture-status player-status-action" onClick={enableAutoplayAudio}>Aktifkan suara</button> : null}
           {autoplayBlocked && source.kind === 'file' ? <span className="player-gesture-status player-status-blocked" role="status">Autoplay diblokir browser. Ketuk Putar untuk memulai.</span> : null}
           {mode === 'full' && source.kind === 'file' ? <div className="player-controls" onPointerDown={event => event.stopPropagation()}>
@@ -301,9 +322,9 @@ export function PlayerOverlay() {
             </div>
             <input aria-label="Posisi video" type="range" min="0" max={duration || 1} step="1" value={Math.min(playhead, duration || 0)} onChange={event => { const value = Number(event.target.value); setPlayhead(value); if (mediaRef.current) mediaRef.current.currentTime = value; }} />
           </div> : null}
-          {mode === 'full' && source.kind === 'file' ? <div className="player-video-top-controls" onPointerDown={event => event.stopPropagation()}>
-            <button type="button" aria-label={fit === 'contain' ? 'Penuhi video' : 'Sesuaikan video'} onClick={() => setFit(value => value === 'contain' ? 'cover' : 'contain')}><span className="player-fit-icon" />{fit === 'contain' ? 'Fit' : 'Fill'}</button>
-            <button type="button" aria-label="Layar penuh" onClick={() => void toggleFullscreen()}><Icon name="expand" size={22} /></button>
+          {mode === 'full' ? <div className="player-video-top-controls" onPointerDown={event => event.stopPropagation()}>
+            {source.kind === 'file' ? <button type="button" aria-label={fit === 'contain' ? 'Penuhi video' : 'Sesuaikan video'} onClick={() => setFit(value => value === 'contain' ? 'cover' : 'contain')}><span className="player-fit-icon" />{fit === 'contain' ? 'Fit' : 'Fill'}</button> : null}
+            <button type="button" aria-label={isFullscreen || fallbackFullscreen ? 'Keluar layar penuh' : 'Layar penuh'} onClick={() => void toggleFullscreen()}><Icon name={isFullscreen || fallbackFullscreen ? 'collapse' : 'expand'} size={22} /></button>
           </div> : null}
           {gestureLabel ? <span className="player-gesture-status" role="status">{gestureLabel}</span> : null}
         </div>

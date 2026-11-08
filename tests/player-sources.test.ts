@@ -292,7 +292,7 @@ describe('player stream rendering guards', () => {
     await act(async () => root.unmount());
   });
 
-  it('sandbox iframe sources to block popups and top-level redirects', async () => {
+  it('loads provider iframes without a nested sandbox that blocks external players', async () => {
     const request = usePlayer.getState().start({
       animeId: 'test-anime', title: 'Test Anime', poster: '', episode: '1',
       retry: () => undefined, onProgress: () => undefined
@@ -308,8 +308,25 @@ describe('player stream rendering guards', () => {
     const host = document.createElement('div');
     const root = createRoot(host);
     await act(async () => root.render(createElement(ErrorBoundary, null, createElement(MemoryRouter, null, createElement(PlayerOverlay)))));
-    expect(host.querySelector('iframe')?.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin allow-forms allow-presentation');
+    expect(host.querySelector('iframe')?.hasAttribute('sandbox')).toBe(false);
+    expect(host.querySelector('iframe')?.getAttribute('allow')).toContain('fullscreen');
     expect((host.querySelector('.episode-player-video') as HTMLElement | null)?.style.touchAction).toBe('');
+    await act(async () => root.unmount());
+  });
+
+  it('provides a portrait fullscreen fallback for provider embeds', async () => {
+    const css = readFileSync('src/styles/app.css', 'utf8');
+    expect(css).toMatch(/\.episode-player:fullscreen \.episode-player-video\s*\{[^}]*aspect-ratio: 9 \/ 16/);
+    expect(css).toMatch(/\.episode-player\.player-fs \.episode-player-video,[\s\S]*?aspect-ratio: 9 \/ 16/);
+    const { host, root } = await renderPlayer(EMBED_STREAM);
+    const enter = host.querySelector<HTMLButtonElement>('button[aria-label="Layar penuh"]');
+    expect(enter).not.toBeNull();
+    await act(async () => enter?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(host.querySelector('.episode-player')?.classList.contains('player-fs')).toBe(true);
+    const exit = host.querySelector<HTMLButtonElement>('button[aria-label="Keluar layar penuh"]');
+    expect(exit).not.toBeNull();
+    await act(async () => exit?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(host.querySelector('.episode-player')?.classList.contains('player-fs')).toBe(false);
     await act(async () => root.unmount());
   });
 

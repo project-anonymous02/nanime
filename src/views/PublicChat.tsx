@@ -138,12 +138,12 @@ export function PublicChat() {
     </section>
 
     {active ? <form className="hn-chatbar" onSubmit={event => void submit(event)}>
-      {reply ? <div className="hn-typinghint" style={{ flex: '1 0 auto' }}>
+      {reply ? <div className="hn-typinghint" style={{ flex: '1 1 auto' }}>
         <span>Membalas <b>{reply.profile?.username || 'Pengguna Nanime'}</b></span>
         <button type="button" aria-label="Batal membalas" onClick={() => setReply(null)}><Icon name="x" size={14} /></button>
       </div> : null}
       <textarea className="hn-chatinput" value={text} onChange={event => setText(event.target.value)} maxLength={2000} rows={1} placeholder={`Kirim pesan ke ${active.name}…`} aria-label="Kirim pesan publik" />
-      <button className="hn-chatsend" type="submit" disabled={!text.trim() || sending} aria-label="Kirim"><Icon name="send" size={18} strokeWidth={0} /></button>
+      <button className="hn-chatsend" type="submit" disabled={!text.trim() || sending} aria-label="Kirim"><Icon name="send" size={18} strokeWidth={2} /></button>
     </form> : null}
   </div>;
 }

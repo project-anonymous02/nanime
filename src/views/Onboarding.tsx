@@ -89,7 +89,7 @@ export function Onboarding() {
 
       <div className="hn-auth-track" ref={trackRef} onScroll={onScroll}>
         <section className="hn-auth-slide">
-          <SmartImage className="hn-auth-art" src={`${BASE}ref/cover.jpg`} alt="Ilustrasi" eager />
+          <SmartImage className="hn-auth-art" src={`${BASE}logo.jpg`} alt="Nanime" eager />
           <div className="hn-auth-head">
             <h1 className="hn-auth-title">WELCOME</h1>
             <p className="hn-auth-sub">

@@ -44,6 +44,8 @@ vi.mock('hls.js', () => {
   return { default: FakeHls };
 });
 
+vi.mock('dashjs', () => ({ MediaPlayer: class { attachSource() {} initialize() {} reset() {} destroy() {} } }));
+
 if (!Element.prototype.setPointerCapture) {
   Object.defineProperty(Element.prototype, 'setPointerCapture', { configurable: true, value: () => undefined });
 }
@@ -263,8 +265,9 @@ describe('player stream rendering guards', () => {
     await act(async () => root.unmount());
   });
 
-  it('skips the configured intro time on direct video time updates', async () => {
-    useSettings.getState().patch({ skipIntro: true, introDuration: 85 });
+  // Removed: skipIntro setting deleted with player controls cleanup.
+  // Timeupdate should not seek anymore.
+  it('does not skip intro (feature removed)', async () => {
     const progress = vi.fn();
     const request = usePlayer.getState().start({
       animeId: 'test-anime', title: 'Test Anime', poster: '', episode: '1',
@@ -287,8 +290,8 @@ describe('player stream rendering guards', () => {
     if (!video) throw new Error('video element missing');
     Object.defineProperty(video, 'currentTime', { configurable: true, writable: true, value: 20 });
     await act(async () => video.dispatchEvent(new Event('timeupdate', { bubbles: true })));
-    expect(video.currentTime).toBe(85);
-    expect(progress).not.toHaveBeenCalled();
+    expect(video.currentTime).toBe(20);
+    expect(progress).toHaveBeenCalled();
     await act(async () => root.unmount());
   });
 
@@ -314,19 +317,16 @@ describe('player stream rendering guards', () => {
     await act(async () => root.unmount());
   });
 
-  it('provides a portrait fullscreen fallback for provider embeds', async () => {
+  it('relies on provider fullscreen (custom button removed)', async () => {
     const css = readFileSync('src/styles/app.css', 'utf8');
-    expect(css).toMatch(/\.episode-player:fullscreen \.episode-player-video\s*\{[^}]*aspect-ratio: 9 \/ 16/);
-    expect(css).toMatch(/\.episode-player\.player-fs \.episode-player-video,[\s\S]*?aspect-ratio: 9 \/ 16/);
+    // Normal player is 9/16 vertical; fullscreen (:fullscreen / .player-fs) is 16/9 landscape
+    expect(css).toMatch(/aspect-ratio: 9 \/ 16/);
+    expect(css).toMatch(/\.episode-player:fullscreen \.episode-player-video[\s\S]*?aspect-ratio: 16 \/ 9/);
     const { host, root } = await renderPlayer(EMBED_STREAM);
-    const enter = host.querySelector<HTMLButtonElement>('button[aria-label="Layar penuh"]');
-    expect(enter).not.toBeNull();
-    await act(async () => enter?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
-    expect(host.querySelector('.episode-player')?.classList.contains('player-fs')).toBe(true);
-    const exit = host.querySelector<HTMLButtonElement>('button[aria-label="Keluar layar penuh"]');
-    expect(exit).not.toBeNull();
-    await act(async () => exit?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
-    expect(host.querySelector('.episode-player')?.classList.contains('player-fs')).toBe(false);
+    // No Nanime custom fullscreen toggle — provider owns fullscreen
+    expect(host.querySelector('button[aria-label="Layar penuh"]')).toBeNull();
+    expect(host.querySelector('button[aria-label="Keluar layar penuh"]')).toBeNull();
+    expect(host.querySelector('iframe[allow*="fullscreen"]')).not.toBeNull();
     await act(async () => root.unmount());
   });
 
@@ -654,28 +654,18 @@ describe('player stream rendering guards', () => {
     await act(async () => root.unmount());
   });
 
-  it('captures touch gestures only on direct video, never on provider embeds', async () => {
+  it('does not capture brightness/volume gestures (removed); embed has no direct controls', async () => {
     const capture = vi.spyOn(Element.prototype, 'setPointerCapture');
     const direct = await renderPlayer(DIRECT_STREAM);
-    const directSurface = direct.host.querySelector('.episode-player-video') as HTMLElement;
-    await act(async () => {
-      directSurface.dispatchEvent(pointerDown('touch'));
-    });
-    expect(capture).toHaveBeenCalledTimes(1);
     expect(direct.host.querySelector('.player-controls')).not.toBeNull();
     await act(async () => direct.root.unmount());
     usePlayer.getState().close();
 
     capture.mockClear();
     const embed = await renderPlayer(EMBED_STREAM);
-    const embedSurface = embed.host.querySelector('.episode-player-video') as HTMLElement;
     expect(embed.host.querySelector('iframe')).not.toBeNull();
     expect(embed.host.querySelector('.player-controls')).toBeNull();
     expect(embed.host.querySelector('button[aria-label="Putar video"]')).toBeNull();
-    await act(async () => {
-      embedSurface.dispatchEvent(pointerDown('touch'));
-    });
-    expect(capture).not.toHaveBeenCalled();
     await act(async () => embed.root.unmount());
   });
 });

@@ -142,23 +142,34 @@ async function tryProvider(
         if (sameEpisodePage) return;
         try {
           const probe = await httpProbe(url, 4000);
-          if ((probe.status >= 200 && probe.status < 300 && /^(?:text\/html|application\/xhtml\+xml)$/.test(probe.contentType)) || [403, 405, 501].includes(probe.status)) {
+          if (probe.status >= 200 && probe.status < 300 && /^(?:text\/html|application\/xhtml\+xml)$/.test(probe.contentType)) {
             embeds.push({ ...candidate, ref: url, sourceRef: candidate.ref });
             return;
           }
+          if ([403, 404, 405, 501].includes(probe.status)) {
+            // HEAD method not allowed / forbidden does NOT prove GET media fails.
+            // Try extracting media, otherwise treat as embed candidate (not as verified embed)
+            // Fall through to resolveMediaUrl below.
+          }
+          if (probe.status >= 200 && probe.status < 300 && /^video\//.test(probe.contentType)) {
+            media.push({ ...candidate, ref: url, sourceRef: candidate.ref });
+            return;
+          }
         } catch {
-          // HEAD/CORS restrictions do not prove a provider-parsed iframe is unusable.
-          embeds.push({ ...candidate, ref: url, sourceRef: candidate.ref });
-          return;
+          // Network probe failure is not conclusive; still try media extraction.
         }
         if (!isVideoUrl(url)) {
           try {
             const resolved = await resolveMediaUrl(url);
             if (resolved.kind === 'file' && resolved.url && await verifyDirectMedia(resolved.url)) {
               media.push({ ...candidate, ref: resolved.url, sourceRef: candidate.ref });
+              return;
             }
-          } catch { /* server has no extractable video */ }
+          } catch { /* extract error -> fallback to embed */ }
+          embeds.push({ ...candidate, ref: url, sourceRef: candidate.ref });
+          return;
         }
+        embeds.push({ ...candidate, ref: url, sourceRef: candidate.ref });
       };
 
       // Resolve every server so the player can show all real mirrors grouped

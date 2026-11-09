@@ -33,21 +33,9 @@ export interface HistoryItem {
 }
 
 /** Pengaturan aplikasi milik pengguna (disinkronkan, tidak perangkat). */
-export interface UserSettings {
-  autoplayNext: boolean;
-  playerControls: boolean;
-  skipIntro: boolean;
-  introDuration: number;
-  defaultQuality: '480p' | '720p' | '1080p';
-}
+export interface UserSettings {}
 
-export const DEFAULT_SETTINGS: UserSettings = {
-  autoplayNext: true,
-  playerControls: true,
-  skipIntro: false,
-  introDuration: 85,
-  defaultQuality: '480p'
-};
+export const DEFAULT_SETTINGS: UserSettings = {};
 
 /* ── Baris tabel (snake_case) ── */
 

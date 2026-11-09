@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from './icons';
-import { resolveAnimeImages } from '../core/services/ImageResolver';
+import { resolveAnimeImages, cacheImage } from '../core/services/ImageResolver';
 
 export interface SmartImageProps {
   src?: string;
@@ -70,7 +70,7 @@ export function SmartImage({ src, animeId, alt, className = '', style, eager, fa
           decoding="async"
           draggable={false}
           style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity var(--t-enter) var(--ease)' }}
-          onLoad={() => setLoaded(true)}
+          onLoad={() => { setLoaded(true); void cacheImage(current); }}
           onError={() => {
             setLoaded(false);
             if (index + 1 < candidates.length) {

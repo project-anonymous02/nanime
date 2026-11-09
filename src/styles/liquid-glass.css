@@ -15,35 +15,22 @@
 .hn-chatbar.lg-surface { position: relative; }
 .lg-surface > :not(.lg-filter-root) { position: relative; z-index: 2; }
 
-/* ══ TAB BAR — Command Deck dock, profile soft ══ */
+/* ══ FLOATING TAB DOCK — Command Deck capsule, profile soft ══ */
 .hn-bottomnav {
-  border: 0;
-  border-top: 1px solid var(--hairline);
   color: var(--lg-adaptive-foreground, var(--text));
   background-color: var(--lg-adaptive-tint, var(--lg-tint-bar));
-  background-image: var(--lg-highlight-bar);
-  box-shadow: none;
-  --lg-radius: 0;
-  --lg-fallback-blur: 8px;
+  background-image: var(--lg-highlight);
+  --lg-radius: 26px;
+  --lg-fallback-blur: 10px;
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 .hn-bottomnav-item { color: var(--text-3); }
 .hn-bottomnav-item.hn-active { color: var(--accent); }
-.hn-bottomnav-item:active { transform: scale(0.97); }
-/* Active tab: materialize pill (scale+opacity spring, not linear fade). */
-.hn-bottomnav-item { position: relative; }
-.hn-bottomnav-item::before {
-  content: '';
-  position: absolute;
-  inset: 4px 8px;
-  border-radius: 999px;
-  background: rgba(0, 113, 227, 0.10);
-  opacity: 0;
-  transform: scale(0.82);
-  transition: opacity var(--t-page) var(--spring-smooth), transform var(--t-page) var(--spring-smooth);
-  pointer-events: none;
+/* Active tab: one shared indicator slides between items (see app.css). */
+.hn-bottomnav[data-lg-adaptive-mode='dark'] .hn-bottomnav-pill {
+  background: rgba(10, 132, 255, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
-.hn-bottomnav-item.hn-active::before { opacity: 1; transform: scale(1); }
 
 /* ══ STICKY HEADERS — scroll-edge: hairline only when scrolled ══ */
 .hn-pagehead, .hn-homehead {
@@ -82,7 +69,6 @@
   transform: translateY(12px) scale(0.98);
   transform-origin: 50% 100%;
   transition: opacity 0.28s var(--spring-interactive), transform 0.28s var(--spring-interactive);
-  will-change: transform, opacity;
 }
 .hn-sheet.hn-open {
   opacity: 1;
@@ -101,7 +87,6 @@
   transform: translateY(12px) scale(0.98);
   transform-origin: 50% 100%;
   transition: opacity 0.28s var(--spring-interactive), transform 0.28s var(--spring-interactive);
-  will-change: transform, opacity;
 }
 .episode-player.hn-open, .player-download-sheet.hn-open {
   opacity: 1;
@@ -157,7 +142,9 @@
 
 /* ══ BADGES OVER POSTERS — CSS-material only (thin). No JS refraction on
    dozens of 40px chips: rim + highlight + fallback blur is the whole look
-   at that size. Over-media surfaces: hero, detail hero, player keep JS. ══ */
+   at that size. Over-media surfaces: hero, detail hero, player keep JS.
+   PERF: limit backdrop-filter usage in grids — keep visual but reduce cost.
+   Only hero badges keep full blur; poster badges use lightweight gradient. ══ */
 .hn-badge, .hn-rankbadge, .hn-views, .hn-episodecode, .hn-hero-views, .hn-hero-rank {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.08) 45%, rgba(255, 255, 255, 0.20)),
@@ -167,6 +154,14 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
     inset 0 0 0 1px rgba(255, 255, 255, 0.22),
     0 1px 4px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(var(--lg-fallback-blur));
+  -webkit-backdrop-filter: blur(var(--lg-fallback-blur));
+}
+.hn-badge, .hn-rankbadge, .hn-views, .hn-episodecode {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.hn-hero-views, .hn-hero-rank {
   backdrop-filter: blur(var(--lg-fallback-blur)) saturate(var(--lg-saturate)) brightness(var(--lg-brightness)) contrast(var(--lg-contrast));
   -webkit-backdrop-filter: blur(var(--lg-fallback-blur)) saturate(var(--lg-saturate)) brightness(var(--lg-brightness)) contrast(var(--lg-contrast));
 }
@@ -226,12 +221,20 @@
    background; these double-class rules pin hn chrome regardless of import
    order) ══ */
 .hn-bottomnav.lg-surface {
-  border: 0;
-  border-top: 1px solid var(--hairline);
+  border: 1px solid var(--lg-adaptive-border, var(--lg-border));
   color: var(--lg-adaptive-foreground, var(--text));
   background-color: var(--lg-adaptive-tint, var(--lg-tint-bar));
-  background-image: var(--lg-highlight-bar);
-  box-shadow: none;
+  background-image: var(--lg-highlight);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.16),
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.56);
+}
+.hn-bottomnav.lg-surface[data-scrolled='true'] {
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 .hn-pagehead.lg-surface, .hn-homehead.lg-surface {
   border: 0;
@@ -301,11 +304,14 @@
 /* ══ ACCESSIBILITY ══ */
 @media (prefers-reduced-motion: reduce) {
   .hn-bottomnav-item, .hn-back, .hn-iconbtn, .hn-btn, .hn-ghostbtn, .hn-chip,
-  .hn-row, .hn-menuitem, .hn-sheet, .hn-toast, .hn-sheetmask, .hn-bottomnav-item::before {
+  .hn-row, .hn-menuitem, .hn-sheet, .hn-toast, .hn-sheetmask {
     animation: none !important;
     transition: opacity 200ms ease !important;
     transform: none !important;
   }
+  .hn-bottomnav { transition: height 200ms ease !important; }
+  .hn-bottomnav-pill { transition: none !important; }
+  .hn-bottomnav-icon, .hn-bottomnav-label { transition: opacity 200ms ease !important; }
   .hn-sheet { transition: opacity 200ms ease; }
 }
 @media (prefers-reduced-transparency: reduce) {

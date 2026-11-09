@@ -13,20 +13,15 @@ interface SettingsState extends UserSettings {
 /** Pengaturan aplikasi (lokal-first, disinkronkan diam-diam bila masuk akun). */
 export const useSettings = create<SettingsState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       ...DEFAULT_SETTINGS,
 
-      patch(p) {
-        set(p);
+      patch(_p) {
+        // Intentionally no-op: legacy player preferences removed (skip intro,
+        // autoplay next, brightness/volume gestures, default quality).
         const uid = currentUserId();
         if (!uid) return;
-        const value: UserSettings = {
-          autoplayNext: get().autoplayNext,
-          playerControls: get().playerControls,
-          skipIntro: get().skipIntro,
-          introDuration: get().introDuration,
-          defaultQuality: get().defaultQuality
-        };
+        const value: UserSettings = {};
         void remoteSettings.push(uid, value).catch(() => {
           /* offline: tetap tersimpan lokal */
         });

@@ -57,7 +57,10 @@ export function PublicChat() {
   useEffect(() => {
     const prevId = prevActiveIdRef.current;
     const nextId = active?.id || null;
-    if (prevId && prevId !== nextId) draftsRef.current.set(prevId, text);
+    if (prevId && prevId !== nextId) {
+      draftsRef.current.set(prevId, text);
+      setReply(null); // prevent cross-channel reply
+    }
     if (nextId) setText(draftsRef.current.get(nextId) || '');
     prevActiveIdRef.current = nextId;
     activeIdRef.current = nextId;
@@ -80,10 +83,26 @@ export function PublicChat() {
     return () => { alive = false; if (pendingTimer) window.clearTimeout(pendingTimer); if (activeIdRef.current === active.id) activeIdRef.current = null; setConnected(false); void sb.removeChannel(channel); };
   }, [active?.id, refreshMessages]);
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const nearBottomRef = useRef(true);
+  const onChatScroll = useCallback(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
+    nearBottomRef.current = distanceFromBottom < 120;
+  }, []);
+
   useEffect(() => {
     const list = listRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
+    if (list && nearBottomRef.current) list.scrollTop = list.scrollHeight;
   }, [messages.length, active?.id]);
+
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 144) + 'px';
+  }, [text]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -127,7 +146,7 @@ export function PublicChat() {
     </div> : null}
     {loadingChannels ? <div className="hn-spin" role="status" /> : !channels.length ? <div className="hn-state"><span className="hn-state-icon"><Icon name="chat" /></span><span className="hn-state-title">Kanal chat belum tersedia</span><span className="hn-state-sub">Terapkan migration Supabase 014 untuk menyiapkan kanal Umum.</span></div> : null}
 
-    <section className="hn-chatlog" ref={listRef} aria-label="Pesan publik" aria-live="polite">
+    <section className="hn-chatlog" ref={listRef} onScroll={onChatScroll} aria-label="Pesan publik" aria-live="polite">
       {loadingMessages && !messages.length ? <div className="hn-spin" role="status" /> : null}
       {!loadingMessages && active && !messages.length ? <div className="hn-state"><span className="hn-state-icon"><Icon name="chat" /></span><span className="hn-state-title">Belum ada pesan di #{active.name}</span><span className="hn-state-sub">Mulai percakapan dengan komunitas.</span></div> : null}
       {messages.map(message => {
@@ -139,6 +158,7 @@ export function PublicChat() {
           {mine ? null : <CommunityAvatar name={name} src={profile?.avatar_url} />}
           <div className="hn-bubble">
             <header style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {rankMeta ? <RankInsignia rank={profile!.rank} size={14} /> : null}
               <span className="hn-bubble-name">{name}</span>
               {profile?.is_developer ? <span style={{ color: 'var(--accent-pink)', fontSize: 9, fontWeight: 800 }}>DEV</span> : null}
             </header>
@@ -156,13 +176,15 @@ export function PublicChat() {
       })}
     </section>
 
-    {active ? <form className="hn-chatbar" data-lg-role="dock" onSubmit={event => void submit(event)}>
-      {reply ? <div className="hn-typinghint" style={{ flex: '1 1 auto' }}>
-        <span>Membalas <b>{reply.profile?.username || 'Pengguna Nanime'}</b></span>
+    {active ? <form className="hn-chatbar hn-chatbar-v2" data-lg-role="dock" onSubmit={event => void submit(event)}>
+      {reply ? <div className="hn-chat-reply">
+        <span className="hn-typinghint">Membalas <b>{reply.profile?.username || 'Pengguna Nanime'}</b> · {reply.content.slice(0, 60)}</span>
         <button type="button" aria-label="Batal membalas" onClick={() => setReply(null)}><Icon name="x" size={14} /></button>
       </div> : null}
-      <textarea className="hn-chatinput" value={text} onChange={event => setText(event.target.value)} maxLength={2000} rows={1} placeholder={`Kirim pesan ke ${active.name}…`} aria-label="Kirim pesan publik" />
-      <button className="hn-chatsend" type="submit" disabled={!text.trim() || sending} aria-label="Kirim"><Icon name="send" size={18} strokeWidth={2} /></button>
+      <div className="hn-chat-inputrow">
+        <textarea ref={textareaRef} className="hn-chatinput" value={text} onChange={event => setText(event.target.value)} maxLength={2000} rows={1} placeholder={`Kirim pesan ke ${active.name}…`} aria-label="Kirim pesan publik" />
+        <button className="hn-chatsend" type="submit" disabled={!text.trim() || sending} aria-label="Kirim"><Icon name="send" size={18} strokeWidth={2} /></button>
+      </div>
     </form> : null}
   </div>;
 }

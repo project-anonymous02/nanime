@@ -20,7 +20,7 @@ export interface AdaptiveVideoProps {
   onError: () => void;
 }
 
-/** Native MP4 playback with a lazy HLS chunk and browser-native DASH where available. */
+/** Native MP4 playback with HLS.js and dash.js fallback. */
 export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onPlay, onCanPlay, onError, volume = 1, videoElementRef, fit = 'contain' }: AdaptiveVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const erroredRef = useRef(false);
@@ -90,13 +90,22 @@ export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onP
           } else reportError();
           return;
         }
-        // DASH: hanya native bila WebView mendukungnya (canPlayType '' = tidak).
-        // Tidak ada DASH.js — keterbatasan format yang eksplisit, bukan
-        // mengklasifikasikan semua .mpd sebagai pasti dapat diputar.
+        // DASH via dashjs (lazy import) — fallback to native when available.
         if (video.canPlayType('application/dash+xml')) {
           video.src = src;
           video.load();
-        } else reportError();
+          return;
+        }
+        try {
+          const mod = await import('dashjs' as string);
+          if (disposed) return;
+          const Dash = (mod as unknown as { MediaPlayer: new () => { initialize: (v: HTMLVideoElement, source: string) => void; attachSource: (source: string) => void; reset: () => void; destroy: () => void } }).MediaPlayer;
+          const dashInstance = new Dash();
+          player = dashInstance;
+          dashInstance.initialize(video, src);
+        } catch {
+          if (!disposed) reportError();
+        }
       } catch {
         if (!disposed) reportError();
       }

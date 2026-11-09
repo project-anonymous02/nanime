@@ -11,7 +11,6 @@ import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
 import { detailPath, shareOrCopy } from '../lib/nav';
 import { usePlayer } from '../state/player';
-import { useSettings } from '../state/settings';
 
 /** Detail anime — hero, chip, synopsis, related, daftar episode list/grid. */
 const EMPTY_EPISODES: DetailBundle['episodeList'] = [];
@@ -52,7 +51,6 @@ export function Detail() {
   const toggleFavorite = useLibrary(s => s.toggleFavorite);
   const history = useLibrary(s => s.history);
   const addHistory = useLibrary(s => s.addHistory);
-  const preferences = useSettings();
 
   const load = useCallback(async () => {
     const request = ++requestId.current;
@@ -80,9 +78,17 @@ export function Detail() {
   }, [load]);
 
   useEffect(() => {
-    const onScroll = () => setStuck(window.scrollY > window.innerHeight * 0.4);
+    let raf: number | null = null;
+    const onScroll = () => {
+      if (raf !== null) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        const next = window.scrollY > window.innerHeight * 0.4;
+        setStuck(prev => (prev === next ? prev : next));
+      });
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    return () => { window.removeEventListener('scroll', onScroll); if (raf !== null) cancelAnimationFrame(raf); };
   }, []);
 
   const isFav = favorites.some(f => f.id === id);
@@ -170,8 +176,7 @@ export function Detail() {
         throw new Error(result.unavailableReason || 'Sumber video episode ini tidak tersedia. Coba lagi atau pilih episode lain.');
       }
       recordClientMetric({ name: 'playback-resolution', durationMs: performance.now() - startedAt, ok: true, count: result.servers.length + result.qualities.length });
-      const qualityIndex = result.qualities.filter(quality => quality.source).findIndex(quality => quality.label === preferences.defaultQuality);
-      updatePlayer(request, { stream: result, sourceIndex: qualityIndex >= 0 ? qualityIndex : 0 });
+      updatePlayer(request, { stream: result, sourceIndex: 0 });
     } catch (cause) {
       if (usePlayer.getState().session?.request === request) {
         recordClientMetric({ name: 'playback-resolution', durationMs: performance.now() - startedAt, ok: false });
@@ -202,18 +207,12 @@ export function Detail() {
   const savePlaybackProgress = (episode: string) => (event: React.SyntheticEvent<HTMLVideoElement>) => {
     if (!bundle) return;
     const video = event.currentTarget;
-    const preferences = useSettings.getState();
     const now = Date.now();
     if (event.type === 'timeupdate' && now - lastProgressWrite.current < 15_000) return;
     lastProgressWrite.current = now;
     const duration = Number.isFinite(video.duration) ? video.duration : 0;
     const percent = duration > 0 ? Math.min(100, Math.round(video.currentTime / duration * 100)) : 0;
     addHistory({ animeId: id, episode, title: bundle.title, poster: bundle.poster, positionSec: Math.floor(video.currentTime), durationSec: Math.floor(duration), percent, completed: event.type === 'ended' || percent >= 92, watchedAt: now });
-    if (event.type === 'ended' && preferences.autoplayNext) {
-      const currentIndex = episodes.findIndex(item => item.num === episode);
-      const nextEpisode = currentIndex >= 0 ? episodes[currentIndex + 1] : undefined;
-      if (nextEpisode) void playEpisode(nextEpisode);
-    }
   };
 
   if (error && !bundle) {

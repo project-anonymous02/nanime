@@ -1,7 +1,8 @@
-import { useEffect, type ReactNode } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
+import { NavLink, useLocation, useNavigationType } from 'react-router-dom';
 import { Icon, type IconName } from '../ui/icons';
 import { useScrollGuard } from '../ui/hooks';
+import { expandNavigation, useNavigationMinimize, useRouteScroll, useScrollReveal } from '../ui/motion';
 import { AppUsageTracker } from '../features/AppUsageTracker';
 import { PlayerOverlay } from '../ui/PlayerOverlay';
 import { LiquidGlass, useLiquidGlassEnhancer } from '../ui/liquid-glass';
@@ -27,29 +28,49 @@ function isActive(pathname: string, item: NavItem): boolean {
   return false;
 }
 
+/** Floating glass dock: shared sliding indicator + scroll minimization. */
 function BottomNav() {
   const { pathname } = useLocation();
+  const navRef = useRef<HTMLElement | null>(null);
+  const activeIndex = Math.max(0, NAV.findIndex(item => isActive(pathname, item)));
+
+  useNavigationMinimize(navRef, pathname);
+
   return (
     <LiquidGlass
       as="nav"
-      className="hn-bottomnav lg-bar"
+      ref={navRef}
+      className="hn-bottomnav"
       data-lg-role="dock"
       aria-label="Navigasi utama"
       profile="soft"
-      radius={0}
+      radius={26}
       strength={110}
       dispersion={0.015}
       adaptive
+      style={{ '--nav-active': activeIndex, '--nav-count': NAV.length } as CSSProperties}
+      onPointerDownCapture={() => expandNavigation(navRef.current)}
+      onFocusCapture={() => expandNavigation(navRef.current)}
     >
-      {NAV.map(item => {
-        const active = isActive(pathname, item);
-        return (
-          <NavLink key={item.to} to={item.to} className={`hn-bottomnav-item${active ? ' hn-active' : ''}`}>
-            <Icon name={item.icon} size={26} strokeWidth={1.75} />
-            <span className="hn-bottomnav-label">{item.label}</span>
-          </NavLink>
-        );
-      })}
+      <div className="hn-bottomnav-inner">
+        <span className="hn-bottomnav-pill" aria-hidden="true" />
+        {NAV.map((item, index) => {
+          const active = index === activeIndex;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={`hn-bottomnav-item${active ? ' hn-active' : ''}`}
+              aria-current={active ? 'page' : undefined}
+            >
+              <span className="hn-bottomnav-icon">
+                <Icon name={item.icon} size={26} strokeWidth={1.75} />
+              </span>
+              <span className="hn-bottomnav-label">{item.label}</span>
+            </NavLink>
+          );
+        })}
+      </div>
     </LiquidGlass>
   );
 }
@@ -57,28 +78,45 @@ function BottomNav() {
 /** Scroll-edge: hairline nav muncul hanya setelah konten bergulir di bawahnya (skill). */
 function useNavScrollEdge() {
   useEffect(() => {
+    let raf: number | null = null;
+    let last = false;
     const toggle = () => {
-      const scrolled = window.scrollY > 8;
-      document.querySelectorAll('.hn-pagehead, .hn-homehead').forEach(el => el.classList.toggle('scrolled', scrolled));
+      if (raf !== null) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        const scrolled = window.scrollY > 8;
+        if (scrolled === last) return;
+        last = scrolled;
+        document.querySelectorAll('.hn-pagehead, .hn-homehead').forEach(el => el.classList.toggle('scrolled', scrolled));
+      });
     };
     toggle();
     window.addEventListener('scroll', toggle, { passive: true });
-    return () => window.removeEventListener('scroll', toggle);
+    return () => { window.removeEventListener('scroll', toggle); if (raf !== null) cancelAnimationFrame(raf); };
   }, []);
 }
 
 export function Shell({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const navigationType = useNavigationType();
+
   useScrollGuard();
   useNavScrollEdge();
+  useScrollReveal();
   useLiquidGlassEnhancer();
-  const { pathname } = useLocation();
+  useRouteScroll(location.pathname, location.key, navigationType);
+
   // Detail & pemutar fullscreen menyembunyikan nav bawah.
-  const hideNav = pathname.startsWith('/detail/');
+  const hideNav = location.pathname.startsWith('/detail/');
   return (
     <div className="hn-shell" data-lg-role="stage">
       <AppUsageTracker />
       <main className="hn-main">
-        <div className="hn-main-scroll" key={pathname}>
+        <div
+          className="hn-main-scroll"
+          key={location.pathname}
+          data-nav={navigationType === 'POP' ? 'pop' : 'push'}
+        >
           {children}
         </div>
       </main>

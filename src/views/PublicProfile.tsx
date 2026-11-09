@@ -7,6 +7,9 @@ import { CommunityAvatar } from '../ui/CommunityAvatar';
 import { sendFriendRequest } from '../lib/friends';
 import { formatUsage, RANK_META, rankFor, type RankTier } from '../lib/rank';
 import { RankInsignia } from '../ui/RankInsignia';
+import { history as remoteHistory } from '../lib/remote/history';
+import type { HistoryItem } from '../lib/remote/types';
+import { SmartImage } from '../ui/SmartImage';
 
 type PublicPerson = { id: string; username: string; avatar_url: string | null; is_developer: boolean; rank: string };
 
@@ -20,6 +23,8 @@ export function PublicProfile() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [publicHistory, setPublicHistory] = useState<HistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const requestId = useRef(0);
 
   async function load() {
@@ -35,6 +40,19 @@ export function PublicProfile() {
       if (!row) { setPerson(null); setLoading(false); return; }
       const seconds = Number(row.app_usage_seconds) || 0;
       setPerson({ ...row, seconds });
+      // Public projection of watch history (excludes sensitive fields)
+      void (async () => {
+        setHistoryLoading(true);
+        try {
+          const items = await remoteHistory.pull(userId);
+          if (request === requestId.current) setPublicHistory(items.slice(0, 20));
+        } catch {
+          // RLS may deny or offline – silently hide public history
+          if (request === requestId.current) setPublicHistory([]);
+        } finally {
+          if (request === requestId.current) setHistoryLoading(false);
+        }
+      })();
       const uid = currentUserId();
       if (uid === userId) setRelation('self');
       else if (uid) {
@@ -116,11 +134,25 @@ export function PublicProfile() {
     </div>
 
     <div className="hn-row" style={{ margin: '18px var(--pad-x)', width: 'auto' }}>
-      <span className="hn-menuitem-icon"><Icon name="shield" size={16} strokeWidth={2} /></span>
+      <span className="hn-menuitem-icon"><Icon name="eye" size={16} strokeWidth={2} /></span>
       <span className="hn-row-main">
-        <span className="hn-row-title">Aktivitas privat</span>
-        <span className="hn-row-sub">Favorit dan riwayat tontonan hanya terlihat oleh pemilik akun.</span>
+        <span className="hn-row-title">Riwayat tontonan publik</span>
+        <span className="hn-row-sub">Menampilkan anime & episode yang terakhir ditonton.</span>
       </span>
     </div>
+    {historyLoading ? <div className="hn-spin" role="status" /> : publicHistory.length ? (
+      <div className="hn-rowlist" style={{ margin: '0 var(--pad-x)' }}>
+        {publicHistory.map(h => (
+          <button key={`${h.animeId}:${h.episode}`} type="button" className="hn-row" onClick={() => navigate(`/detail/${encodeURIComponent(h.animeId)}`)} style={{ width: '100%' }}>
+            {h.poster ? <SmartImage src={h.poster} alt={h.title} animeId={h.animeId} style={{ width: 42, height: 56, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }} /> : null}
+            <span className="hn-row-main">
+              <span className="hn-row-title" style={{ display: 'block' }}>{h.title}</span>
+              <span className="hn-row-sub">Episode {h.episode} · {h.percent}%{h.completed ? ' · Selesai' : ''}</span>
+            </span>
+            <Icon name="right" size={16} strokeWidth={2.4} />
+          </button>
+        ))}
+      </div>
+    ) : <p className="hn-state-sub" style={{ padding: '0 var(--pad-x)' }}>Belum ada riwayat publik.</p>}
   </main>;
 }

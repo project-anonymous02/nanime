@@ -41,27 +41,25 @@ describe('useApp — preferensi perangkat', () => {
   });
 });
 
-describe('useSettings — pengaturan pemutar', () => {
-  it('patch mengubah nilai & persist ke nanime.v2.settings', async () => {
-    useSettings.getState().patch({ defaultQuality: '720p', skipIntro: true });
-    expect(useSettings.getState().defaultQuality).toBe('720p');
-    expect(useSettings.getState().skipIntro).toBe(true);
+describe('useSettings — pengaturan pemutar (legacy removed)', () => {
+  it('patch is no-op and keeps empty settings', async () => {
+    useSettings.getState().patch({} as any);
+    // after removal, settings stay empty
+    expect(Object.keys(useSettings.getState()).filter(k => !['patch','reconcile','reset'].includes(k))).toHaveLength(0);
     await Promise.resolve();
-    const raw = localStorage.getItem('nanime.v2.settings') || '';
-    expect(raw).toContain('720p');
   });
 
-  it('patch parsial tidak menghapus nilai lain', () => {
-    useSettings.getState().patch({ introDuration: 120 });
-    expect(useSettings.getState().introDuration).toBe(120);
-    expect(useSettings.getState().autoplayNext).toBe(DEFAULT_SETTINGS.autoplayNext);
+  it('patch parsial tidak mengembalikan legacy props', () => {
+    useSettings.getState().patch({} as any);
+    expect((useSettings.getState() as any).introDuration).toBeUndefined();
+    expect((useSettings.getState() as any).autoplayNext).toBeUndefined();
   });
 
-  it('reset kembali ke default', () => {
-    useSettings.getState().patch({ autoplayNext: false, defaultQuality: '1080p' });
+  it('reset kembali ke default kosong', () => {
+    useSettings.getState().patch({} as any);
     useSettings.getState().reset();
-    expect(useSettings.getState().autoplayNext).toBe(DEFAULT_SETTINGS.autoplayNext);
-    expect(useSettings.getState().defaultQuality).toBe(DEFAULT_SETTINGS.defaultQuality);
+    expect((useSettings.getState() as any).autoplayNext).toBeUndefined();
+    expect((useSettings.getState() as any).defaultQuality).toBeUndefined();
   });
 });
 

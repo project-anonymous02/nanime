@@ -1,0 +1,76 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Motion bindings — the three engines stay independent:
+   1) Navigation:  shared indicator slide, symbol pop, dock minimization.
+   2) Page:        route cross-fade (opacity only; fixed/sticky stay put).
+   3) Scroll:      viewport reveal with 70ms stagger (driven by IO in
+                   src/ui/motion/reveal.ts). CSS values are initial/final
+                   states, not decorative loops.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Navigation ─────────────────────────────────────────────────────────
+   The pill is a single element translated between four equal slots; it is
+   never faded in/out per item, so the selection reads as one object. */
+@keyframes hn-symbol-pop {
+  0% { scale: 1; }
+  35% { scale: 1.12; }
+  70% { scale: 0.97; }
+  100% { scale: 1; }
+}
+.hn-bottomnav-item.hn-active .hn-bottomnav-icon {
+  animation: hn-symbol-pop 460ms var(--spring-snappy) both;
+}
+
+/* ── 2. Page transition ────────────────────────────────────────────────────
+   Opacity-only so fixed elements (detail bar, search pin) never re-anchor
+   against a transformed ancestor mid-transition. */
+.hn-main-scroll[data-nav='push'] {
+  animation: hn-page-in 300ms var(--ease-spring) both;
+}
+.hn-main-scroll[data-nav='pop'] {
+  animation: hn-page-back 260ms var(--ease-spring) both;
+}
+@keyframes hn-page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes hn-page-back {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+/* ── 3. Scroll reveal ──────────────────────────────────────────────────────
+   Initial: opacity .65 / scale .94 / translateY 18px.
+   Final:   opacity 1 / scale 1 / translateY 0.
+   `scale` + `translate` leave `transform` free for the existing card hover
+   lift, so the two systems never overwrite each other. */
+@keyframes hn-reveal-in {
+  from { opacity: 0.65; scale: 0.94; translate: 0 18px; }
+  to { opacity: 1; scale: 1; translate: 0 0; }
+}
+.hn-reveal {
+  opacity: 0.65;
+  scale: 0.94;
+  translate: 0 18px;
+}
+.hn-reveal.hn-revealed {
+  opacity: 1;
+  scale: 1;
+  translate: 0 0;
+  animation: hn-reveal-in 560ms var(--spring-smooth) both;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+/* ── Accessibility ────────────────────────────────────────────────────────
+   Reduced motion keeps state changes, drops travel and stagger. */
+@media (prefers-reduced-motion: reduce) {
+  .hn-main-scroll[data-nav] { animation: none !important; }
+  .hn-bottomnav-item.hn-active .hn-bottomnav-icon { animation: none !important; }
+  .hn-reveal,
+  .hn-reveal.hn-revealed {
+    opacity: 1 !important;
+    scale: 1 !important;
+    translate: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}

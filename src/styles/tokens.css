@@ -75,6 +75,11 @@
   --pad-top: 16px;
   --section-gap: clamp(34px, 6vw, 56px);
   --nav-h: 83px;
+  --nav-dock-h: 64px;
+  --nav-dock-min-h: 46px;
+  --nav-dock-gap: 10px;
+  --nav-dock-inset: 14px;
+  --nav-dock-clearance: 18px;
   --tap: 44px;
 
   /* ── Type scale ── */

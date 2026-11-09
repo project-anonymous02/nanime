@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent, type SyntheticEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { usePlayer } from '../state/player';
-import { useSettings } from '../state/settings';
 import type { DownloadLink, StreamBundle } from '../core/types';
 import { listenNativePipMode, setNativePipActive } from '../lib/nativePip';
-import { setNativeFullscreenActive } from '../lib/nativeFullscreen';
+import { setNativeFullscreenActive, listenNativeFullscreen } from '../lib/nativeFullscreen';
 import { isTrustedExternalUrl } from '../lib/hostPolicy';
 import { AdaptiveVideo } from './AdaptiveVideo';
 import { Icon } from './icons';
@@ -86,7 +85,6 @@ export function PlayerOverlay() {
   const update = usePlayer(state => state.update);
   const setMode = usePlayer(state => state.setMode);
   const close = usePlayer(state => state.close);
-  const playerControls = useSettings(state => state.playerControls);
   const stream = session?.stream;
   const sources = useMemo(() => playableSourcesFrom(stream), [stream]);
   /* Lifecycle materialize pemain utama (motion.md §5): close linger 300ms
@@ -102,15 +100,14 @@ export function PlayerOverlay() {
     else update(current.request, { error: 'Browser tidak dapat memutar sumber ini. Coba server lain atau episode berikutnya.' });
   }, [sources, update]);
   const dragRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const dragRafRef = useRef<number | null>(null);
+  const dragPendingRef = useRef<{ left: number; top: number } | null>(null);
   const didMoveRef = useRef(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const [downloadsOpen, setDownloadsOpen] = useState(false);
   const [qualitiesOpen, setQualitiesOpen] = useState(false);
   const qualitiesSheet = useMaterialize(qualitiesOpen && mode === 'full');
   const downloadsSheet = useMaterialize(downloadsOpen && mode === 'full');
-  const [brightness, setBrightness] = useState(1);
-  const [volume, setVolume] = useState(1);
-  const [gestureLabel, setGestureLabel] = useState('');
   const [playing, setPlaying] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [mutedAutoplay, setMutedAutoplay] = useState(false);
@@ -120,34 +117,16 @@ export function PlayerOverlay() {
   const [playbackRate, setPlaybackRate] = useState(1);
   const mediaRef = useRef<HTMLVideoElement | null>(null);
   useEffect(() => { if (!session && playerMounted) mediaRef.current?.pause(); }, [session, playerMounted]);
-  const gestureRef = useRef<{ pointerId: number; y: number; value: number; kind: 'brightness' | 'volume' } | null>(null);
-  const gestureMovedRef = useRef(false);
   const autoplayAttemptRef = useRef(false);
-  const gestureTimer = useRef<number | null>(null);
   const boxRef = useRef<HTMLElement | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [fallbackFullscreen, setFallbackFullscreen] = useState(false);
 
   const onTimeUpdate = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
-    const video = event.currentTarget;
-    const preferences = useSettings.getState();
-    const current = usePlayer.getState().session;
-    if (preferences.skipIntro && current && current.request === session?.request) {
-      const introEnd = Math.max(0, Number(preferences.introDuration) || 0);
-      if (introEnd > 0 && video.currentTime > 0 && video.currentTime < introEnd - 2 && (!Number.isFinite(video.duration) || introEnd < video.duration - 1)) {
-        video.currentTime = introEnd;
-        setGestureLabel('Intro dilewati');
-        if (gestureTimer.current) window.clearTimeout(gestureTimer.current);
-        gestureTimer.current = window.setTimeout(() => setGestureLabel(''), 1200);
-        return;
-      }
-    }
     const nextPosition = event.currentTarget.currentTime || 0;
     const nextDuration = Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0;
     setPlayhead(current => Math.floor(current) === Math.floor(nextPosition) ? current : nextPosition);
     setDuration(current => current === nextDuration ? current : nextDuration);
     session?.onProgress(event);
-  }, [session?.onProgress, session?.request]);
+  }, [session?.onProgress]);
 
   useEffect(() => {
     if (!session) return;
@@ -164,43 +143,20 @@ export function PlayerOverlay() {
     return () => setNativePipActive(false);
   }, [session?.request, session?.loading, session?.error, session?.stream?.sourceKind, session?.title, session?.episode, playing]);
   useEffect(() => { if (mode === 'mini') setDownloadsOpen(false); }, [mode]);
-  useEffect(() => { setPlayhead(0); setDuration(0); setPlaying(false); setAutoplayBlocked(false); setMutedAutoplay(false); setPlaybackRate(1); setFallbackFullscreen(false); autoplayAttemptRef.current = false; }, [session?.request]);
+  useEffect(() => { setPlayhead(0); setDuration(0); setPlaying(false); setAutoplayBlocked(false); setMutedAutoplay(false); setPlaybackRate(1); autoplayAttemptRef.current = false; }, [session?.request]);
   useEffect(() => {
     const sync = () => {
-      const active = document.fullscreenElement === boxRef.current;
-      setIsFullscreen(active);
-      if (active) setFallbackFullscreen(false);
+      const el = document.fullscreenElement;
+      const active = el === boxRef.current || el?.tagName === 'IFRAME';
+      if (active) setNativeFullscreenActive(true);
+      else setNativeFullscreenActive(false);
     };
     document.addEventListener('fullscreenchange', sync);
-    return () => document.removeEventListener('fullscreenchange', sync);
+    const unlistenNative = listenNativeFullscreen(active => setNativeFullscreenActive(active));
+    return () => { document.removeEventListener('fullscreenchange', sync); unlistenNative(); };
   }, []);
-  useEffect(() => {
-    if (!fallbackFullscreen) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setFallbackFullscreen(false); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [fallbackFullscreen]);
-  useEffect(() => {
-    const active = isFullscreen || fallbackFullscreen;
-    setNativeFullscreenActive(active);
-    return () => setNativeFullscreenActive(false);
-  }, [isFullscreen, fallbackFullscreen]);
-  useEffect(() => {
-    const w = window as unknown as { __nanimeExitFullscreen?: () => boolean };
-    const previous = w.__nanimeExitFullscreen;
-    w.__nanimeExitFullscreen = () => {
-      if (fallbackFullscreen) { setFallbackFullscreen(false); return true; }
-      if (document.fullscreenElement) { void document.exitFullscreen().catch(() => undefined); return true; }
-      return false;
-    };
-    return () => {
-      if (w.__nanimeExitFullscreen && previous !== w.__nanimeExitFullscreen) w.__nanimeExitFullscreen = previous;
-      else if (!previous) w.__nanimeExitFullscreen = undefined;
-    };
-  }, [fallbackFullscreen]);
   useEffect(() => { setAutoplayBlocked(false); setMutedAutoplay(false); setPlaying(false); autoplayAttemptRef.current = false; }, [session?.sourceIndex]);
   useEffect(() => { if (mediaRef.current) mediaRef.current.playbackRate = playbackRate; }, [session?.request, session?.sourceIndex, playbackRate]);
-  useEffect(() => () => { if (gestureTimer.current) window.clearTimeout(gestureTimer.current); }, []);
 
   if (!playerMounted || !displaySession) return null;
   const renderSession = session ?? displaySession;
@@ -224,32 +180,18 @@ export function PlayerOverlay() {
     const box = boxRef.current;
     const width = box?.offsetWidth || 260;
     const height = box?.offsetHeight || 180;
-    setPosition({
+    dragPendingRef.current = {
       left: Math.max(8, Math.min(window.innerWidth - width - 8, drag.left + event.clientX - drag.x)),
       top: Math.max(8, Math.min(window.innerHeight - height - 8, drag.top + event.clientY - drag.y))
+    };
+    if (dragRafRef.current !== null) return;
+    dragRafRef.current = requestAnimationFrame(() => {
+      dragRafRef.current = null;
+      const next = dragPendingRef.current;
+      if (next) setPosition(next);
     });
   };
-  const endDrag = () => { dragRef.current = null; };
-  const beginControlGesture = (event: PointerEvent<HTMLDivElement>) => {
-    if (!mediaRef.current || source?.kind !== 'file' || !playerControls || mode !== 'full' || event.pointerType !== 'touch' || (event.target as HTMLElement).closest('button,input,select')) return;
-    gestureMovedRef.current = false;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const kind = event.clientX < rect.left + rect.width / 2 ? 'brightness' : 'volume';
-    gestureRef.current = { pointerId: event.pointerId, y: event.clientY, value: kind === 'brightness' ? brightness : volume, kind };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-  const moveControlGesture = (event: PointerEvent<HTMLDivElement>) => {
-    const gesture = gestureRef.current;
-    if (!gesture || gesture.pointerId !== event.pointerId) return;
-    if (Math.abs(event.clientY - gesture.y) > 8) gestureMovedRef.current = true;
-    const next = Math.max(0, Math.min(1, gesture.value + (gesture.y - event.clientY) / 220));
-    if (gesture.kind === 'brightness') setBrightness(next);
-    else setVolume(next);
-    setGestureLabel(`${gesture.kind === 'brightness' ? 'Brightness' : 'Volume'} ${Math.round(next * 100)}%`);
-    if (gestureTimer.current) window.clearTimeout(gestureTimer.current);
-    gestureTimer.current = window.setTimeout(() => setGestureLabel(''), 900);
-  };
-  const endControlGesture = () => { gestureRef.current = null; };
+  const endDrag = () => { dragRef.current = null; if (dragRafRef.current !== null) { cancelAnimationFrame(dragRafRef.current); dragRafRef.current = null; } };
   const togglePlayback = () => {
     const video = mediaRef.current;
     if (!video) return;
@@ -269,7 +211,6 @@ export function PlayerOverlay() {
     if (mode !== 'full' || source?.kind !== 'file') return;
     const target = event.target as HTMLElement | null;
     if (target?.closest('button,input,select,textarea,a,label')) return;
-    if (gestureMovedRef.current) { gestureMovedRef.current = false; return; }
     togglePlayback();
   };
   const togglePlaybackRate = () => {
@@ -278,26 +219,14 @@ export function PlayerOverlay() {
     setPlaybackRate(next);
     if (mediaRef.current) mediaRef.current.playbackRate = next;
   };
-  const toggleFullscreen = async () => {
-    if (fallbackFullscreen) { setFallbackFullscreen(false); return; }
-    if (document.fullscreenElement) {
-      try { await document.exitFullscreen(); } catch { setFallbackFullscreen(false); }
-      return;
-    }
-    const target = boxRef.current;
-    if (!target?.requestFullscreen) { setFallbackFullscreen(true); return; }
-    try { await target.requestFullscreen(); }
-    catch { setFallbackFullscreen(true); }
-  };
   const closePlayer = () => {
-    setFallbackFullscreen(false);
-    if (document.fullscreenElement === boxRef.current && document.exitFullscreen) void document.exitFullscreen().catch(() => undefined);
+    if (document.fullscreenElement && document.exitFullscreen) void document.exitFullscreen().catch(() => undefined);
     close();
   };
   return <div className={`episode-player-backdrop${mode === 'mini' ? ' mini' : ''}${playerVisible ? ' hn-open' : ''}`} role={mode === 'mini' ? undefined : 'presentation'} onMouseDown={event => { if (mode === 'full' && event.target === event.currentTarget) close(); }}>
     <section
       ref={boxRef}
-      className={`episode-player${fallbackFullscreen ? ' player-fs' : ''}${playerVisible ? ' hn-open' : ''}`}
+      className={`episode-player${playerVisible ? ' hn-open' : ''}`}
       data-lg-role="focus"
       role={mode === 'mini' ? undefined : 'dialog'}
       aria-modal={mode === 'mini' ? undefined : true}
@@ -325,8 +254,8 @@ export function PlayerOverlay() {
         <button type="button" className="hn-ghostbtn" onClick={event => { event.stopPropagation(); renderSession.retry(); }}>Coba lagi</button>
       </div> : null}
       {!renderSession.loading && !renderSession.error && source ? <>
-        <div className="episode-player-video" style={{ filter: `brightness(${brightness})`, touchAction: source.kind === 'file' && playerControls ? 'pan-x' : undefined }} onPointerDown={beginControlGesture} onPointerMove={moveControlGesture} onPointerUp={endControlGesture} onPointerCancel={endControlGesture} onClick={toggleFromSurface}>
-          {source.kind === 'file' ? <AdaptiveVideo key={source.url} videoElementRef={mediaRef} src={source.url} poster={renderSession.stream?.poster || renderSession.poster} volume={volume} fit={fit} onTimeUpdate={onTimeUpdate} onPause={event => { setPlaying(false); renderSession.onProgress(event); }} onPlay={() => { setPlaying(true); setAutoplayBlocked(false); }} onCanPlay={() => {
+        <div className="episode-player-video" onClick={toggleFromSurface}>
+          {source.kind === 'file' ? <AdaptiveVideo key={source.url} videoElementRef={mediaRef} src={source.url} poster={renderSession.stream?.poster || renderSession.poster} fit={fit} onTimeUpdate={onTimeUpdate} onPause={event => { setPlaying(false); renderSession.onProgress(event); }} onPlay={() => { setPlaying(true); setAutoplayBlocked(false); }} onCanPlay={() => {
             if (autoplayAttemptRef.current) return;
             autoplayAttemptRef.current = true;
             const video = mediaRef.current;
@@ -353,11 +282,9 @@ export function PlayerOverlay() {
             </div>
             <input aria-label="Posisi video" type="range" min="0" max={duration || 1} step="1" value={Math.min(playhead, duration || 0)} onChange={event => { const value = Number(event.target.value); setPlayhead(value); if (mediaRef.current) mediaRef.current.currentTime = value; }} />
           </div> : null}
-          {mode === 'full' ? <div className="player-video-top-controls" onPointerDown={event => event.stopPropagation()}>
-            {source.kind === 'file' ? <button type="button" aria-label={fit === 'contain' ? 'Penuhi video' : 'Sesuaikan video'} onClick={() => setFit(value => value === 'contain' ? 'cover' : 'contain')}><span className="player-fit-icon" />{fit === 'contain' ? 'Fit' : 'Fill'}</button> : null}
-            <button type="button" aria-label={isFullscreen || fallbackFullscreen ? 'Keluar layar penuh' : 'Layar penuh'} onClick={() => void toggleFullscreen()}><Icon name={isFullscreen || fallbackFullscreen ? 'collapse' : 'expand'} size={22} /></button>
+          {mode === 'full' && source.kind === 'file' ? <div className="player-video-top-controls" onPointerDown={event => event.stopPropagation()}>
+            <button type="button" aria-label={fit === 'contain' ? 'Penuhi video' : 'Sesuaikan video'} onClick={() => setFit(value => value === 'contain' ? 'cover' : 'contain')}><span className="player-fit-icon" />{fit === 'contain' ? 'Fit' : 'Fill'}</button>
           </div> : null}
-          {gestureLabel ? <span className="player-gesture-status" role="status">{gestureLabel}</span> : null}
         </div>
         {source.kind === 'embed' && sources.length === 1 ? <div className="episode-player-source"><span>Pemutar provider</span><strong>{providerName(source.provider)} · {source.label}</strong></div> : null}
         {sources.length > 1 ? <button type="button" className="episode-player-source" onClick={() => setQualitiesOpen(true)}><span>Sumber aktif</span><strong>{providerName(source.provider)} · {source.label}　⌄</strong></button> : null}

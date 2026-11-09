@@ -85,6 +85,7 @@ export function usePlayerGestures({ mediaRef, containerRef, enabled, onSingleTap
   const rafRef = useRef<number | null>(null);
   const pendingMoveRef = useRef<{ dx: number; dy: number; x: number; y: number } | null>(null);
   const hideControlsTimerRef = useRef<number | null>(null);
+  const lastTapHandledAtRef = useRef(0);
   const brightnessLevelRef = useRef(BRIGHTNESS_AUTO);
   const volumeRef = useRef(100);
   const scaleRef = useRef(1);
@@ -514,6 +515,7 @@ export function usePlayerGestures({ mediaRef, containerRef, enabled, onSingleTap
 
     if (!g.moved && totalMove < C.slopPx && durationMs < 500) {
       // Tap.
+      lastTapHandledAtRef.current = Date.now();
       const container = containerRef.current;
       const rect = container?.getBoundingClientRect();
       const tapX = rect ? event.clientX - rect.left : 0;
@@ -573,6 +575,8 @@ export function usePlayerGestures({ mediaRef, containerRef, enabled, onSingleTap
     }
   }, [enabled, resetGestures]);
 
+  const wasRecentTap = useCallback(() => Date.now() - lastTapHandledAtRef.current < 700, []);
+
   const brightnessPercent = brightnessLevel <= BRIGHTNESS_AUTO
     ? 100
     : Math.round((Math.min(BRIGHTNESS_MAX_LEVEL, Math.max(0, brightnessLevel)) / BRIGHTNESS_MAX_LEVEL) * 100);
@@ -600,6 +604,7 @@ export function usePlayerGestures({ mediaRef, containerRef, enabled, onSingleTap
     resetZoom,
     resetGestures,
     armControlsAutoHide,
+    wasRecentTap,
     handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel },
   };
 }

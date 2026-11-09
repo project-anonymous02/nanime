@@ -9,6 +9,8 @@ interface VideoGestureSurfaceProps {
   enabled: boolean;
   media: ReactNode;
   controls?: ReactNode;
+  /** Klik sintetis tanpa pointer events (mis. mouse/WebView lama, test). */
+  onSurfaceClick?: () => void;
 }
 
 /**
@@ -21,12 +23,20 @@ interface VideoGestureSurfaceProps {
  * - Single-tap: toggle kontrol (bukan play/pause, agar tidak konflik double-tap).
  * UI indikator memakai Liquid Glass (glass hanya di lapisan overlay).
  */
-export function VideoGestureSurface({ containerRef, gestures, enabled, media, controls }: VideoGestureSurfaceProps) {
+export function VideoGestureSurface({ containerRef, gestures, enabled, media, controls, onSurfaceClick }: VideoGestureSurfaceProps) {
   return (
     <div
       ref={containerRef}
       className={`episode-player-video player-gesture-surface${gestures.locked ? ' player-gesture-surface--locked' : ''}`}
       {...gestures.handlers}
+      onClick={event => {
+        // Klik yang mengikuti pointer-tap sudah ditangani jalur gesture
+        // (koordinasi wasRecentTap); hanya klik tanpa pointer yang diproses.
+        if (gestures.locked || !enabled) return;
+        if (gestures.wasRecentTap()) return;
+        if ((event.target as HTMLElement | null)?.closest('button, input, select, textarea, a, label')) return;
+        onSurfaceClick?.();
+      }}
       data-phase={gestures.phase}
       data-locked={gestures.locked ? 'true' : 'false'}
     >

@@ -134,7 +134,7 @@ export function PlayerOverlay() {
   }, []);
   const gesturesEnabled = mode === 'full' && !!session && !session.loading && !session.error
     && (sources[session.sourceIndex] ?? sources[0])?.kind === 'file';
-  const gestures = usePlayerGestures({ mediaRef, containerRef: gestureContainerRef, enabled: gesturesEnabled, onTogglePlay: togglePlayback });
+  const gestures = usePlayerGestures({ mediaRef, containerRef: gestureContainerRef, enabled: gesturesEnabled, onTogglePlay: togglePlayback, onSingleTap: togglePlayback });
 
   const onTimeUpdate = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
     const nextPosition = event.currentTarget.currentTime || 0;
@@ -370,6 +370,7 @@ export function PlayerOverlay() {
           containerRef={gestureContainerRef}
           gestures={gestures}
           enabled={gesturesEnabled}
+          onSurfaceClick={togglePlayback}
           media={source.kind === 'file' ? <AdaptiveVideo key={source.url} videoElementRef={mediaRef} src={source.url} poster={renderSession.stream?.poster || renderSession.poster} fit={fit} filter={gestures.videoFilter} onTimeUpdate={onTimeUpdate} onPause={event => { setPlaying(false); renderSession.onProgress(event); /* volume gesture: sinkronkan indikator saat autoplay-muted mengatur muted */ }} onPlay={() => { setPlaying(true); setAutoplayBlocked(false); }} onCanPlay={() => {
             if (autoplayAttemptRef.current) return;
             autoplayAttemptRef.current = true;

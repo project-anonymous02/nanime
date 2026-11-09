@@ -38,11 +38,12 @@ export const profile = {
       ? ('username' in (existing || {}) ? 'username' : 'display_name')
       : 'username';
     const currentName = String(existing?.[nameColumn] || '').trim();
+    const googleName = String(info.name || '').trim();
     const row: Record<string, unknown> = {
       [key]: userId,
       avatar_url: info.avatar || existing?.avatar_url || null
     };
-    const name = currentName || String(info.name || '').trim();
+    const name = googleName || currentName;
     if (name) row[nameColumn] = name;
     const { error } = await sb.from('profiles').upsert(row, { onConflict: key });
     if (error) throw error;

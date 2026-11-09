@@ -346,3 +346,37 @@
     border-color: rgba(0, 0, 0, 0.35);
   }
 }
+
+/* ═══ Dark Liquid UI — hanya shadow & focus ring gelap; material via tokens ═══ */
+[data-theme='dark'] .hn-pagehead.scrolled,
+[data-theme='dark'] .hn-homehead.scrolled {
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+}
+[data-theme='dark'] .hn-detail-bar[data-stuck='true'] {
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+}
+[data-theme='dark'] .hn-input:focus,
+[data-theme='dark'] .hn-textarea:focus,
+[data-theme='dark'] .hn-select:focus,
+[data-theme='dark'] .hn-chatinput:focus {
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.28);
+}
+[data-theme='dark'] .hn-bottomnav.lg-surface {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+[data-theme='dark'] .hn-bottomnav.lg-surface[data-scrolled='true'] {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+@media (prefers-contrast: more) {
+  [data-theme='dark'] .hn-bottomnav,
+  [data-theme='dark'] .hn-pagehead,
+  [data-theme='dark'] .hn-homehead,
+  [data-theme='dark'] .hn-searchpin > button,
+  [data-theme='dark'] .hn-sheet,
+  [data-theme='dark'] .hn-toast,
+  [data-theme='dark'] .hn-chatbar,
+  [data-theme='dark'] .episode-player,
+  [data-theme='dark'] .player-download-sheet {
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+}

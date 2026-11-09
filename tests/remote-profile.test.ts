@@ -27,7 +27,7 @@ describe('remote profile schema compatibility', () => {
     });
     await expect(profile.pull('u1')).resolves.toEqual({ userId: 'u1', email: 'private', name: 'Aiko', avatar: 'https://img.test/a.jpg', updatedAt: 0 });
     await profile.upsert('u1', { email: 'private', name: 'New name', avatar: null });
-    expect(mocks.upsert).toHaveBeenCalledWith({ user_id: 'u1', avatar_url: 'https://img.test/a.jpg', display_name: 'Aiko' }, { onConflict: 'user_id' });
+    expect(mocks.upsert).toHaveBeenCalledWith({ user_id: 'u1', avatar_url: 'https://img.test/a.jpg', display_name: 'New name' }, { onConflict: 'user_id' });
     expect(JSON.stringify(mocks.upsert.mock.calls)).not.toContain('watch_seconds');
   });
 
@@ -36,5 +36,10 @@ describe('remote profile schema compatibility', () => {
     await profile.upsert('u1', { email: null, name: 'Aiko', avatar: 'https://img.test/a.jpg' });
     expect(mocks.upsert).toHaveBeenCalledWith({ id: 'u1', avatar_url: 'https://img.test/a.jpg', username: 'Aiko' }, { onConflict: 'id' });
     expect(JSON.stringify(mocks.upsert.mock.calls)).not.toContain('rank');
+  });
+  it('falls back to the stored name when Google provides none', async () => {
+    configureProfileRows({ id: { data: { id: 'u1', username: 'Aiko', avatar_url: null }, error: null } });
+    await profile.upsert('u1', { email: null, name: null, avatar: null });
+    expect(mocks.upsert).toHaveBeenCalledWith({ id: 'u1', avatar_url: null, username: 'Aiko' }, { onConflict: 'id' });
   });
 });

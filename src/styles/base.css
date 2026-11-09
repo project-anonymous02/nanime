@@ -29,9 +29,20 @@ html {
   height: 100%;
 }
 
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
 body {
   min-height: 100dvh;
   overflow-x: hidden;
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    transition: none;
+  }
 }
 
 #root {

@@ -83,6 +83,20 @@ export function PublicChat() {
     return () => { alive = false; if (pendingTimer) window.clearTimeout(pendingTimer); if (activeIdRef.current === active.id) activeIdRef.current = null; setConnected(false); void sb.removeChannel(channel); };
   }, [active?.id, refreshMessages]);
 
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && active?.id) {
+        void refreshMessages(active.id).catch(() => undefined);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [active?.id, refreshMessages]);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const nearBottomRef = useRef(true);
   const onChatScroll = useCallback(() => {

@@ -3,17 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { CacheManager } from '../core/services/CacheManager';
 import { useAuth, signOutUser } from '../state/auth';
 import { useLibrary } from '../state/library';
+import { useTheme } from '../state/theme';
 import { toast } from '../state/ui';
 import { ConfirmModal } from '../ui/Sheet';
 import { Icon } from '../ui/icons';
 
-/** Pengaturan — profil, penyimpanan, aplikasi. */
+/** Pengaturan — profil, penyimpanan, tampilan, aplikasi. */
 
 export function Settings() {
   const navigate = useNavigate();
   const user = useAuth(s => s.user);
   const favorites = useLibrary(s => s.favorites);
   const history = useLibrary(s => s.history);
+  const theme = useTheme(s => s.theme);
+  const setTheme = useTheme(s => s.setTheme);
   const [confirmOut, setConfirmOut] = useState(false);
   const [cacheMb, setCacheMb] = useState('0.0');
 
@@ -115,6 +118,40 @@ export function Settings() {
           <span className="hn-menuitem-icon"><Icon name="star" size={16} /></span>
           <span style={{ color: 'var(--text-primary)' }}>Developer</span>
           <span className="hn-menuitem-badge">Nata</span>
+        </div>
+      </div>
+
+      <div className="hn-section-head"><span className="hn-section-title">Tampilan</span></div>
+      <div className="hn-menulist">
+        <div className="hn-menuitem" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="hn-menuitem-icon"><Icon name="palette" size={16} /></span>
+            <span style={{ color: 'var(--text-primary)' }}>Tema</span>
+          </span>
+          <div className="hn-theme-picker" role="radiogroup" aria-label="Tema">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={theme === 'light'}
+              aria-label="Tema terang"
+              className={`hn-chip${theme === 'light' ? ' hn-active' : ''}`}
+              onClick={() => setTheme('light')}
+              style={{ minHeight: 44 }}
+            >
+              Terang
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={theme === 'dark'}
+              aria-label="Tema gelap"
+              className={`hn-chip${theme === 'dark' ? ' hn-active' : ''}`}
+              onClick={() => setTheme('dark')}
+              style={{ minHeight: 44 }}
+            >
+              Gelap
+            </button>
+          </div>
         </div>
       </div>
 

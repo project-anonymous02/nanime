@@ -561,3 +561,105 @@
 .episode-player-backdrop:not(.mini) .episode-player:fullscreen .episode-player-source { display: none; }
 .episode-player-backdrop:not(.mini) .episode-player.player-fs .player-video-top-controls,
 .episode-player-backdrop:not(.mini) .episode-player:fullscreen .player-video-top-controls { top: max(10px, env(safe-area-inset-top)); }
+
+/* ── Theme transition: hanya background/color/border 220ms, bukan animasi navigasi.
+   Transisi ditambahkan ke shell (bukan global *) agar animasi existing tetap utuh. */
+.hn-shell {
+  transition: background-color 220ms ease, color 220ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hn-shell { transition: none; }
+}
+
+/* Segmented theme picker di Settings (pakai ulang .hn-chip existing). */
+.hn-theme-picker {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.hn-theme-picker .hn-chip {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+}
+
+/* ═══ Dark Liquid UI — audit hardcoded di atas (Light Mode tidak diubah) ═══ */
+[data-theme='dark'] .hn-bottomnav-pill {
+  background: rgba(10, 132, 255, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+[data-theme='dark'] .hn-back,
+[data-theme='dark'] .hn-iconbtn {
+  background: rgba(28, 28, 30, 0.8);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+[data-theme='dark'] .hn-ghostbtn {
+  background: rgba(28, 28, 30, 0.8);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+[data-theme='dark'] .hn-dangerbtn {
+  background: rgba(255, 69, 58, 0.14);
+}
+[data-theme='dark'] .hn-chip {
+  background: rgba(255, 255, 255, 0.08);
+}
+[data-theme='dark'] .hn-datetab {
+  background: rgba(255, 255, 255, 0.08);
+}
+[data-theme='dark'] .hn-chip.hn-active {
+  background: #FFFFFF;
+  color: #000000;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+[data-theme='dark'] .hn-datetab.hn-active {
+  background: #FFFFFF;
+  color: #000000;
+}
+[data-theme='dark'] .hn-avatar-fallback {
+  background: rgba(255, 255, 255, 0.08);
+}
+[data-theme='dark'] .hn-state-icon {
+  background: rgba(255, 255, 255, 0.08);
+}
+[data-theme='dark'] .hn-menuitem-icon {
+  background: rgba(255, 255, 255, 0.08);
+}
+[data-theme='dark'] .episode-player-source strong {
+  background: rgba(255, 255, 255, 0.08);
+}
+[data-theme='dark'] .hn-chat-reply {
+  background: rgba(10, 132, 255, 0.16);
+}
+[data-theme='dark'] .player-quality-option.selected {
+  background: rgba(10, 132, 255, 0.16);
+}
+[data-theme='dark'] .hn-sheetmask {
+  background: rgba(0, 0, 0, 0.6);
+}
+[data-theme='dark'] .episode-player-backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+[data-theme='dark'] .hn-skel::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+}
+[data-theme='dark'] .hn-chatinput::placeholder,
+[data-theme='dark'] .hn-searchinput::placeholder,
+[data-theme='dark'] .hn-input::placeholder,
+[data-theme='dark'] .hn-textarea::placeholder,
+[data-theme='dark'] .hn-select::placeholder {
+  color: #98989F;
+}
+[data-theme='dark'] .hn-btn:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+/* Tombol Google sengaja tetap putih di Dark Mode (brand + legibilitas logo). */
+[data-theme='dark'] .hn-gauth {
+  background: #ffffff;
+  color: #171717;
+  border-color: rgba(0, 0, 0, 0.08);
+}

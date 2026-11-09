@@ -10,6 +10,13 @@ describe('usage ranking', () => {
   it('keeps developer above all tiers', () => {
     expect(rankFor(0, true)).toBe('developer');
   });
+  it('maps developer and Eternal II–V to the available eternal art (planning.md)', () => {
+    expect(RANK_META.developer.art).toBe('eternal');
+    expect(RANK_META.eternal2.art).toBe('eternal');
+    expect(RANK_META.eternal3.art).toBe('eternal');
+    expect(RANK_META.eternal4.art).toBe('eternal');
+    expect(RANK_META.eternal5.art).toBe('eternal');
+  });
   it('scales pyramid 10 -> 17h with 14 tiers', () => {
     expect(RANK_TIERS).toHaveLength(14);
     expect(RANK_TIERS[0].minutes).toBe(10);

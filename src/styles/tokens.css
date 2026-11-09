@@ -6,6 +6,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
+  color-scheme: light;
   /* ── Skill neutrals (iOS secondary system background #F2F2F7) ── */
   --bg: #F2F2F7;
   --surface: #ffffff;
@@ -203,11 +204,11 @@
   }
 }
 
-/* ── Dark appearance (iOS system colors). Currently NANIME IS LIGHT-ONLY:
-   nothing sets data-theme="dark". These semantic overrides are the
-   contract for a future dark mode — glass switches to dark neutral tint
-   instead of white, following the adaptive-tint rule. Do not enable
-   without auditing every hardcoded #fff/text token (badges, player, hero). */
+/* ── Dark Liquid UI (iOS system dark colors). Light values di :root tidak
+   diubah; blok ini hanya meng 통해 semantic tokens untuk data-theme="dark".
+   Catatan: badge/hero/player over-media (putih di atas foto/video) sengaja
+   tidak diubah — mereka bukan permukaan aplikasi, melainkan overlay di
+   atas konten berwarna yang intrinsik (poster, video). */
 [data-theme='dark'] {
   color-scheme: dark;
   --bg: #000000;
@@ -218,6 +219,7 @@
   --text-2: #AEAEB2;
   --text-3: #8E8E93;
   --text-4: #636366;
+  --faint: #48484A;
   --hairline: rgba(255,255,255,0.16);
   --track: #2C2C2E;
   --accent: #0A84FF;
@@ -239,4 +241,33 @@
   --text-dim: #8E8E93;
   --border-subtle: rgba(255,255,255,0.16);
   --border-strong: rgba(255,255,255,0.16);
+  --accent-primary: #0A84FF;
+  --accent-primary-hover: #409CFF;
+  --accent-primary-soft: rgba(10,132,255,0.16);
+  --accent-strong: #0A84FF;
+  --accent-cyan: #0A84FF;
+  --accent-pink: #0A84FF;
+  --accent-gold: #E5E5EA;
+  --accent-red: #FF453A;
+  --accent-red-deep: #FF6961;
+  --accent-orange: #FF9F0A;
+  --border-blue: rgba(10,132,255,0.4);
+  --chip-bg: rgba(255,255,255,0.08);
+  --overlay: rgba(0,0,0,0.6);
+  --grad-image: #2C2C2E;
+  --grad-home: #000000;
+  --grad-deep: #1C1C1E;
+  --sh-card: 0 1px 2px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.45);
+  --sh-panel: 0 1px 3px rgba(0,0,0,0.55), 0 14px 40px rgba(0,0,0,0.5);
+  --sh-lift: 0 12px 32px rgba(0,0,0,0.55);
+  --sh-cta: 0 20px 54px rgba(10,132,255,0.28);
+  --sh-overlay: 0 2px 8px rgba(0,0,0,0.5), 0 30px 80px rgba(0,0,0,0.6);
+  --shadow-card: var(--sh-card);
+  --shadow-float: var(--sh-panel);
+  --shadow-sheet: var(--sh-overlay);
+  --lg-tint-sheet: rgba(28,28,30,0.82);
+  --lg-highlight: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04) 34%, rgba(255,255,255,0.02) 58%, rgba(255,255,255,0.07));
+  --lg-highlight-bar: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03) 34%, rgba(255,255,255,0.02) 58%, rgba(255,255,255,0.06));
+  --lg-shadow-glass: var(--sh-panel);
+  --lg-shadow-active: var(--sh-overlay);
 }

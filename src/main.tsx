@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { App } from './App';
 import './styles/app.css';
+import './state/theme';
 
 const host = document.getElementById('root');
 if (host) {

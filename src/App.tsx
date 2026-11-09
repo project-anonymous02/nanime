@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { completeAuthCallback, extractAuthCode, initAuth, useAuth } from './state/auth';
 import { useApp } from './state/app';
+import { applyTheme, useTheme } from './state/theme';
 import { bindNativeDeepLink } from './lib/deeplink';
 import { bindNativeBackButton } from './lib/backButton';
 import { Shell } from './shell/Shell';
@@ -76,6 +77,12 @@ function Gate() {
 }
 
 export function App() {
+  const theme = useTheme(s => s.theme);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
   useEffect(() => {
     void initAuth();
     const unbind = bindNativeDeepLink(url => {

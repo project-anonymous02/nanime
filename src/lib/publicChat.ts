@@ -34,7 +34,8 @@ export async function listPublicChatMessages(channelId: string, limit = 100): Pr
   const people = new Map<string, PublicChatProfile>();
   if (ids.length) {
     const result = await sb.rpc('get_public_profiles', { p_user_ids: ids });
-    if (!result.error) for (const row of (result.data || []) as PublicChatProfile[]) {
+    if (result.error) throw result.error;
+    for (const row of (result.data || []) as PublicChatProfile[]) {
       const developer = Boolean(row.is_developer);
       const rank = rankFor(Number(row.app_usage_seconds) || 0, developer);
       people.set(row.id, {

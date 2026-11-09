@@ -34,15 +34,15 @@ export const RANK_TIERS: RankTierMeta[] = [
   { tier: 'mythic',    label: 'Mythic',     art: 'mythic',    minutes: 360,  color: '#fb7185' },
   { tier: 'celestial', label: 'Celestial',  art: 'celestial', minutes: 450,  color: '#22d3ee' },
   { tier: 'eternal',   label: 'Eternal',    art: 'eternal',   minutes: 550,  color: '#f472b6' },
-  { tier: 'eternal2',  label: 'Eternal II', art: 'eternal2',  minutes: 660,  color: '#e879f9' },
-  { tier: 'eternal3',  label: 'Eternal III',art: 'eternal3',  minutes: 780,  color: '#c084fc' },
-  { tier: 'eternal4',  label: 'Eternal IV', art: 'eternal4',  minutes: 910,  color: '#818cf8' },
-  { tier: 'eternal5',  label: 'Eternal V',  art: 'eternal5',  minutes: 1020, color: '#fda4af' }
+  { tier: 'eternal2',  label: 'Eternal II', art: 'eternal',   minutes: 660,  color: '#e879f9' },
+  { tier: 'eternal3',  label: 'Eternal III',art: 'eternal',   minutes: 780,  color: '#c084fc' },
+  { tier: 'eternal4',  label: 'Eternal IV', art: 'eternal',   minutes: 910,  color: '#818cf8' },
+  { tier: 'eternal5',  label: 'Eternal V',  art: 'eternal',   minutes: 1020, color: '#fda4af' }
 ];
 
 export const RANK_META: Record<RankTier, RankTierMeta> = {
   ...Object.fromEntries(RANK_TIERS.map(t => [t.tier, t])),
-  developer: { tier: 'developer', label: 'Developer', art: 'developer', minutes: RANK_TIERS[RANK_TIERS.length - 1].minutes, color: '#f472b6' }
+  developer: { tier: 'developer', label: 'Developer', art: 'eternal', minutes: RANK_TIERS[RANK_TIERS.length - 1].minutes, color: '#f472b6' }
 } as Record<RankTier, RankTierMeta>;
 
 const ORDER: RankTier[] = [...RANK_TIERS.map(t => t.tier as RankTier), 'developer'];

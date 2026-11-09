@@ -17,11 +17,13 @@ export interface AdaptiveVideoProps {
   volume?: number;
   videoElementRef?: Ref<HTMLVideoElement>;
   fit?: 'contain' | 'cover';
+  /** CSS video-only brightness fallback (bukan screen brightness). 'none' = netral. */
+  filter?: string;
   onError: () => void;
 }
 
 /** Native MP4 playback with HLS.js and dash.js fallback. */
-export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onPlay, onCanPlay, onError, volume = 1, videoElementRef, fit = 'contain' }: AdaptiveVideoProps) {
+export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onPlay, onCanPlay, onError, volume = 1, videoElementRef, fit = 'contain', filter = 'none' }: AdaptiveVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const erroredRef = useRef(false);
   const resetPlaybackWatchdogRef = useRef<() => void>(() => undefined);
@@ -267,6 +269,6 @@ export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onP
     onPlay={onPlay}
     onCanPlay={onCanPlay}
     onError={adaptive ? undefined : reportError}
-    style={{ objectFit: fit }}
+    style={{ objectFit: fit, filter }}
   />;
 }

@@ -330,6 +330,18 @@ describe('player stream rendering guards', () => {
     await act(async () => root.unmount());
   });
 
+  it('offers a landscape fullscreen toggle for direct video (true landscape)', async () => {
+    const css = readFileSync('src/styles/app.css', 'utf8');
+    // Fullscreen video memakai 16:9 + object-fit contain (tidak distorsi)
+    expect(css).toMatch(/\.episode-player:fullscreen \.episode-player-video video[\s\S]*?object-fit: contain/);
+    expect(css).toMatch(/\.episode-player\.player-fs \.episode-player-video video/);
+    const { host, root } = await renderPlayer(DIRECT_STREAM);
+    const toggle = host.querySelector('button[aria-label="Layar penuh"]');
+    expect(toggle).not.toBeNull();
+    expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+    await act(async () => root.unmount());
+  });
+
   it('keeps control layers transparent to hits while their buttons stay clickable', () => {
     const css = readFileSync('src/styles/app.css', 'utf8');
     expect(css).toMatch(/\.episode-player-backdrop:not\(\.mini\) \.player-controls \{[^}]*pointer-events: none/);

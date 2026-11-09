@@ -16,6 +16,7 @@ mkdir -p "$TARGET"
 cp "$SOURCE/MainActivity.java" "$TARGET/MainActivity.java"
 cp "$SOURCE/PictureInPicturePlugin.java" "$TARGET/PictureInPicturePlugin.java"
 cp "$SOURCE/FullscreenPlugin.java" "$TARGET/FullscreenPlugin.java"
+cp "$SOURCE/BrightnessPlugin.java" "$TARGET/BrightnessPlugin.java"
 
 python3 - "$MANIFEST" <<'PY'
 import sys
@@ -30,9 +31,13 @@ activity = xml[start:end]
 for key, value in [('android:supportsPictureInPicture', 'true'), ('android:resizeableActivity', 'true')]:
     if key not in activity:
         activity += f'\n            {key}="{value}"'
+# configChanges: cegah activity recreation (reload video) saat orientasi berubah.
+allowed = "orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+if 'android:configChanges=' not in activity:
+    activity += f'\n            android:configChanges="{allowed}"'
 xml = xml[:start] + activity + xml[end:]
 path.write_text(xml, encoding='utf-8')
 print('✓ dukungan Picture-in-Picture ditambahkan ke activity Nanime')
 PY
 
-echo "✓ native PiP, fullscreen plugin dan MainActivity Nanime dipasang"
+echo "✓ native PiP, fullscreen, brightness plugin dan MainActivity Nanime dipasang"

@@ -30,7 +30,12 @@ export function useScrollReveal(): void {
   useEffect(() => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
-    const targets = document.querySelectorAll<HTMLElement>(REVEAL_SELECTOR);
+    /* `.hn-main-scroll` di-remount per rute (key=pathname), jadi observer
+       dipasang pada `.hn-main` yang stabil. Ini tetap mempersempit scope dari
+       `document.body`: overlay pemutar, sheet, dan bottom nav tidak ikut
+       dipantau. */
+    const host = document.querySelector('.hn-main') ?? document.body;
+    const targets = host.querySelectorAll<HTMLElement>(REVEAL_SELECTOR);
 
     if (!hasRevealSupport()) {
       targets.forEach(element => element.classList.add('hn-reveal', 'hn-revealed'));
@@ -84,21 +89,41 @@ export function useScrollReveal(): void {
     }
 
     targets.forEach(bind);
-    prepare(document.body);
+    prepare(host);
+
+    /* Mutation batch di-flush sekali per frame; render beruntun (mis. daftar
+       panjang) tidak memicu querySelectorAll berulang per record. */
+    const pendingAdded = new Set<Element>();
+    const pendingRemoved = new Set<Element>();
+    let frame: number | null = null;
+
+    const flush = () => {
+      frame = null;
+      pendingRemoved.forEach(node => {
+        if (!node.isConnected) forget(node);
+      });
+      pendingAdded.forEach(node => {
+        if (node.isConnected) prepare(node);
+      });
+      pendingAdded.clear();
+      pendingRemoved.clear();
+    };
 
     const mutations = new MutationObserver(records => {
       for (const record of records) {
         record.addedNodes.forEach(node => {
-          if (node.nodeType === Node.ELEMENT_NODE) prepare(node as Element);
+          if (node.nodeType === Node.ELEMENT_NODE) pendingAdded.add(node as Element);
         });
         record.removedNodes.forEach(node => {
-          if (node.nodeType === Node.ELEMENT_NODE) forget(node);
+          if (node.nodeType === Node.ELEMENT_NODE) pendingRemoved.add(node as Element);
         });
       }
+      if (frame === null) frame = requestAnimationFrame(flush);
     });
-    mutations.observe(document.body, { childList: true, subtree: true });
+    mutations.observe(host, { childList: true, subtree: true });
 
     return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
       mutations.disconnect();
       observer.disconnect();
     };

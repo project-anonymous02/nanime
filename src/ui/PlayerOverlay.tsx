@@ -11,6 +11,7 @@ import { useMaterialize } from './Sheet';
 import { restoreNativeBrightness } from '../lib/nativeBrightness';
 import { usePlayerGestures } from './usePlayerGestures';
 import { VideoGestureSurface } from './VideoGestureSurface';
+import { PlayerSeekBar, PlayerTimeLabel } from './PlayerTimeline';
 
 interface PlayableSource { label: string; provider: string; url: string; kind: 'file' | 'embed'; quality?: string }
 
@@ -36,13 +37,20 @@ export function playableSourcesFrom(stream?: Partial<StreamBundle> | null): Play
   const qualityUrls = new Set(qualitySources.map(source => source.url));
   const serverSources = servers.flatMap((raw): PlayableSource[] => {
     if (!raw || typeof raw !== 'object') return [];
-    const item = raw as { url?: unknown; label?: unknown; providerRef?: unknown; quality?: unknown };
+    const item = raw as { url?: unknown; label?: unknown; providerRef?: unknown; quality?: unknown; kind?: unknown };
     if (typeof item.url !== 'string' || !isHttpUrl(item.url) || qualityUrls.has(item.url)) return [];
+    // Prefer the per-server classification from the resolver. The extension
+    // heuristic only covers old cache rows that predate server.kind.
+    const kind: PlayableSource['kind'] = item.kind === 'file' || item.kind === 'embed'
+      ? item.kind
+      : stream?.sourceKind === 'direct-media' && /\.(?:m3u8|mp4|webm|mov|mpd)(?:[?#]|$)/i.test(item.url)
+        ? 'file'
+        : 'embed';
     return [{
       label: typeof item.label === 'string' && item.label ? item.label : 'Server video',
       provider: typeof item.providerRef === 'string' ? item.providerRef : '',
       url: item.url,
-      kind: stream?.sourceKind === 'direct-media' && /\.(?:m3u8|mp4|webm|mov|mpd)(?:[?#]|$)/i.test(item.url) ? 'file' : 'embed',
+      kind,
       quality: typeof item.quality === 'string' ? item.quality : undefined
     }];
   });
@@ -103,8 +111,7 @@ export function PlayerOverlay() {
     else update(current.request, { error: 'Browser tidak dapat memutar sumber ini. Coba server lain atau episode berikutnya.' });
   }, [sources, update]);
   const dragRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
-  const dragRafRef = useRef<number | null>(null);
-  const dragPendingRef = useRef<{ left: number; top: number } | null>(null);
+  const dragTargetRef = useRef<{ left: number; top: number } | null>(null);
   const didMoveRef = useRef(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const [downloadsOpen, setDownloadsOpen] = useState(false);
@@ -117,8 +124,6 @@ export function PlayerOverlay() {
   const isFullscreenRef = useRef(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [mutedAutoplay, setMutedAutoplay] = useState(false);
-  const [playhead, setPlayhead] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [fit, setFit] = useState<'contain' | 'cover'>('contain');
   const [playbackRate, setPlaybackRate] = useState(1);
   const mediaRef = useRef<HTMLVideoElement | null>(null);
@@ -137,10 +142,6 @@ export function PlayerOverlay() {
   const gestures = usePlayerGestures({ mediaRef, containerRef: gestureContainerRef, enabled: gesturesEnabled, onTogglePlay: togglePlayback, onSingleTap: togglePlayback });
 
   const onTimeUpdate = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
-    const nextPosition = event.currentTarget.currentTime || 0;
-    const nextDuration = Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0;
-    setPlayhead(current => Math.floor(current) === Math.floor(nextPosition) ? current : nextPosition);
-    setDuration(current => current === nextDuration ? current : nextDuration);
     session?.onProgress(event);
   }, [session?.onProgress]);
 
@@ -159,7 +160,7 @@ export function PlayerOverlay() {
     return () => setNativePipActive(false);
   }, [session?.request, session?.loading, session?.error, session?.stream?.sourceKind, session?.title, session?.episode, playing]);
   useEffect(() => { if (mode === 'mini') setDownloadsOpen(false); }, [mode]);
-  useEffect(() => { setPlayhead(0); setDuration(0); setPlaying(false); setAutoplayBlocked(false); setMutedAutoplay(false); setPlaybackRate(1); autoplayAttemptRef.current = false; }, [session?.request]);
+  useEffect(() => { setPlaying(false); setAutoplayBlocked(false); setMutedAutoplay(false); setPlaybackRate(1); autoplayAttemptRef.current = false; }, [session?.request]);
   const tryLockLandscape = useCallback(async () => {
     try {
       const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
@@ -294,27 +295,36 @@ export function PlayerOverlay() {
     if (!rect) return;
     didMoveRef.current = false;
     dragRef.current = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+    dragTargetRef.current = { left: rect.left, top: rect.top };
+    if (boxRef.current) boxRef.current.style.willChange = 'transform';
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const moveDrag = (event: PointerEvent<HTMLElement>) => {
     const drag = dragRef.current;
-    if (!drag) return;
-    if (Math.abs(event.clientX - drag.x) + Math.abs(event.clientY - drag.y) > 5) didMoveRef.current = true;
     const box = boxRef.current;
-    const width = box?.offsetWidth || 260;
-    const height = box?.offsetHeight || 180;
-    dragPendingRef.current = {
-      left: Math.max(8, Math.min(window.innerWidth - width - 8, drag.left + event.clientX - drag.x)),
-      top: Math.max(8, Math.min(window.innerHeight - height - 8, drag.top + event.clientY - drag.y))
-    };
-    if (dragRafRef.current !== null) return;
-    dragRafRef.current = requestAnimationFrame(() => {
-      dragRafRef.current = null;
-      const next = dragPendingRef.current;
-      if (next) setPosition(next);
-    });
+    if (!drag || !box) return;
+    if (Math.abs(event.clientX - drag.x) + Math.abs(event.clientY - drag.y) > 5) didMoveRef.current = true;
+    const width = box.offsetWidth || 260;
+    const height = box.offsetHeight || 180;
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, drag.left + event.clientX - drag.x));
+    const top = Math.max(8, Math.min(window.innerHeight - height - 8, drag.top + event.clientY - drag.y));
+    dragTargetRef.current = { left, top };
+    /* Selama drag hanya tulis transform (compositor-only); React baru
+       menerima posisi akhir saat pointerup agar tidak re-render per frame. */
+    box.style.transform = `translate3d(${left - drag.left}px, ${top - drag.top}px, 0)`;
   };
-  const endDrag = () => { dragRef.current = null; if (dragRafRef.current !== null) { cancelAnimationFrame(dragRafRef.current); dragRafRef.current = null; } };
+  const endDrag = () => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    const box = boxRef.current;
+    const target = dragTargetRef.current;
+    dragTargetRef.current = null;
+    if (box) {
+      box.style.transform = '';
+      box.style.willChange = '';
+    }
+    if (target) setPosition(target);
+  };
   const enableAutoplayAudio = () => {
     const video = mediaRef.current;
     if (!video) return;
@@ -389,15 +399,15 @@ export function PlayerOverlay() {
               <button type="button" aria-label="Episode sebelumnya" disabled={!renderSession.onPrevious} onClick={() => renderSession.onPrevious?.()}><Icon name="skipPrev" size={19} /></button>
               <button type="button" aria-label="Mundur 10 detik" onClick={() => { if (mediaRef.current) mediaRef.current.currentTime = Math.max(0, mediaRef.current.currentTime - 10); }}><Icon name="seekBack" size={25} /></button>
               <button type="button" className="player-play" aria-label={playing ? 'Jeda video' : 'Putar video'} onClick={togglePlayback}><Icon name={playing ? 'pause' : 'play'} size={24} /></button>
-              <button type="button" aria-label="Maju 10 detik" onClick={() => { if (mediaRef.current) mediaRef.current.currentTime = Math.min(duration || Infinity, mediaRef.current.currentTime + 10); }}><Icon name="seekFwd" size={25} /></button>
+              <button type="button" aria-label="Maju 10 detik" onClick={() => { const video = mediaRef.current; if (video) video.currentTime = Math.min(Number.isFinite(video.duration) ? video.duration : Infinity, video.currentTime + 10); }}><Icon name="seekFwd" size={25} /></button>
               <button type="button" aria-label="Episode berikutnya" disabled={!renderSession.onNext} onClick={() => renderSession.onNext?.()}><Icon name="skipNext" size={19} /></button>
             </div>
             <div className="player-control-meta">
-              <span className="player-time">{clockTime(playhead)} / {clockTime(duration)}</span>
+              <PlayerTimeLabel key={source.url} mediaRef={mediaRef} />
               {sources.length > 1 ? <button type="button" onClick={() => setQualitiesOpen(true)} aria-label="Pilih kualitas atau sumber video">{sources[renderSession.sourceIndex]?.label || 'Sumber'}<Icon name="down" size={12} /></button> : null}
               <button type="button" onClick={togglePlaybackRate} aria-label="Kecepatan pemutaran">{playbackRate}x</button>
             </div>
-            <input aria-label="Posisi video" type="range" min="0" max={duration || 1} step="1" value={Math.min(playhead, duration || 0)} onChange={event => { const value = Number(event.target.value); setPlayhead(value); if (mediaRef.current) mediaRef.current.currentTime = value; }} />
+            <PlayerSeekBar key={source.url} mediaRef={mediaRef} />
           </div> : null}
           {mode === 'full' && source.kind === 'file' && !gestures.locked ? <div className="player-video-top-controls" onPointerDown={event => event.stopPropagation()}>
             <button type="button" aria-label={isFullscreen ? 'Keluar layar penuh' : 'Layar penuh'} aria-pressed={isFullscreen} onClick={() => { void (isFullscreen ? exitPlayerFullscreen() : enterPlayerFullscreen()); }}><Icon name={isFullscreen ? 'collapse' : 'fullscreen'} size={20} /></button>
@@ -435,11 +445,6 @@ export function PlayerOverlay() {
 
 function isHttpUrl(value: string): boolean {
   return isTrustedExternalUrl(value);
-}
-
-function clockTime(value: number): string {
-  const seconds = Math.max(0, Math.floor(value || 0));
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 function qualityGroups(sources: PlayableSource[]): { label: string; items: { item: PlayableSource; index: number }[] }[] {

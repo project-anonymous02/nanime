@@ -58,8 +58,10 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
     const provider = entry.provider;
 
     if (st.playerUrl) {
-      const directMedia = isVideoUrl(st.playerUrl);
       const primary = (st.servers || []).find(server => server.id === st.playerUrl);
+      // Resolver (FallbackEngine) adalah sumber kebenaran klasifikasi; regex
+      // ekstensi hanya fallback untuk baris cache lama tanpa metadata kind.
+      const directMedia = (primary?.kind ?? (isVideoUrl(st.playerUrl) ? 'file' : 'embed')) === 'file';
       const label = directMedia
         ? guessQuality(st.playerUrl) || guessQuality(primary?.quality || '') || guessQuality(st.title || '')
         : null;
@@ -73,7 +75,8 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
           url: st.playerUrl,
           providerRef: provider,
           isDefault: idx === 0,
-          quality: label || undefined
+          quality: label || undefined,
+          kind: directMedia ? 'file' : 'embed'
         });
       }
     }
@@ -83,7 +86,8 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
       if (seenServer.has(ref)) return;
       seenServer.add(ref);
       const label = guessQuality(s.quality || s.name || '') || guessQuality(s.id || '');
-      const directMedia = isVideoUrl(s.id || '');
+      const kind = s.kind ?? (isVideoUrl(s.id || '') ? 'file' : 'embed');
+      const directMedia = kind === 'file';
       if (label && directMedia) {
         put(label, {
           url: s.id,
@@ -98,7 +102,8 @@ export function buildForcedQualities(input: NormalizeInput): NormalizeOutput {
         label: s.name || 'Server ' + (si + 1),
         url: /^https?:\/\//i.test(s.id || '') ? s.id : '',
         providerRef: provider,
-        quality: label && (directMedia || (st.sourceKind === 'embed-page' && /^https?:\/\//i.test(s.id || ''))) ? label : undefined
+        quality: label && (directMedia || (st.sourceKind === 'embed-page' && /^https?:\/\//i.test(s.id || ''))) ? label : undefined,
+        kind
       });
     });
   });

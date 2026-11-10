@@ -17,7 +17,7 @@
   100% { scale: 1; }
 }
 .hn-bottomnav-item.hn-active .hn-bottomnav-icon {
-  animation: hn-symbol-pop 460ms var(--spring-snappy) both;
+  animation: hn-symbol-pop 480ms var(--ease-nav) both;
 }
 
 /* ── 2. Page transition ────────────────────────────────────────────────────

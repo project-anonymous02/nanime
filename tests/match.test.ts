@@ -91,8 +91,7 @@ describe('buildForcedQualities — hanya kualitas yang benar-benar tersedia', ()
     expect(out.servers[1].quality).toBeUndefined();
   });
 
-  it('tidak pernah menaikkan halaman embed menjadi kualitas direct-media pada stream campuran', () => {
-    const out = buildForcedQualities({
+  it('tidak pernah menaikkan halaman embed menjadi kualitas direct-media pada stream campuran', () => {    const out = buildForcedQualities({
       streams: [{
         provider: 'otakudesu',
         stream: stream({
@@ -110,5 +109,25 @@ describe('buildForcedQualities — hanya kualitas yang benar-benar tersedia', ()
 
     expect(out.qualities.map(q => q.source?.url)).toEqual(['https://cdn.test/480.mp4']);
     expect(out.qualities[0]?.source?.kind).toBe('file');
+  });
+
+  it('memakai metadata kind per server dari resolver, bukan hanya ekstensi URL', () => {
+    const out = buildForcedQualities({
+      streams: [{
+        provider: 'p',
+        stream: stream({
+          playerUrl: 'https://cdn.test/stream?id=1',
+          title: 'Episode 1',
+          servers: [
+            { name: 'Signed file', id: 'https://cdn.test/stream?id=1', kind: 'file' },
+            { name: 'Embed', id: 'https://embed.test/watch.mp4', kind: 'embed' }
+          ]
+        })
+      }],
+      downloads: []
+    });
+
+    expect(out.servers.map(server => server.kind)).toEqual(['file', 'embed']);
+    expect(out.qualities).toEqual([]);
   });
 });

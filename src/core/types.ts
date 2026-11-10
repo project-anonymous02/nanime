@@ -75,6 +75,9 @@ export interface StreamServer {
   id: string;
   quality?: string;
   def?: boolean;
+  /** Klasifikasi per-server: file media langsung atau halaman embed. */
+  kind?: 'file' | 'embed';
+  mime?: string;
 }
 
 export interface Stream {
@@ -381,6 +384,8 @@ export interface StreamServerRef {
   providerRef: string;
   isDefault?: boolean;
   quality?: QualityLabel;
+  /** Klasifikasi per-server yang dibawa dari resolver. */
+  kind?: 'file' | 'embed';
 }
 
 export interface DownloadGroup {

@@ -42,6 +42,14 @@ export interface HttpProbeResult {
   url: string;
 }
 
+export interface HttpRangeProbeResult {
+  status: number;
+  contentType: string;
+  url: string;
+  /** First bytes of the body as latin1 text, used for media signature checks. */
+  prefix: string;
+}
+
 export interface HttpOpts {
   timeout?: number;
   retries?: number;
@@ -174,6 +182,76 @@ export async function httpProbe(url: string, timeout = 6000): Promise<HttpProbeR
         headers: { Accept: 'video/*,application/vnd.apple.mpegurl,application/x-mpegURL,application/dash+xml,*/*;q=0.5' }
       });
       return { status: res.status, contentType: (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase(), url: res.url || parsed.href };
+    } finally { clearTimeout(timer); }
+  } catch (error: any) {
+    throw classifyError(error);
+  }
+}
+
+/**
+ * Probe a media target with a short ranged GET. Some hosts reject HEAD
+ * (403/404/405/501) while still serving GET, so a failed HEAD alone does not
+ * prove the URL is unusable. Only a couple of KB are read; the body is
+ * cancelled immediately afterwards.
+ */
+export async function httpRangeProbe(url: string, timeout = 5000): Promise<HttpRangeProbeResult> {
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { throw new NetError('URL sumber tidak valid.', 'parse'); }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new NetError('Skema URL sumber tidak didukung.', 'parse');
+  const headers = {
+    Range: 'bytes=0-2047',
+    Accept: 'video/*,application/vnd.apple.mpegurl,application/x-mpegURL,application/dash+xml,*/*;q=0.5'
+  };
+  try {
+    if (isNative()) {
+      // CapacitorHttp cannot stream a partial body. Providers that honour Range
+      // answer with 206 + a small body; if they ignore it, the short timeout
+      // aborts the request and the caller treats the result as inconclusive.
+      const res = await CapacitorHttp.request({
+        url: parsed.href,
+        method: 'GET',
+        headers,
+        connectTimeout: timeout,
+        readTimeout: timeout
+      });
+      const headerMap = Object.fromEntries(Object.entries(res.headers || {}).map(([key, value]) => [key.toLowerCase(), String(value)]));
+      const data = typeof res.data === 'string' ? res.data : '';
+      return {
+        status: Number(res.status || 0),
+        contentType: headerMap['content-type']?.split(';')[0].trim().toLowerCase() || '',
+        url: parsed.href,
+        prefix: data.slice(0, 2048)
+      };
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(parsed.href, {
+        method: 'GET',
+        redirect: 'follow',
+        credentials: 'omit',
+        signal: controller.signal,
+        headers
+      });
+      let prefix = '';
+      try {
+        const reader = res.body?.getReader();
+        if (reader) {
+          const chunk = await reader.read();
+          if (chunk.value?.length) {
+            prefix = Array.from(chunk.value.subarray(0, 2048)).map(byte => String.fromCharCode(byte)).join('');
+          }
+          await reader.cancel();
+        }
+      } catch {
+        /* body not readable (opaque/aborted) */
+      }
+      return {
+        status: res.status,
+        contentType: (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase(),
+        url: res.url || parsed.href,
+        prefix
+      };
     } finally { clearTimeout(timer); }
   } catch (error: any) {
     throw classifyError(error);

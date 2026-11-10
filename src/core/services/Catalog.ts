@@ -839,6 +839,9 @@ async function buildStream(id: string, episode: string, opts: { title?: string; 
         downloads: []
       }).qualities.map(quality => quality.label);
       if (labels.includes('360p')) break;
+      /* Sumber playable tanpa label kualitas (mis. embed yang valid) sudah bisa
+         dirender pemutar; jangan lanjut memanggil provider cadangan. */
+      if (!labels.length && hit.stream.servers.length) break;
     }
   };
 

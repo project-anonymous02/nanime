@@ -36,9 +36,9 @@
   height: var(--nav-dock-h);
   padding: 6px;
   transition:
-    height 380ms var(--spring-smooth),
-    padding 380ms var(--spring-smooth),
-    border-radius 380ms var(--spring-smooth),
+    height 460ms var(--ease-nav),
+    padding 460ms var(--ease-nav),
+    border-radius 460ms var(--ease-nav),
     box-shadow 300ms var(--ease-out-quart);
 }
 .hn-bottomnav[data-minimized='true'] {
@@ -57,7 +57,7 @@
   background: rgba(0, 113, 227, 0.09);
   box-shadow: inset 0 0 0 1px rgba(0, 113, 227, 0.06);
   transform: translate3d(calc(var(--nav-active, 0) * 100%), 0, 0);
-  transition: transform 440ms var(--spring-smooth), background-color 0.3s ease;
+  transition: transform 540ms var(--ease-nav), background-color 0.3s ease;
 }
 .hn-bottomnav-item {
   position: relative; z-index: 1;
@@ -70,13 +70,13 @@
 .hn-bottomnav-icon {
   display: grid; place-items: center;
   transform: translateY(-6px);
-  transition: transform 380ms var(--spring-smooth);
+  transition: transform 480ms var(--ease-nav);
 }
 .hn-bottomnav-label {
   position: absolute; left: 0; right: 0; bottom: 5px;
   font-size: 10px; font-weight: 500; letter-spacing: 0.02em; line-height: 1;
   text-align: center; opacity: 0.92;
-  transition: opacity 180ms ease, transform 340ms var(--spring-smooth);
+  transition: opacity 180ms ease, transform 430ms var(--ease-nav);
 }
 .hn-bottomnav[data-minimized='true'] .hn-bottomnav-icon { transform: translateY(0); }
 .hn-bottomnav[data-minimized='true'] .hn-bottomnav-label { opacity: 0; transform: translateY(5px) scale(0.92); }

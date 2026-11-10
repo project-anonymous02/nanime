@@ -6,6 +6,12 @@ export const ADAPTIVE_LOAD_TIMEOUT_MS = 30_000;
 export const PLAYBACK_STALL_TIMEOUT_MS = 15_000;
 export const ADAPTIVE_STALL_TIMEOUT_MS = 30_000;
 
+interface DashPlayerLike {
+  initialize(view: HTMLVideoElement, source: string, autoPlay?: boolean): void;
+  reset?: () => void;
+  destroy?: () => void;
+}
+
 export interface AdaptiveVideoProps {
   src: string;
   poster?: string;
@@ -44,6 +50,15 @@ export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onP
   useEffect(() => {
     if (videoRef.current) videoRef.current.volume = Math.max(0, Math.min(1, volume));
   }, [volume]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || adaptive) return;
+    // Providers list .mkv as a video URL, but container/codec support is not
+    // guaranteed. Fail fast so the player can move to the next mirror instead
+    // of waiting for the load watchdog.
+    if (/\.mkv(?:[?#]|$)/i.test(src) && !video.canPlayType('video/x-matroska')) reportError();
+  }, [src, adaptive, reportError]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -101,10 +116,14 @@ export function AdaptiveVideo({ src, poster, onTimeUpdate, onPause, onEnded, onP
         try {
           const mod = await import('dashjs' as string);
           if (disposed) return;
-          const Dash = (mod as unknown as { MediaPlayer: new () => { initialize: (v: HTMLVideoElement, source: string) => void; attachSource: (source: string) => void; reset: () => void; destroy: () => void } }).MediaPlayer;
-          const dashInstance = new Dash();
+          // dash.js 4.x exposes MediaPlayer as a factory: MediaPlayer().create().
+          // Calling `new MediaPlayer()` yields the factory wrapper (create only),
+          // so initialize() would not exist.
+          const MediaPlayer = (mod as unknown as { MediaPlayer?: () => { create?: () => DashPlayerLike } }).MediaPlayer;
+          const dashInstance = MediaPlayer?.().create?.();
+          if (!dashInstance) throw new Error('dash.js MediaPlayer factory tidak tersedia');
           player = dashInstance;
-          dashInstance.initialize(video, src);
+          dashInstance.initialize(video, src, true);
         } catch {
           if (!disposed) reportError();
         }

@@ -193,6 +193,39 @@ describe('Catalog.stream episode identity', () => {
     expect(fetchSpy.mock.calls.every(([, init]) => init?.method === 'HEAD')).toBe(true);
   });
 
+  it('does not call fallback providers when the primary source is already playable as an embed', async () => {
+    const { id } = await setupProvider(async episodeId => ({
+      provider: 'otakudesu',
+      title: `episode ${episodeId}`,
+      playerUrl: `https://embed.test/watch/${episodeId}`,
+      qualities: [], servers: [], downloads: [], info: {}
+    }));
+    const fallback = getProvider('samehadaku')!;
+    const fallbackEpisodeId = `${id}-samehadaku-episode-1`;
+    await TitleIndex.upsert({
+      id,
+      title: 'Episode test',
+      sources: [
+        { provider: 'otakudesu', id: `${id}-ota`, slug: id, episodes: [{ num: '1', id: `${id}-episode-id-1`, slug: `${id}-episode-1` }] },
+        { provider: 'samehadaku', id: `${id}-sama`, slug: id, episodes: [{ num: '1', id: fallbackEpisodeId, slug: fallbackEpisodeId }] }
+      ]
+    });
+    const fallbackStream = vi.spyOn(fallback, 'stream');
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'HEAD') return new Response(null, { status: 200, headers: { 'content-type': 'text/html' } });
+      throw new Error('scraping is blocked in web transport');
+    }));
+
+    const result = await Catalog.stream(id, '1', {
+      episodeProvider: 'otakudesu', episodeId: `${id}-episode-id-1`
+    });
+
+    expect(result.availability).toBe('external-embed');
+    expect(result.servers).toHaveLength(1);
+    expect(result.servers[0].kind).toBe('embed');
+    expect(fallbackStream).not.toHaveBeenCalled();
+  });
+
   it('reports unavailable rather than turning a download/error URL into playback', async () => {
     const { id } = await setupProvider(async () => { throw new Error('media unavailable'); });
     const result = await Catalog.stream(id, '2', {

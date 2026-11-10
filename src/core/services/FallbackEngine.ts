@@ -1,7 +1,7 @@
 import type { AnimeProvider } from '../../providers/types';
 import { markHealth, getProvider, streamingPriority } from '../../providers/registry';
 import type { DownloadLink, EpisodeStream } from '../types';
-import { httpGetText, httpProbe } from '../http';
+import { httpGetText, httpProbe, httpRangeProbe } from '../http';
 import { isVideoUrl } from '../utils';
 import { CacheManager } from './CacheManager';
 import { mergeDownloads } from './EpisodeMatcher';
@@ -32,30 +32,108 @@ export interface StreamParams {
 /** Mirror episode diselesaikan paralel, dengan waktu cukup untuk seluruh daftar. */
 const STREAM_TIMEOUT = 20000;
 
-async function verifyDirectMedia(url: string): Promise<boolean> {
+interface DirectMediaCheck {
+  media: boolean;
+  verified: boolean;
+  mime?: string;
+  probe?: { status: number; contentType: string } | null;
+}
+
+/** Deteksi signature media dari beberapa KB pertama respons. */
+function looksLikeMediaPrefix(prefix: string, contentType: string): boolean {
+  if (/^(?:video|audio)\//.test(contentType)) return true;
+  if (!prefix) return false;
+  if (prefix.startsWith('#EXTM3U')) return true;
+  if (/<MPD(?:\s|>)/i.test(prefix.slice(0, 4096))) return true;
+  if (prefix.slice(4, 8) === 'ftyp') return true; // ISO BMFF (mp4/mov)
+  if (prefix.startsWith('ID3') || prefix.startsWith('FLV') || prefix.startsWith('OggS')) return true;
+  if (prefix.charCodeAt(0) === 0x47) return true; // MPEG-TS
+  if (prefix.charCodeAt(0) === 0x1a && prefix.charCodeAt(1) === 0x45 && prefix.charCodeAt(2) === 0xdf && prefix.charCodeAt(3) === 0xa3) return true; // EBML (webm/mkv)
+  return false;
+}
+
+/**
+ * Klasifikasi satu URL: file media langsung atau bukan. HEAD dipakai lebih
+ * dulu, tetapi kegagalan HEAD (403/404/405/501) tidak dianggap bukti bahwa GET
+ * media gagal — verifikasi dilanjutkan dengan ranged GET.
+ */
+async function inspectDirectMedia(url: string): Promise<DirectMediaCheck> {
   let parsed: URL;
-  try { parsed = new URL(url); } catch { return false; }
+  try { parsed = new URL(url); } catch { return { media: false, verified: false }; }
   const path = parsed.pathname.toLowerCase();
   const isHls = path.endsWith('.m3u8');
   const isDash = path.endsWith('.mpd');
-  const isKnownFile = isVideoUrl(parsed.href);
-  if (!isHls && !isDash && !isKnownFile) return false;
-  const probe = await httpProbe(parsed.href);
-  if (probe.status < 200 || probe.status >= 300) return false;
-  if (probe.contentType.startsWith('video/')) return true;
-  if (isHls || isDash) {
-    const expectedMime = isHls
-      ? ['application/vnd.apple.mpegurl', 'application/x-mpegurl', 'audio/mpegurl', 'audio/x-mpegurl']
-      : ['application/dash+xml'];
-    if (!expectedMime.includes(probe.contentType) && probe.contentType !== 'text/plain') return false;
-    // Manifests are small text documents; verify their signature instead of
-    // trusting a filename or content type alone.
-    const response = await httpGetText(parsed.href, { timeout: 5000, retries: 0, corsOk: true });
-    return isHls
-      ? /^\s*#EXTM3U(?:\s|$)/.test(response.text)
-      : /<MPD(?:\s|>)/i.test(response.text.slice(0, 4096));
+  if (!isHls && !isDash && !isVideoUrl(parsed.href)) return { media: false, verified: false };
+
+  let probe: { status: number; contentType: string } | null = null;
+  try { probe = await httpProbe(parsed.href); } catch { probe = null; }
+
+  if (probe && probe.status >= 200 && probe.status < 300) {
+    const mime = probe.contentType;
+    if (/^(?:video|audio)\//.test(mime)) return { media: true, verified: true, mime, probe };
+    if (isHls || isDash) {
+      const expectedMime = isHls
+        ? ['application/vnd.apple.mpegurl', 'application/x-mpegurl', 'audio/mpegurl', 'audio/x-mpegurl']
+        : ['application/dash+xml'];
+      if (mime && !expectedMime.includes(mime) && mime !== 'text/plain' && mime !== 'application/octet-stream') {
+        return { media: false, verified: false, probe };
+      }
+      try {
+        const response = await httpGetText(parsed.href, { timeout: 5000, retries: 0, corsOk: true });
+        const ok = isHls
+          ? /^\s*#EXTM3U(?:\s|$)/.test(response.text)
+          : /<MPD(?:\s|>)/i.test(response.text.slice(0, 4096));
+        return ok
+          ? { media: true, verified: true, mime: mime || undefined, probe }
+          : { media: false, verified: false, probe };
+      } catch {
+        return { media: false, verified: false, probe };
+      }
+    }
+    if (/^(?:text\/html|application\/xhtml\+xml|application\/json)$/.test(mime)) {
+      return { media: false, verified: false, probe };
+    }
+    // 2xx pada URL berekstensi media dengan MIME opaque: biarkan pemutar kustom
+    // mencobanya, tetapi tandai belum terverifikasi.
+    return { media: true, verified: false, mime: mime || undefined, probe };
   }
-  return false;
+
+  // HEAD ditolak/gagal. Manifest kecil: verifikasi signature dengan GET biasa.
+  if (isHls || isDash) {
+    try {
+      const response = await httpGetText(parsed.href, { timeout: 5000, retries: 0, corsOk: true });
+      const ok = isHls
+        ? /^\s*#EXTM3U(?:\s|$)/.test(response.text)
+        : /<MPD(?:\s|>)/i.test(response.text.slice(0, 4096));
+      return ok
+        ? { media: true, verified: true, mime: isHls ? 'application/vnd.apple.mpegurl' : 'application/dash+xml', probe }
+        : { media: false, verified: false, probe };
+    } catch {
+      return { media: false, verified: false, probe };
+    }
+  }
+
+  // URL berekstensi media dengan HEAD ditolak: coba ranged GET sebelum
+  // memutuskan. Server dapat menolak HEAD namun tetap melayani GET.
+  try {
+    const ranged = await httpRangeProbe(parsed.href);
+    if (looksLikeMediaPrefix(ranged.prefix, ranged.contentType)) {
+      return { media: true, verified: true, mime: ranged.contentType || undefined, probe };
+    }
+    if (/^(?:text\/html|application\/xhtml\+xml)$/.test(ranged.contentType)) {
+      return { media: false, verified: false, probe };
+    }
+    if (ranged.status >= 200 && ranged.status < 300) {
+      return ranged.prefix
+        ? { media: false, verified: false, probe }
+        : { media: true, verified: false, probe };
+    }
+    return { media: false, verified: false, probe };
+  } catch {
+    // Inkonklusif (timeout/jaringan/CORS): URL berekstensi media tetap dicoba
+    // sebagai media; watchdog pemutar akan lanjut ke sumber berikutnya bila gagal.
+    return { media: true, verified: false, probe };
+  }
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
@@ -117,8 +195,28 @@ async function tryProvider(
       const candidates = [...httpCandidates, ...opaqueCandidates];
       if (!candidates.length) return null;
 
-      const media: typeof raw = [];
-      const embeds: typeof raw = [];
+      interface ChosenCandidate {
+        name: string;
+        ref: string;
+        quality?: string;
+        sourceRef?: string;
+        kind: 'file' | 'embed';
+        mime?: string;
+        verified?: boolean;
+      }
+      const media: ChosenCandidate[] = [];
+      const embeds: ChosenCandidate[] = [];
+      const extractFile = async (candidate: typeof raw[number], target: string): Promise<ChosenCandidate | null> => {
+        try {
+          const resolved = await resolveMediaUrl(target);
+          if (resolved.kind !== 'file' || !resolved.url) return null;
+          const check = await inspectDirectMedia(resolved.url);
+          if (!check.media) return null;
+          return { ...candidate, ref: resolved.url, sourceRef: candidate.ref, kind: 'file', mime: check.mime, verified: check.verified };
+        } catch {
+          return null;
+        }
+      };
       const inspect = async (candidate: typeof raw[number]) => {
         let url = candidate.ref;
         if (!/^https?:\/\//i.test(url)) {
@@ -126,12 +224,15 @@ async function tryProvider(
           try { url = await p.resolveServer(url); } catch { return; }
         }
         if (!url) return;
-        try {
-          if (await verifyDirectMedia(url)) {
-            media.push({ ...candidate, ref: url, sourceRef: candidate.ref });
-            return;
-          }
-        } catch { /* try the next server */ }
+
+        // 1. File media langsung. Host yang menolak HEAD tetapi melayani GET
+        //    tetap terdeteksi lewat verifikasi ranged di inspectDirectMedia.
+        const direct = await inspectDirectMedia(url);
+        if (direct.media) {
+          media.push({ ...candidate, ref: url, sourceRef: candidate.ref, kind: 'file', mime: direct.mime, verified: direct.verified });
+          return;
+        }
+
         const sameEpisodePage = (() => {
           try {
             return /^https?:\/\//i.test(params.episodeId) && new URL(url).href === new URL(params.episodeId).href;
@@ -140,36 +241,30 @@ async function tryProvider(
           }
         })();
         if (sameEpisodePage) return;
-        try {
-          const probe = await httpProbe(url, 4000);
-          if (probe.status >= 200 && probe.status < 300 && /^(?:text\/html|application\/xhtml\+xml)$/.test(probe.contentType)) {
-            embeds.push({ ...candidate, ref: url, sourceRef: candidate.ref });
+
+        // 2. Halaman HTML: ekstrak media langsung dulu. Iframe provider hanya
+        //    dipertahankan bila tidak ada media yang bisa diresolusi.
+        let probe = direct.probe ?? null;
+        if (!probe) {
+          try { probe = await httpProbe(url, 4000); } catch { probe = null; }
+        }
+        if (probe && probe.status >= 200 && probe.status < 300) {
+          if (/^(?:text\/html|application\/xhtml\+xml)$/.test(probe.contentType)) {
+            const extracted = await extractFile(candidate, url);
+            if (extracted) { media.push(extracted); return; }
+            embeds.push({ ...candidate, ref: url, sourceRef: candidate.ref, kind: 'embed' });
             return;
           }
-          if ([403, 404, 405, 501].includes(probe.status)) {
-            // HEAD method not allowed / forbidden does NOT prove GET media fails.
-            // Try extracting media, otherwise treat as embed candidate (not as verified embed)
-            // Fall through to resolveMediaUrl below.
-          }
-          if (probe.status >= 200 && probe.status < 300 && /^video\//.test(probe.contentType)) {
-            media.push({ ...candidate, ref: url, sourceRef: candidate.ref });
+          if (/^(?:video|audio)\//.test(probe.contentType)) {
+            media.push({ ...candidate, ref: url, sourceRef: candidate.ref, kind: 'file', mime: probe.contentType, verified: true });
             return;
           }
-        } catch {
-          // Network probe failure is not conclusive; still try media extraction.
         }
-        if (!isVideoUrl(url)) {
-          try {
-            const resolved = await resolveMediaUrl(url);
-            if (resolved.kind === 'file' && resolved.url && await verifyDirectMedia(resolved.url)) {
-              media.push({ ...candidate, ref: resolved.url, sourceRef: candidate.ref });
-              return;
-            }
-          } catch { /* extract error -> fallback to embed */ }
-          embeds.push({ ...candidate, ref: url, sourceRef: candidate.ref });
-          return;
-        }
-        embeds.push({ ...candidate, ref: url, sourceRef: candidate.ref });
+
+        // 3. Bukan file: ekstraksi dari halaman sebelum jatuh ke iframe.
+        const extracted = await extractFile(candidate, url);
+        if (extracted) { media.push(extracted); return; }
+        embeds.push({ ...candidate, ref: url, sourceRef: candidate.ref, kind: 'embed' });
       };
 
       // Resolve every server so the player can show all real mirrors grouped
@@ -189,7 +284,9 @@ async function tryProvider(
       name: candidate.name || (result.kind === 'direct-media' ? 'Server ' + (i + 1) : 'Embed'),
       id: candidate.ref,
       quality: candidate.quality,
-      def: i === 0
+      def: i === 0,
+      kind: candidate.kind,
+      mime: candidate.mime
     }));
     result.stream.playerUrl = result.chosen[0].ref;
     result.stream.sourceKind = result.kind;

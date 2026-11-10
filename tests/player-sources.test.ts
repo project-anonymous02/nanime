@@ -44,7 +44,21 @@ vi.mock('hls.js', () => {
   return { default: FakeHls };
 });
 
-vi.mock('dashjs', () => ({ MediaPlayer: class { attachSource() {} initialize() {} reset() {} destroy() {} } }));
+const dashMock = vi.hoisted(() => ({
+  initialize: vi.fn(),
+  reset: vi.fn(),
+  destroy: vi.fn()
+}));
+
+vi.mock('dashjs', () => ({
+  MediaPlayer: () => ({
+    create: () => ({
+      initialize: dashMock.initialize,
+      reset: dashMock.reset,
+      destroy: dashMock.destroy
+    })
+  })
+}));
 
 if (!Element.prototype.setPointerCapture) {
   Object.defineProperty(Element.prototype, 'setPointerCapture', { configurable: true, value: () => undefined });
@@ -96,6 +110,13 @@ const HLS_STREAM: StreamBundle = {
   qualities: [
     { label: '720p', approx: false, source: { url: 'https://media.test/hls.m3u8', providerRef: 'test', label: '720p', kind: 'file', exact: true } },
     { label: '480p', approx: false, source: { url: 'https://media.test/480p.mp4', providerRef: 'test', label: '480p', kind: 'file', exact: true } }
+  ]
+};
+
+const DASH_STREAM: StreamBundle = {
+  ...DIRECT_STREAM,
+  qualities: [
+    { label: '720p', approx: false, source: { url: 'https://media.test/manifest.mpd', providerRef: 'test', label: '720p', kind: 'file', exact: true } }
   ]
 };
 
@@ -664,6 +685,20 @@ describe('player stream rendering guards', () => {
     expect(hlsMock.recoverMediaError).not.toHaveBeenCalled();
     expect(usePlayer.getState().session?.sourceIndex).toBe(1);
     await act(async () => root.unmount());
+  });
+
+  it('initializes dash.js through its factory API', async () => {
+    const { host, root } = await renderPlayer(DASH_STREAM);
+    for (let i = 0; i < 5 && dashMock.initialize.mock.calls.length === 0; i++) {
+      await act(async () => { await Promise.resolve(); });
+    }
+    expect(dashMock.initialize).toHaveBeenCalledTimes(1);
+    const [videoArg, srcArg, autoPlayArg] = dashMock.initialize.mock.calls[0] as unknown[];
+    expect(videoArg).toBe(host.querySelector('video'));
+    expect(srcArg).toBe('https://media.test/manifest.mpd');
+    expect(autoPlayArg).toBe(true);
+    await act(async () => root.unmount());
+    expect(dashMock.destroy).toHaveBeenCalled();
   });
 
   it('does not capture brightness/volume gestures (removed); embed has no direct controls', async () => {

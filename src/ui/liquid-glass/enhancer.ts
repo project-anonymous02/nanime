@@ -242,12 +242,26 @@ function scan(): void {
   }
 }
 
+/* MutationObserver bisa memunculkan banyak batch dalam satu frame (mis.
+   daftar pesan chat yang di-refresh). scan() berjalan 8 querySelectorAll,
+   jadi batch dipadatkan menjadi satu scan per frame: perilaku visual sama,
+   pekerjaan DOM jauh berkurang. */
+let scanScheduled = false;
+function scheduleScan(): void {
+  if (scanScheduled) return;
+  scanScheduled = true;
+  requestAnimationFrame(() => {
+    scanScheduled = false;
+    scan();
+  });
+}
+
 /** Mount once in <Shell>. Enhances glass surfaces that cannot be wrapped. */
 export function useLiquidGlassEnhancer(): void {
   useEffect(() => {
     if (typeof document === 'undefined') return;
     scan();
-    const observer = new MutationObserver(() => scan());
+    const observer = new MutationObserver(() => scheduleScan());
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-stuck', 'class'] });
     const onResize = () => requestAnimationFrame(scan);
     const onScroll = () => {

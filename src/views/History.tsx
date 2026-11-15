@@ -9,6 +9,7 @@ import { Icon } from '../ui/icons';
 import { SmartImage } from '../ui/SmartImage';
 import { ConfirmModal } from '../ui/Sheet';
 import { detailPath } from '../lib/nav';
+import { longDateLabel, shortDateLabel } from '../lib/format';
 
 /** Riwayat menonton — SINGLE (per episode, grup tanggal) & MULTI (per series). */
 
@@ -26,7 +27,7 @@ function dateLabel(ts: number): string {
   const diff = Math.round((startOf(now) - startOf(d)) / 86400000);
   if (diff <= 0) return 'Hari Ini';
   if (diff === 1) return 'Kemarin';
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  return longDateLabel(d);
 }
 
 function shortDate(ts: number): string {
@@ -36,7 +37,7 @@ function shortDate(ts: number): string {
   const diff = Math.round((startOf(now) - startOf(d)) / 86400000);
   if (diff <= 0) return 'Hari Ini';
   if (diff === 1) return 'Kemarin';
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+  return shortDateLabel(d);
 }
 
 function Progress({ item }: { item: HistoryItem }) {

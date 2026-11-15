@@ -5,6 +5,7 @@ import { CommunityAvatar } from '../ui/CommunityAvatar';
 import { getClient } from '../lib/supabase';
 import { currentUserId } from '../state/auth';
 import { sendFriendRequest, listFriendRequests, listMessages, removeFriend, respondFriendRequest, searchPeople, sendMessage, type DirectMessage, type FriendProfile, type FriendRequest } from '../lib/friends';
+import { clockLabel } from '../lib/format';
 
 type FriendData = Awaited<ReturnType<typeof listFriendRequests>>;
 
@@ -66,7 +67,7 @@ export function Friends() {
     await act(async () => { await sendMessage(friendId, content); setMessages(await listMessages(friendId)); });
   };
 
-  const timeOf = (iso: string) => new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  const timeOf = (iso: string) => clockLabel(iso);
 
   return <main>
     <header className="hn-pagehead">

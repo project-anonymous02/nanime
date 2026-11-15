@@ -236,7 +236,15 @@
 
 /* ── Chat ── */
 .hn-chatscreen { display: flex; flex-direction: column; height: calc(100dvh - var(--nav-dock-h) - var(--nav-dock-gap) - env(safe-area-inset-bottom)); }
-.hn-chatlog { flex: 1; overflow-y: auto; padding: 12px var(--pad-x); display: grid; gap: 10px; align-content: end; }
+/* Log chat: flex column + `margin-top:auto` pada anak pertama.
+   Versi lama memakai `display:grid; align-content:end` — overflow grid yang
+   disejajarkan ke bawah tidak pernah bisa digulir (scrollHeight == clientHeight)
+   sehingga pesan lama tidak pernah bisa dilihat/diakses. Flex + auto margin
+   menjaga tampilan "menempel di bawah" saat isi pendek, sekaligus membuat
+   overflow bisa digulir. */
+.hn-chatlog { flex: 1; overflow-y: auto; padding: 12px var(--pad-x); display: flex; flex-direction: column; gap: 10px; }
+.hn-chatlog > * { flex: none; }
+.hn-chatlog > :first-child { margin-top: auto; }
 .hn-chatrow { display: flex; gap: 8px; align-items: flex-end; min-width: 0; }
 .hn-chatrow.hn-mine { flex-direction: row-reverse; }
 .hn-bubble {
@@ -245,6 +253,9 @@
   border-bottom-left-radius: 6px; box-shadow: var(--sh-card);
 }
 .hn-mine .hn-bubble { background: var(--accent); color: #fff; border-radius: 18px; border-bottom-right-radius: 6px; }
+/* Tombol aksi pada gelembung "milik sendiri" memakai warna aksen di atas
+   latar aksen → tidak terlihat. Pakai putih di dalam gelembung biru. */
+.hn-mine .hn-textbtn { color: #fff; }
 .hn-bubble-name { display: block; font-size: var(--fs-label); font-weight: 700; color: var(--accent-link); margin-bottom: 2px; }
 .hn-mine .hn-bubble-name { color: rgba(255,255,255,0.85); }
 .hn-bubble-text { word-break: break-word; overflow-wrap: anywhere; white-space: pre-wrap; font-size: var(--fs-body); }
@@ -252,6 +263,28 @@
 .hn-chatbar { display: flex; gap: 8px; align-items: center; min-width: 0; padding: 10px var(--pad-x); }
 .hn-chatbar-v2 { flex-direction: column; align-items: stretch; gap: 8px; }
 .hn-chat-reply { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 10px; background: rgba(0,113,227,0.08); }
+/* Pratinjau balasan tetap satu baris agar komposer tidak melompat tinggi
+   saat membalas pesan panjang. */
+.hn-chat-reply .hn-typinghint { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Kutipan pesan asal di dalam gelembung (indikator "ini balasan"). */
+.hn-bubble-reply {
+  display: grid; gap: 1px; width: 100%; min-width: 0; margin: 4px 0 6px;
+  padding: 5px 8px; text-align: left; border: 0; border-left: 2px solid var(--accent);
+  border-radius: 10px; background: rgba(0,113,227,0.08);
+}
+.hn-bubble-reply-name { font-size: var(--fs-label); font-weight: 700; color: var(--accent-link); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hn-bubble-reply-text { font-size: var(--fs-small); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hn-bubble-reply.hn-missing { border-left-color: var(--faint); background: rgba(0,0,0,0.04); }
+.hn-bubble-reply.hn-missing .hn-bubble-reply-name { color: var(--text-3); }
+.hn-mine .hn-bubble-reply { background: rgba(255,255,255,0.18); border-left-color: rgba(255,255,255,0.85); }
+.hn-mine .hn-bubble-reply-name { color: #fff; }
+.hn-mine .hn-bubble-reply-text { color: rgba(255,255,255,0.82); }
+/* Sorotan singkat saat pengguna menekan kutipan balasan. */
+.hn-bubble.hn-flash { outline: 2px solid rgba(0,113,227,0.85); outline-offset: 2px; animation: hn-chat-flash 1.2s ease-out; }
+@keyframes hn-chat-flash {
+  from { outline-color: rgba(0,113,227,0.85); }
+  to { outline-color: rgba(0,113,227,0); }
+}
 .hn-chat-inputrow { display: flex; gap: 8px; align-items: flex-end; }
 .hn-chatinput {
   flex: 1; min-width: 0; min-height: 44px; max-height: 144px; padding: 10px 16px; border-radius: 22px; resize: none; line-height: 1.4;
@@ -435,7 +468,9 @@
 .episode-player { width: min(100%, 980px); max-height: 100%; overflow: auto; border: 0; border-radius: 26px; color: var(--text); opacity: 0; transform: translateY(12px) scale(0.98); transform-origin: 50% 100%; }
 .episode-player.hn-open { opacity: 1; transform: none; }
 .episode-player-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; }
-.episode-player-head > div { min-width: 0; display: grid; gap: 3px; }
+/* Hanya blok judul yang memakai grid; .player-overlay-actions harus tetap baris
+   horizontal (aturan `> div` dulu ikut mengenai actions → tombol menumpuk). */
+.episode-player-head > div:first-child { min-width: 0; display: grid; gap: 3px; }
 .episode-player-head strong { overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; font-size: 14px; letter-spacing: -0.01em; }
 .episode-player-head span { color: var(--text-2); font-size: 11px; font-variant-numeric: tabular-nums; }
 .episode-player-video { position: relative; width: 100%; aspect-ratio: 9 / 16; display: grid; place-items: center; overflow: hidden; background: #000; }
@@ -488,13 +523,20 @@
 /* Full player (mode penuh mengikuti layar portrait: video dulu, info di bawah) */
 .episode-player-backdrop:not(.mini) { display: block; overflow-y: auto; padding: 0; background: #000; -webkit-backdrop-filter: none; backdrop-filter: none; }
 .episode-player-backdrop:not(.mini) .episode-player { position: relative; width: 100%; min-height: 100dvh; max-height: none; overflow: visible; border: 0; border-radius: 0; background: var(--surface); box-shadow: none; opacity: 1; transform: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
-.episode-player-backdrop:not(.mini) .episode-player-head { position: absolute; z-index: 5; top: env(safe-area-inset-top); left: 0; right: 0; min-height: 44px; padding: 4px 12px; color: #fff; background: linear-gradient(#0009, transparent); }
+/* Header full player: bar transparan penuh lebar. Bar ini TIDAK boleh
+   menelan tap ke kontrol video di kanan atas → pointer-events:none pada bar,
+   auto hanya pada tombolnya sendiri. */
+.episode-player-backdrop:not(.mini) .episode-player-head { position: absolute; z-index: 5; top: env(safe-area-inset-top); left: 0; right: 0; min-height: 44px; padding: 4px 12px; color: #fff; background: linear-gradient(#0009, transparent); pointer-events: none; }
 .episode-player-backdrop:not(.mini) .episode-player-head > div:first-child { display: none; }
 .episode-player-backdrop:not(.mini) .episode-player-head strong, .episode-player-backdrop:not(.mini) .episode-player-head span { color: #fff; }
 .episode-player-backdrop:not(.mini) .player-overlay-actions .ibtn { width: 44px; height: 44px; color: #fff; background: transparent; }
+/* Aksi header dikiri agar tidak bertabrakan dengan kontrol video di kanan atas. */
+.episode-player-backdrop:not(.mini) .player-overlay-actions { margin-right: auto; pointer-events: auto; }
 .episode-player-backdrop:not(.mini) .episode-player-video { width: 100%; aspect-ratio: 9/16; margin: 0; background: #000; }
 .episode-player-backdrop:not(.mini) .episode-player-video video, .episode-player-backdrop:not(.mini) .episode-player-video iframe { object-fit: contain; }
-.player-video-top-controls { position: absolute; z-index: 4; top: 10px; right: 12px; display: flex; align-items: center; gap: 24px; }
+/* z-index di atas header (5) agar tombol fullscreen tetap berada di atas gradasi
+   header dan tidak tertimpa secara visual. */
+.player-video-top-controls { position: absolute; z-index: 6; top: max(10px, env(safe-area-inset-top)); right: 12px; display: flex; align-items: center; gap: 24px; }
 .player-video-top-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 44px; min-height: 44px; padding: 0; color: #fff; background: transparent; font-size: 16px; font-weight: 700; }
 .episode-player-backdrop:not(.mini) .player-controls { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 5px; padding: 0 14px max(10px, env(safe-area-inset-bottom)); background: linear-gradient(transparent 35%, #0009 100%); pointer-events: none; }
 .episode-player-backdrop:not(.mini) .player-controls button, .episode-player-backdrop:not(.mini) .player-controls input { pointer-events: auto; }
@@ -525,7 +567,7 @@
   .episode-player-backdrop:not(.mini) { overflow: hidden; }
   .episode-player-backdrop:not(.mini) .episode-player { min-height: 100dvh; height: 100dvh; overflow: hidden; background: #000; }
   .episode-player-backdrop:not(.mini) .episode-player-video { width: 100%; height: 100%; max-height: 100dvh; aspect-ratio: auto; }
-  .episode-player-backdrop:not(.mini) .episode-player-source { position: absolute; z-index: 6; top: calc(48px + env(safe-area-inset-top)); right: 8px; width: auto; max-width: min(72vw, 360px); padding: 4px 8px; border-radius: 999px; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #fff; }
+  .episode-player-backdrop:not(.mini) .episode-player-source { position: absolute; z-index: 6; top: calc(60px + env(safe-area-inset-top)); right: 8px; width: auto; max-width: min(72vw, 360px); padding: 4px 8px; border-radius: 999px; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #fff; }
   .episode-player-backdrop:not(.mini) .episode-player-info { display: none; }
   .episode-player-backdrop:not(.mini) .player-control-row { top: 48%; }
   .episode-player-backdrop:not(.mini) .player-video-top-controls { top: 10px; right: 22px; }
@@ -647,6 +689,12 @@
 }
 [data-theme='dark'] .hn-chat-reply {
   background: rgba(10, 132, 255, 0.16);
+}
+[data-theme='dark'] .hn-bubble-reply {
+  background: rgba(10, 132, 255, 0.18);
+}
+[data-theme='dark'] .hn-bubble-reply.hn-missing {
+  background: rgba(255, 255, 255, 0.06);
 }
 [data-theme='dark'] .player-quality-option.selected {
   background: rgba(10, 132, 255, 0.16);

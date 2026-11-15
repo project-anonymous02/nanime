@@ -1,16 +1,149 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getClient } from '../lib/supabase';
 import { currentUserId } from '../state/auth';
-import { deletePublicChatMessage, listPublicChatChannels, listPublicChatMessages, sendPublicChatMessage, type PublicChatChannel, type PublicChatMessage } from '../lib/publicChat';
-import { RANK_META } from '../lib/rank';
+import { deletePublicChatMessage, listPublicChatChannels, listPublicChatMessages, replyPreviewText, sendPublicChatMessage, type PublicChatChannel, type PublicChatMessage } from '../lib/publicChat';
+import { RANK_META, type RankTier } from '../lib/rank';
+import { clockLabel } from '../lib/format';
 import { CommunityAvatar } from '../ui/CommunityAvatar';
 import { RankInsignia } from '../ui/RankInsignia';
 import { Icon } from '../ui/icons';
 
-function timeLabel(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+/** Batas tinggi textarea komposer (sama dengan --chat input max-height). */
+const INPUT_MAX_HEIGHT = 144;
+const INPUT_MIN_HEIGHT = 44;
+
+interface MessageRowProps {
+  id: string;
+  content: string;
+  createdAt: string;
+  mine: boolean;
+  name: string;
+  avatarUrl: string | null;
+  rank: RankTier | null;
+  isDeveloper: boolean;
+  /** Konteks balasan — primitif agar memo tidak selalu berlaku. */
+  replyId: string | null;
+  replyAuthor: string | null;
+  replyPreview: string | null;
+  replyAvailable: boolean;
+  /** Pesan induk masih ada di daftar yang tampil → bisa dituju. */
+  canJump: boolean;
+  onReply: (id: string) => void;
+  onDelete: (id: string) => void;
+  onJump: (id: string) => void;
+  registerRow: (id: string, node: HTMLDivElement | null) => void;
+}
+
+/**
+ * Satu baris pesan.
+ *
+ * Semua prop sengaja berupa primitif + callback stabil, dan komponen ini
+ * dibungkus `memo`: menulis di komposer (state teks) tidak boleh
+ * me-render ulang seluruh daftar.
+ */
+const MessageRow = memo(function MessageRow({
+  id, content, createdAt, mine, name, avatarUrl, rank, isDeveloper,
+  replyId, replyAuthor, replyPreview, replyAvailable,
+  canJump, onReply, onDelete, onJump, registerRow
+}: MessageRowProps) {
+  const replyBody = replyId ? (
+    <>
+      <span className="hn-bubble-reply-name">{replyAuthor}</span>
+      <span className="hn-bubble-reply-text">{replyPreview}</span>
+    </>
+  ) : null;
+
+  return <article className={`hn-chatrow${mine ? ' hn-mine' : ''}`} data-message-id={id}>
+    {mine ? null : <CommunityAvatar name={name} src={avatarUrl} />}
+    <div className="hn-bubble" ref={node => registerRow(id, node)}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {rank ? <RankInsignia rank={rank} size={14} /> : null}
+        <span className="hn-bubble-name">{name}</span>
+        {isDeveloper ? <span style={{ color: 'var(--accent-pink)', fontSize: 9, fontWeight: 800 }}>DEV</span> : null}
+      </header>
+      {replyId ? (canJump && replyAvailable
+        ? <button type="button" className="hn-bubble-reply" onClick={() => onJump(replyId)} aria-label={`Lihat pesan ${replyAuthor} yang dibalas`}>{replyBody}</button>
+        : <div className={`hn-bubble-reply${replyAvailable ? '' : ' hn-missing'}`}>{replyBody}</div>) : null}
+      <p className="hn-bubble-text">{content}</p>
+      <footer style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+        <time className="hn-bubble-time">{clockLabel(createdAt)}</time>
+        <button type="button" className="hn-textbtn" onClick={() => onReply(id)} aria-label="Balas pesan"><Icon name="reply" size={11} /> Balas</button>
+        {mine ? (
+          <button type="button" className="hn-textbtn" style={{ pointerEvents: 'auto' }} onClick={() => onDelete(id)} aria-label="Hapus pesan"><Icon name="trash" size={11} /></button>
+        ) : null}
+      </footer>
+    </div>
+  </article>;
+});
+
+interface ComposerProps {
+  channelId: string;
+  channelName: string;
+  reply: PublicChatMessage | null;
+  sending: boolean;
+  onCancelReply: () => void;
+  onSend: (text: string) => Promise<boolean>;
+}
+
+/**
+ * Komposer pesan. State teks hidup DI SINI, bukan di level halaman: sehingga
+ * mengetik tidak memicu render ulang seluruh daftar pesan.
+ */
+function ChatComposer({ channelId, channelName, reply, sending, onCancelReply, onSend }: ComposerProps) {
+  const [text, setText] = useState('');
+  const textRef = useRef('');
+  const draftsRef = useRef<Map<string, string>>(new Map());
+  const prevChannelRef = useRef<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const applyText = useCallback((value: string) => {
+    textRef.current = value;
+    setText(value);
+  }, []);
+
+  /* Draf per kanal: pindah kanal menyimpan & memulihkan isi (perilaku lama). */
+  useEffect(() => {
+    const prev = prevChannelRef.current;
+    if (prev === channelId) return;
+    if (prev) draftsRef.current.set(prev, textRef.current);
+    applyText(draftsRef.current.get(channelId) || '');
+    prevChannelRef.current = channelId;
+  }, [channelId, applyText]);
+
+  /* Autosize: baca tinggi konten dulu, tulis hanya bila memang berubah.
+     Versi lama menulis `height:auto` dulu (membatalkan layout) lalu membaca
+     `scrollHeight` → 3 layout paksa per ketikan. */
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const needed = Math.min(Math.max(ta.scrollHeight, INPUT_MIN_HEIGHT), INPUT_MAX_HEIGHT);
+    const current = ta.clientHeight;
+    if (Math.abs(needed - current) < 1) return;
+    if (needed < current) ta.style.height = 'auto';
+    ta.style.height = needed + 'px';
+  }, [text]);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    const value = textRef.current;
+    if (!value.trim() || sending) return;
+    const ok = await onSend(value);
+    if (!ok) return;
+    applyText('');
+    draftsRef.current.set(channelId, '');
+  }
+
+  return <form className="hn-chatbar hn-chatbar-v2" data-lg-role="dock" onSubmit={event => void submit(event)}>
+    {reply ? <div className="hn-chat-reply">
+      <span className="hn-typinghint">Membalas <b>{reply.profile?.username || 'Pengguna Nanime'}</b> · {replyPreviewText(reply.content)}</span>
+      <button type="button" aria-label="Batal membalas" onClick={onCancelReply}><Icon name="x" size={14} /></button>
+    </div> : null}
+    <div className="hn-chat-inputrow">
+      <textarea ref={textareaRef} className="hn-chatinput" value={text} onChange={event => applyText(event.target.value)} maxLength={2000} rows={1} placeholder={`Kirim pesan ke ${channelName}…`} aria-label="Kirim pesan publik" />
+      <button className="hn-chatsend" type="submit" disabled={!text.trim() || sending} aria-label="Kirim"><Icon name="send" size={18} strokeWidth={2} /></button>
+    </div>
+  </form>;
 }
 
 /** Public Chat (Supabase 014): kanal publik, realtime, balas/hapus. */
@@ -19,7 +152,6 @@ export function PublicChat() {
   const [channels, setChannels] = useState<PublicChatChannel[]>([]);
   const [active, setActive] = useState<PublicChatChannel | null>(null);
   const [messages, setMessages] = useState<PublicChatMessage[]>([]);
-  const [text, setText] = useState('');
   const [loadingChannels, setLoadingChannels] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
@@ -29,8 +161,9 @@ export function PublicChat() {
   const listRef = useRef<HTMLDivElement>(null);
   const activeIdRef = useRef<string | null>(null);
   const seqRef = useRef(0);
-  const draftsRef = useRef<Map<string, string>>(new Map());
   const prevActiveIdRef = useRef<string | null>(null);
+  const messagesRef = useRef<PublicChatMessage[]>([]);
+  const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
   const userId = currentUserId();
 
   const refreshMessages = useCallback(async (channelId: string) => {
@@ -58,10 +191,8 @@ export function PublicChat() {
     const prevId = prevActiveIdRef.current;
     const nextId = active?.id || null;
     if (prevId && prevId !== nextId) {
-      draftsRef.current.set(prevId, text);
       setReply(null); // prevent cross-channel reply
     }
-    if (nextId) setText(draftsRef.current.get(nextId) || '');
     prevActiveIdRef.current = nextId;
     activeIdRef.current = nextId;
     setMessages([]);
@@ -97,7 +228,15 @@ export function PublicChat() {
     };
   }, [active?.id, refreshMessages]);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  /* Balasan yang dituju tidak boleh menggantung ke pesan yang sudah hilang. */
+  useEffect(() => {
+    if (!reply) return;
+    if (!messages.some(message => message.id === reply.id)) setReply(null);
+  }, [messages, reply]);
+
+  /* Handler balasan membaca daftar terbaru tanpa harus dibuat ulang tiap render. */
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+
   const nearBottomRef = useRef(true);
   const onChatScroll = useCallback(() => {
     const list = listRef.current;
@@ -111,36 +250,49 @@ export function PublicChat() {
     if (list && nearBottomRef.current) list.scrollTop = list.scrollHeight;
   }, [messages.length, active?.id]);
 
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 144) + 'px';
-  }, [text]);
+  const onReply = useCallback((id: string) => {
+    const target = messagesRef.current.find(message => message.id === id);
+    if (target) setReply(target);
+  }, []);
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!active || !text.trim() || sending) return;
-    const sentChannelId = active.id;
-    const sentText = text;
-    const sentReplyId = reply?.id;
+  const onDelete = useCallback(async (id: string) => {
+    try {
+      await deletePublicChatMessage(id);
+      const channelId = activeIdRef.current;
+      if (channelId) await refreshMessages(channelId);
+    } catch (cause) { setError((cause as Error)?.message || 'Pesan gagal dihapus.'); }
+  }, [refreshMessages]);
+
+  const onJump = useCallback((id: string) => {
+    const row = rowRefs.current.get(id);
+    if (!row) return;
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    row.classList.add('hn-flash');
+    window.setTimeout(() => row.classList.remove('hn-flash'), 1400);
+  }, []);
+
+  const registerRow = useCallback((id: string, node: HTMLElement | null) => {
+    if (node) rowRefs.current.set(id, node);
+    else rowRefs.current.delete(id);
+  }, []);
+
+  const onSend = useCallback(async (value: string) => {
+    if (!active) return false;
+    const channelId = active.id;
+    const replyId = reply?.id ?? null;
     setSending(true); setError('');
     try {
-      await sendPublicChatMessage(sentChannelId, sentText, sentReplyId);
-      draftsRef.current.set(sentChannelId, '');
-      if (activeIdRef.current === sentChannelId) {
-        setText('');
-        setReply(null);
-      }
-      await refreshMessages(sentChannelId);
-    } catch (cause) { setError((cause as Error)?.message || 'Pesan gagal dikirim.'); }
-    finally { setSending(false); }
-  }
+      await sendPublicChatMessage(channelId, value, replyId);
+      if (activeIdRef.current === channelId) setReply(null);
+      await refreshMessages(channelId);
+      return true;
+    } catch (cause) {
+      setError((cause as Error)?.message || 'Pesan gagal dikirim.');
+      return false;
+    } finally { setSending(false); }
+  }, [active, reply, refreshMessages]);
 
-  async function remove(message: PublicChatMessage) {
-    try { await deletePublicChatMessage(message.id); if (active) await refreshMessages(active.id); }
-    catch (cause) { setError((cause as Error)?.message || 'Pesan gagal dihapus.'); }
-  }
+  const messageIds = useMemo(() => new Set(messages.map(message => message.id)), [messages]);
 
   return <div className="hn-chatscreen">
     <header className="hn-pagehead">
@@ -168,37 +320,36 @@ export function PublicChat() {
         const mine = message.user_id === userId;
         const name = profile?.username || (mine ? 'Kamu' : 'Pengguna Nanime');
         const rankMeta = profile ? RANK_META[profile.rank] : null;
-        return <article className={`hn-chatrow${mine ? ' hn-mine' : ''}`} key={message.id}>
-          {mine ? null : <CommunityAvatar name={name} src={profile?.avatar_url} />}
-          <div className="hn-bubble">
-            <header style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {rankMeta ? <RankInsignia rank={profile!.rank} size={14} /> : null}
-              <span className="hn-bubble-name">{name}</span>
-              {profile?.is_developer ? <span style={{ color: 'var(--accent-pink)', fontSize: 9, fontWeight: 800 }}>DEV</span> : null}
-            </header>
-            <p className="hn-bubble-text">{message.content}</p>
-            <footer style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
-              <time className="hn-bubble-time">{timeLabel(message.created_at)}</time>
-              {mine ? (
-                <button type="button" className="hn-textbtn" style={{ pointerEvents: 'auto' }} onClick={() => void remove(message)} aria-label="Hapus pesan"><Icon name="trash" size={11} /></button>
-              ) : (
-                <button type="button" className="hn-textbtn" onClick={() => setReply(message)} aria-label="Balas pesan"><Icon name="reply" size={11} /> Balas</button>
-              )}
-            </footer>
-          </div>
-        </article>;
+        return <MessageRow
+          key={message.id}
+          id={message.id}
+          content={message.content}
+          createdAt={message.created_at}
+          mine={mine}
+          name={name}
+          avatarUrl={profile?.avatar_url ?? null}
+          rank={rankMeta ? profile!.rank : null}
+          isDeveloper={Boolean(profile?.is_developer)}
+          replyId={message.reply?.id ?? null}
+          replyAuthor={message.reply?.author ?? null}
+          replyPreview={message.reply?.preview ?? null}
+          replyAvailable={Boolean(message.reply?.available)}
+          canJump={Boolean(message.reply && messageIds.has(message.reply.id))}
+          onReply={onReply}
+          onDelete={onDelete}
+          onJump={onJump}
+          registerRow={registerRow}
+        />;
       })}
     </section>
 
-    {active ? <form className="hn-chatbar hn-chatbar-v2" data-lg-role="dock" onSubmit={event => void submit(event)}>
-      {reply ? <div className="hn-chat-reply">
-        <span className="hn-typinghint">Membalas <b>{reply.profile?.username || 'Pengguna Nanime'}</b> · {reply.content.slice(0, 60)}</span>
-        <button type="button" aria-label="Batal membalas" onClick={() => setReply(null)}><Icon name="x" size={14} /></button>
-      </div> : null}
-      <div className="hn-chat-inputrow">
-        <textarea ref={textareaRef} className="hn-chatinput" value={text} onChange={event => setText(event.target.value)} maxLength={2000} rows={1} placeholder={`Kirim pesan ke ${active.name}…`} aria-label="Kirim pesan publik" />
-        <button className="hn-chatsend" type="submit" disabled={!text.trim() || sending} aria-label="Kirim"><Icon name="send" size={18} strokeWidth={2} /></button>
-      </div>
-    </form> : null}
+    {active ? <ChatComposer
+      channelId={active.id}
+      channelName={active.name}
+      reply={reply}
+      sending={sending}
+      onCancelReply={() => setReply(null)}
+      onSend={onSend}
+    /> : null}
   </div>;
 }

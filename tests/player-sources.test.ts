@@ -338,16 +338,18 @@ describe('player stream rendering guards', () => {
     await act(async () => root.unmount());
   });
 
-  it('relies on provider fullscreen (custom button removed)', async () => {
+  it('lets Nanime own the fullscreen chrome for embedded providers', async () => {
     const css = readFileSync('src/styles/app.css', 'utf8');
     // Normal player is 9/16 vertical; fullscreen (:fullscreen / .player-fs) is 16/9 landscape
     expect(css).toMatch(/aspect-ratio: 9 \/ 16/);
     expect(css).toMatch(/\.episode-player:fullscreen \.episode-player-video[\s\S]*?aspect-ratio: 16 \/ 9/);
     const { host, root } = await renderPlayer(EMBED_STREAM);
-    // No Nanime custom fullscreen toggle — provider owns fullscreen
-    expect(host.querySelector('button[aria-label="Layar penuh"]')).toBeNull();
+    // Nanime memiliki kontrol fullscreen sendiri (provider iframe tidak boleh
+    // dikurvasi fullscreen-nya olehNanime) — tombol provider tetap diizinkan.
+    expect(host.querySelector('button[aria-label="Layar penuh"]')).not.toBeNull();
     expect(host.querySelector('button[aria-label="Keluar layar penuh"]')).toBeNull();
     expect(host.querySelector('iframe[allow*="fullscreen"]')).not.toBeNull();
+    expect(host.querySelector('iframe[allowfullscreen]')).not.toBeNull();
     await act(async () => root.unmount());
   });
 

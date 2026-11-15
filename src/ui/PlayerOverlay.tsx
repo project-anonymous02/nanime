@@ -3,13 +3,13 @@ import { useLocation } from 'react-router-dom';
 import { usePlayer } from '../state/player';
 import type { DownloadLink, StreamBundle } from '../core/types';
 import { listenNativePipMode, setNativePipActive } from '../lib/nativePip';
-import { setNativeFullscreenActive, listenNativeFullscreen } from '../lib/nativeFullscreen';
 import { isTrustedExternalUrl } from '../lib/hostPolicy';
 import { AdaptiveVideo } from './AdaptiveVideo';
 import { Icon } from './icons';
 import { useMaterialize } from './Sheet';
 import { restoreNativeBrightness } from '../lib/nativeBrightness';
 import { usePlayerGestures } from './usePlayerGestures';
+import { usePlayerFullscreen } from './usePlayerFullscreen';
 import { VideoGestureSurface } from './VideoGestureSurface';
 import { PlayerSeekBar, PlayerTimeLabel } from './PlayerTimeline';
 
@@ -119,9 +119,6 @@ export function PlayerOverlay() {
   const qualitiesSheet = useMaterialize(qualitiesOpen && mode === 'full');
   const downloadsSheet = useMaterialize(downloadsOpen && mode === 'full');
   const [playing, setPlaying] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [fullscreenFallback, setFullscreenFallback] = useState(false);
-  const isFullscreenRef = useRef(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [mutedAutoplay, setMutedAutoplay] = useState(false);
   const [fit, setFit] = useState<'contain' | 'cover'>('contain');
@@ -131,6 +128,9 @@ export function PlayerOverlay() {
   const autoplayAttemptRef = useRef(false);
   const boxRef = useRef<HTMLElement | null>(null);
   const gestureContainerRef = useRef<HTMLDivElement | null>(null);
+  /* Fullscreen dimiliki Nanime (bukan provider): Web Fullscreen API di web,
+     fullscreen visual + immersive native di Android. */
+  const fullscreen = usePlayerFullscreen({ targetRef: boxRef });
   const togglePlayback = useCallback(() => {
     const video = mediaRef.current;
     if (!video) return;
@@ -161,122 +161,6 @@ export function PlayerOverlay() {
   }, [session?.request, session?.loading, session?.error, session?.stream?.sourceKind, session?.title, session?.episode, playing]);
   useEffect(() => { if (mode === 'mini') setDownloadsOpen(false); }, [mode]);
   useEffect(() => { setPlaying(false); setAutoplayBlocked(false); setMutedAutoplay(false); setPlaybackRate(1); autoplayAttemptRef.current = false; }, [session?.request]);
-  const tryLockLandscape = useCallback(async () => {
-    try {
-      const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
-      if (orientation && typeof orientation.lock === 'function') {
-        await orientation.lock('landscape');
-      }
-    } catch {
-      // WebView membatasi orientation lock — native plugin adalah fallback utama.
-    }
-  }, []);
-  const tryUnlockOrientation = useCallback(() => {
-    try {
-      const orientation = screen.orientation as ScreenOrientation & { unlock?: () => void };
-      if (orientation && typeof orientation.unlock === 'function') orientation.unlock();
-    } catch {
-      // Abaikan: native plugin memulihkan orientasi.
-    }
-  }, []);
-  const enterPlayerFullscreen = useCallback(async () => {
-    const box = boxRef.current;
-    if (!box) return;
-    // 1) Web Fullscreen API dengan orientasi landscape (Chrome Android).
-    try {
-      const requestOptions = { screenOrientation: 'landscape' } as FullscreenOptions;
-      await box.requestFullscreen(requestOptions);
-    } catch {
-      try {
-        await box.requestFullscreen();
-        await tryLockLandscape();
-        return;
-      } catch {
-        // 2) Fallback: fullscreen visual + orientasi native (APK Android).
-        // Layout .player-fs sama dengan :fullscreen, perangkat tetap diputar native.
-        setFullscreenFallback(true);
-        setIsFullscreen(true);
-        isFullscreenRef.current = true;
-        void setNativeFullscreenActive(true, true);
-        await tryLockLandscape();
-      }
-    }
-  }, [tryLockLandscape]);
-  const exitPlayerFullscreen = useCallback(async () => {
-    // Sengaja tidak menyentuh <video>: src/currentTime/paused/subtitle/audio tetap.
-    setFullscreenFallback(false);
-    if (document.fullscreenElement && document.exitFullscreen) {
-      try { await document.exitFullscreen(); } catch { /* fullscreenchange menangani cleanup */ }
-    }
-    // Jika tidak ada Web Fullscreen (fallback), langsung pulihkan native.
-    if (!document.fullscreenElement) {
-      setIsFullscreen(false);
-      isFullscreenRef.current = false;
-      void setNativeFullscreenActive(false, true);
-      tryUnlockOrientation();
-    }
-  }, [tryUnlockOrientation]);
-  useEffect(() => {
-    const applyNative = (active: boolean) => {
-      void setNativeFullscreenActive(active, true);
-    };
-    const sync = () => {
-      const el = document.fullscreenElement;
-      const isBox = el === boxRef.current;
-      const isIframe = el?.tagName === 'IFRAME';
-      const active = isBox || isIframe;
-      // Direct video fullscreen → landscape. Iframe (embed) → provider owns it.
-      if (isBox) {
-        setIsFullscreen(true);
-        isFullscreenRef.current = true;
-        setFullscreenFallback(false);
-        applyNative(true);
-        void tryLockLandscape();
-      } else if (isIframe) {
-        applyNative(true);
-      } else {
-        // Keluar fullscreen (tombol player, tombol Back Android, atau Esc):
-        // pulihkan orientasi + system bars tanpa menyentuh playback/video src.
-        setIsFullscreen(false);
-        isFullscreenRef.current = false;
-        setFullscreenFallback(false);
-        applyNative(false);
-        tryUnlockOrientation();
-      }
-    };
-    document.addEventListener('fullscreenchange', sync);
-    const unlistenNative = listenNativeFullscreen(active => {
-      // Plugin kini benar-benar memancarkan "changed"; hanya sinkronkan
-      // status native tanpa memanggil balik setActive (hindari loop).
-      if (!active && isFullscreenRef.current) {
-        setIsFullscreen(false);
-        isFullscreenRef.current = false;
-        setFullscreenFallback(false);
-        tryUnlockOrientation();
-      }
-    });
-    // Back button Android: backButton.ts memanggil __nanimeExitFullscreen
-    // sebelum navigasi riwayat. Tangani baik Web Fullscreen maupun fallback.
-    const w = window as unknown as { __nanimeExitFullscreen?: () => boolean };
-    w.__nanimeExitFullscreen = () => {
-      if (isFullscreenRef.current || fullscreenFallback) {
-        void exitPlayerFullscreen();
-        return true;
-      }
-      return false;
-    };
-    return () => {
-      document.removeEventListener('fullscreenchange', sync);
-      unlistenNative();
-      if (w.__nanimeExitFullscreen) delete w.__nanimeExitFullscreen;
-      // Unmount/close: pulihkan orientasi & bars agar tidak terkunci.
-      if (isFullscreenRef.current || fullscreenFallback) {
-        isFullscreenRef.current = false;
-        applyNative(false);
-        tryUnlockOrientation();
-      }
-    };
-  }, []);
   useEffect(() => { setAutoplayBlocked(false); setMutedAutoplay(false); setPlaying(false); autoplayAttemptRef.current = false; }, [session?.sourceIndex]);
   useEffect(() => { if (mediaRef.current) mediaRef.current.playbackRate = playbackRate; }, [session?.request, session?.sourceIndex, playbackRate]);
   useEffect(() => { gestures.resetGestures(); }, [session?.request, session?.sourceIndex]);
@@ -341,14 +225,14 @@ export function PlayerOverlay() {
     if (mediaRef.current) mediaRef.current.playbackRate = next;
   };
   const closePlayer = () => {
-    if (isFullscreenRef.current || fullscreenFallback || document.fullscreenElement) void exitPlayerFullscreen();
+    if (fullscreen.isFullscreen || document.fullscreenElement) void fullscreen.exit();
     restoreNativeBrightness();
     close();
   };
   return <div className={`episode-player-backdrop${mode === 'mini' ? ' mini' : ''}${playerVisible ? ' hn-open' : ''}`} role={mode === 'mini' ? undefined : 'presentation'} onMouseDown={event => { if (mode === 'full' && event.target === event.currentTarget) close(); }}>
     <section
       ref={boxRef}
-      className={`episode-player${playerVisible ? ' hn-open' : ''}${isFullscreen ? ' player-fs' : ''}`}
+      className={`episode-player${playerVisible ? ' hn-open' : ''}${fullscreen.visualFullscreen ? ' player-fs' : ''}`}
       data-lg-role="focus"
       role={mode === 'mini' ? undefined : 'dialog'}
       aria-modal={mode === 'mini' ? undefined : true}
@@ -409,10 +293,10 @@ export function PlayerOverlay() {
             </div>
             <PlayerSeekBar key={source.url} mediaRef={mediaRef} />
           </div> : null}
-          {mode === 'full' && source.kind === 'file' && !gestures.locked ? <div className="player-video-top-controls" onPointerDown={event => event.stopPropagation()}>
-            <button type="button" aria-label={isFullscreen ? 'Keluar layar penuh' : 'Layar penuh'} aria-pressed={isFullscreen} onClick={() => { void (isFullscreen ? exitPlayerFullscreen() : enterPlayerFullscreen()); }}><Icon name={isFullscreen ? 'collapse' : 'fullscreen'} size={20} /></button>
-            <button type="button" aria-label={fit === 'contain' ? 'Penuhi video' : 'Sesuaikan video'} onClick={() => setFit(value => value === 'contain' ? 'cover' : 'contain')}><span className="player-fit-icon" />{fit === 'contain' ? 'Fit' : 'Fill'}</button>
-            <button type="button" aria-label={gestures.locked ? 'Buka kunci layar' : 'Kunci layar'} onClick={() => gestures.toggleLock()}><Icon name={gestures.locked ? 'unlock' : 'lock'} size={20} /></button>
+          {mode === 'full' && (source.kind === 'embed' || !gestures.locked) ? <div className="player-video-top-controls" onPointerDown={event => event.stopPropagation()}>
+            <button type="button" aria-label={fullscreen.isFullscreen ? 'Keluar layar penuh' : 'Layar penuh'} aria-pressed={fullscreen.isFullscreen} aria-busy={fullscreen.pending || undefined} onClick={() => { void fullscreen.toggle(); }}><Icon name={fullscreen.isFullscreen ? 'collapse' : 'fullscreen'} size={20} /></button>
+            {source.kind === 'file' ? <button type="button" aria-label={fit === 'contain' ? 'Penuhi video' : 'Sesuaikan video'} onClick={() => setFit(value => value === 'contain' ? 'cover' : 'contain')}><span className="player-fit-icon" />{fit === 'contain' ? 'Fit' : 'Fill'}</button> : null}
+            {source.kind === 'file' ? <button type="button" aria-label={gestures.locked ? 'Buka kunci layar' : 'Kunci layar'} onClick={() => gestures.toggleLock()}><Icon name={gestures.locked ? 'unlock' : 'lock'} size={20} /></button> : null}
           </div> : null}
           </>}
         />

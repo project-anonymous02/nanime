@@ -11,13 +11,15 @@ export function bindNativeBackButton(): () => void {
     .then(mod => {
       if (disposed) return;
       void mod.App.addListener('backButton', () => {
-        // 1. Keluar dari fullscreen (native Web API atau fallback PlayerOverlay).
+        // 1. Keluar dari fullscreen player. PlayerOverlay yang memegang state
+        //    penuh (Web Fullscreen API + fullscreen visual), termasuk restore
+        //    orientasi dan system bar.
+        const w = window as unknown as { __nanimeExitFullscreen?: () => boolean };
+        if (w.__nanimeExitFullscreen?.()) return;
         if (document.fullscreenElement) {
           void document.exitFullscreen().catch(() => undefined);
           return;
         }
-        const w = window as unknown as { __nanimeExitFullscreen?: () => boolean };
-        if (w.__nanimeExitFullscreen?.()) return;
 
         const path = window.location.hash.replace(/^#/, '') || '/';
 

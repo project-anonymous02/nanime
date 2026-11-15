@@ -17,6 +17,7 @@ cp "$SOURCE/MainActivity.java" "$TARGET/MainActivity.java"
 cp "$SOURCE/PictureInPicturePlugin.java" "$TARGET/PictureInPicturePlugin.java"
 cp "$SOURCE/FullscreenPlugin.java" "$TARGET/FullscreenPlugin.java"
 cp "$SOURCE/BrightnessPlugin.java" "$TARGET/BrightnessPlugin.java"
+cp "$SOURCE/NanimeWebChromeClient.java" "$TARGET/NanimeWebChromeClient.java"
 
 python3 - "$MANIFEST" <<'PY'
 import sys

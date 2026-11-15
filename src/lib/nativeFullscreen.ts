@@ -1,4 +1,4 @@
-import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
+import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 
 interface NativeFullscreenPlugin {
   setActive(options: { active: boolean; landscape?: boolean }): Promise<{ active: boolean }>;
@@ -7,6 +7,20 @@ interface NativeFullscreenPlugin {
 }
 
 const NativeFullscreen = registerPlugin<NativeFullscreenPlugin>('Fullscreen');
+
+/**
+ * True saat aplikasi berjalan di dalam shell native (Android APK).
+ * Di Android WebView permintaan Web Fullscreen API dibuang oleh
+ * `BridgeWebChromeClient.onShowCustomView()`, sehingga fullscreen visual +
+ * immersive native adalah jalur yang dapat diandalkan.
+ */
+export function isNativeFullscreenPlatform(): boolean {
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Mode fullscreen native Android: sembunyikan system bars + keep-screen-on

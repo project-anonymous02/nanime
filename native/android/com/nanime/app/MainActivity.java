@@ -49,7 +49,10 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
+        // BridgeActivity.onDestroy() bersifat public → override harus public
+        // (protected akan ditolak javac: "attempting to assign weaker access
+        // privileges").
         // Lepas custom view sebelum bridge dihancurkan supaya WebView kembali
         // terlihat dan immersive/orientasi dipulihkan oleh plugin native.
         if (nanimeChromeClient != null) {

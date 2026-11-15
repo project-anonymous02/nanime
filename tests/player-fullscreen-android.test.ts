@@ -103,6 +103,19 @@ describe('native android fullscreen contract', () => {
     expect(source).toContain('nanimeChromeClient.release()');
   });
 
+  it('keeps the lifecycle modifiers compatible with the Capacitor activity', () => {
+    const capacitor = read('node_modules/@capacitor/android/capacitor/src/main/java/com/getcapacitor/BridgeActivity.java');
+    const activity = read(ACTIVITY);
+    // BridgeActivity.onDestroy() adalah public → override wajib public.
+    // protected ditolak javac: "attempting to assign weaker access privileges".
+    expect(capacitor).toMatch(/public void onDestroy\(\)/);
+    expect(activity).toMatch(/public void onDestroy\(\)/);
+    expect(activity).not.toMatch(/protected void onDestroy\(\)/);
+    // onCreate tetap protected (sesuai BridgeActivity).
+    expect(capacitor).toMatch(/protected void onCreate\(Bundle savedInstanceState\)/);
+    expect(activity).toMatch(/protected void onCreate\(Bundle savedInstanceState\)/);
+  });
+
   it('copies every native source file into the android project', () => {
     const script = read('scripts/setup-android-pip.sh');
     for (const file of ['MainActivity.java', 'FullscreenPlugin.java', 'NanimeWebChromeClient.java']) {
